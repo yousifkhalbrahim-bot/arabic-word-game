@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm install -g vercel)",
+      "PowerShell(vercel --version)"
+    ]
+  }
+}
