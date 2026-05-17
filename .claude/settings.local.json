@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "PowerShell(npm install -g vercel)",
-      "PowerShell(vercel --version)"
+      "PowerShell(vercel --version)",
+      "PowerShell(cd \"c:\\\\Users\\\\ا\\\\Desktop\\\\arabic-word-game\"; [System.Text.Encoding]::ASCII.GetString\\([System.Text.Encoding]::ASCII.GetBytes\\(\"sb_publishable_-6d29L9VSbtXauu7i6s0UQ_D6oNlt9P\"\\)\\) | vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production 2>&1)",
+      "PowerShell(cd \"c:\\\\Users\\\\ا\\\\Desktop\\\\arabic-word-game\"; vercel env pull .env.vercel.local --yes 2>&1; if \\(Test-Path .env.vercel.local\\) { Get-Content .env.vercel.local | ForEach-Object { $bytes = [System.Text.Encoding]::UTF8.GetBytes\\($_\\); \"Line: $_ | Bytes: $\\($bytes -join ','\\)\" } })"
     ]
   }
 }
