@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-tajawal)', 'sans-serif'],
-        display: ['var(--font-reem-kufi)', 'var(--font-tajawal)', 'sans-serif'],
+        body: ['ThmanyahSerifText', 'sans-serif'],
+        display: ['ThmanyahSerifDisplay', 'sans-serif'],
       },
     },
   },

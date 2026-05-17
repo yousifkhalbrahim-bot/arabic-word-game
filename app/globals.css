@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== خطوط ثمانية ===== */
+@font-face {
+  font-family: 'ThmanyahSerifDisplay';
+  src: url('/fonts/thmanyahserifdisplay-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ThmanyahSerifDisplay';
+  src: url('/fonts/thmanyahserifdisplay-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ThmanyahSerifText';
+  src: url('/fonts/thmanyahseriftext-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ThmanyahSerifText';
+  src: url('/fonts/thmanyahseriftext-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ThmanyahSans';
+  src: url('/fonts/thmanyahsans-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ThmanyahSans';
+  src: url('/fonts/thmanyahsans-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+
 @layer base {
   html, body {
     -webkit-tap-highlight-color: transparent;
@@ -10,7 +48,7 @@
 
 @layer utilities {
   .font-mono-ar {
-    font-family: var(--font-tajawal), monospace;
+    font-family: 'ThmanyahSans', monospace;
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
   }

@@ -1,19 +1,4 @@
-import { Tajawal, Reem_Kufi } from 'next/font/google';
 import './globals.css';
-
-const tajawal = Tajawal({
-  subsets: ['arabic'],
-  weight: ['300', '400', '500', '700', '900'],
-  variable: '--font-tajawal',
-  display: 'swap',
-});
-
-const reemKufi = Reem_Kufi({
-  subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-reem-kufi',
-  display: 'swap',
-});
 
 export const metadata = {
   title: 'لعبة الكلمات',
@@ -30,7 +15,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl" className={`${tajawal.variable} ${reemKufi.variable}`}>
+    <html lang="ar" dir="rtl">
       <body className="font-body bg-stone-950 text-stone-100 antialiased">
         {children}
       </body>
