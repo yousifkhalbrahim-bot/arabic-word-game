@@ -267,8 +267,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const timerCirc = 2 * Math.PI * 34;
   const timerOffset = timerCirc * (1 - Math.min(1, timeLeft / duration));
 
-  const BAR_COUNT = 10;
-
   const fmtTs = (ts) => {
     if (!ts) return '';
     const d = new Date(ts);
@@ -298,12 +296,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
               </div>
               {floaters.filter(f => f.side === 'opp').map(f => (
                 <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
-              ))}
-            </div>
-            <div className="flex gap-0.5 mt-1.5">
-              {Array.from({ length: BAR_COUNT }).map((_, i) => (
-                <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-500"
-                  style={{ background: i < Math.min(oppScore, BAR_COUNT) ? oppColor : `${oppColor}20` }} />
               ))}
             </div>
             {oppIsFrozen && <div className="text-xs mt-1 font-display" style={{ color: '#93c5fd' }}>❄️ مجمّد</div>}
@@ -341,12 +333,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
               </div>
               {floaters.filter(f => f.side === 'mine').map(f => (
                 <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1rem' }}>+1</div>
-              ))}
-            </div>
-            <div className="flex gap-0.5 mt-1.5">
-              {Array.from({ length: BAR_COUNT }).map((_, i) => (
-                <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-500"
-                  style={{ background: i < Math.min(myScore, BAR_COUNT) ? myColor : `${myColor}20` }} />
               ))}
             </div>
           </div>
@@ -1508,7 +1494,7 @@ export default function Game() {
 
   // -------- شاشة اللعب --------
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
-    return <RaceGame roomState={roomState} setRoomState={setRoomState} myRole={myRole} roomCode={roomCode} onExit={leaveRoom} />;
+    return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} myRole={myRole} roomCode={roomCode} onExit={leaveRoom} />;
   }
 
   if (screen === 'playing' && roomState && myRole) {
