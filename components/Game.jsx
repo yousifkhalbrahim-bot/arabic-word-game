@@ -99,11 +99,13 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const [streakReady, setStreakReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(null);
   const [floaters, setFloaters] = useState([]);
+  const [sortDesc, setSortDesc] = useState(true);
 
+  const oppRole = myRole === 1 ? 2 : 1;
   const myWordKey = `words_p${myRole}`;
-  const oppWordKey = `words_p${myRole === 1 ? 2 : 1}`;
+  const oppWordKey = `words_p${oppRole}`;
   const myFrozenKey = `frozenUntil_p${myRole}`;
-  const oppFrozenKey = `frozenUntil_p${myRole === 1 ? 2 : 1}`;
+  const oppFrozenKey = `frozenUntil_p${oppRole}`;
 
   const myWordsRef = useRef(roomState[myWordKey] || []);
   const lastWordTimesRef = useRef([]);
@@ -115,9 +117,12 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const duration = roomState.settings?.duration ?? 60;
   const ending = roomState.settings?.ending ?? 'ام';
   const myName = roomState.players[myRole]?.name || '';
-  const oppName = roomState.players[myRole === 1 ? 2 : 1]?.name || 'الخصم';
+  const oppName = roomState.players[oppRole]?.name || 'الخصم';
   const myColor = myRole === 1 ? '#fbbf24' : '#2dd4bf';
   const oppColor = myRole === 1 ? '#2dd4bf' : '#fbbf24';
+
+  const wordStr = (w) => (typeof w === 'string' ? w : w?.w ?? '');
+  const wordTs  = (w) => (typeof w === 'string' ? null : w?.ts ?? null);
 
   useEffect(() => {
     const iv = setInterval(() => setDisplayNow(Date.now()), 100);
@@ -128,7 +133,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const timeLeft = Math.max(0, duration - elapsed);
   const timeColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fb923c' : '#4ade80';
 
-  // تنبيه آخر 5 ثواني
   useEffect(() => {
     const secs = Math.ceil(timeLeft);
     if (secs <= 5 && secs > 0 && secs !== lastTickBlitzRef.current && roomState.status === 'playing') {
@@ -138,14 +142,12 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     if (secs > 5) lastTickBlitzRef.current = null;
   }, [timeLeft, roomState.status]);
 
-  // التجميد
   const frozenUntil = roomState[myFrozenKey];
   const isFrozen = frozenUntil && displayNow < frozenUntil;
   const frozenSecsLeft = isFrozen ? Math.ceil((frozenUntil - displayNow) / 1000) : 0;
   const oppFrozenUntil = roomState[oppFrozenKey];
   const oppIsFrozen = oppFrozenUntil && displayNow < oppFrozenUntil;
 
-  // انتهاء الوقت
   useEffect(() => {
     if (timeLeft > 0 || winSavedRef.current || roomState.status === 'finished') return;
     winSavedRef.current = true;
@@ -178,7 +180,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
       playReject(); showFeedback(false, `لازم تنتهي بـ "${ending}"`); return;
     }
     const allWords = [...(roomState.words_p1 || []), ...(roomState.words_p2 || [])];
-    if (allWords.some(w => normalize(w) === normalize(word))) {
+    if (allWords.some(w => normalize(wordStr(w)) === normalize(word))) {
       playReject(); showFeedback(false, 'كلمة مستخدمة'); return;
     }
     if (NORMALIZED_DICT.size > 0 && !NORMALIZED_DICT.has(normalize(word))) {
@@ -189,10 +191,10 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     setInput('');
     showFeedback(true, '✓ ' + word);
 
-    const newMyWords = [...myWordsRef.current, word];
+    const newEntry = { w: word, ts: Date.now() };
+    const newMyWords = [...myWordsRef.current, newEntry];
     myWordsRef.current = newMyWords;
 
-    // فحص السلسلة
     const now = Date.now();
     const times = [...lastWordTimesRef.current, now].slice(-3);
     lastWordTimesRef.current = times;
@@ -214,20 +216,20 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     } else {
       playSteal();
       const oppWds = [...(roomState[oppWordKey] || [])];
-      const removed = oppWds.splice(Math.max(0, oppWds.length - 2));
-      void removed;
+      oppWds.splice(Math.max(0, oppWds.length - 2));
       saveRace({ ...roomState, [myWordKey]: myWordsRef.current, [oppWordKey]: oppWds });
     }
   }, [roomState, myWordKey, oppWordKey, oppFrozenKey, saveRace]);
 
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
-
   useEffect(() => { if (!isFrozen && inputRef.current) inputRef.current.focus(); }, [isFrozen]);
 
   const myWords = myWordsRef.current;
   const oppWords = roomState[oppWordKey] || [];
   const myScore = myWords.length;
   const oppScore = oppWords.length;
+  const myLeading = myScore > oppScore;
+  const tied = myScore === oppScore;
 
   const prevMyScoreRef = useRef(myScore);
   const prevOppScoreRef = useRef(oppScore);
@@ -250,100 +252,167 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     prevOppScoreRef.current = oppScore;
   }, [oppScore]);
 
+  const combinedWords = useMemo(() => {
+    const my  = myWords.map(w  => ({ key: `${myRole}-${wordStr(w)}`,  word: wordStr(w),  ts: wordTs(w),  color: myColor }));
+    const opp = oppWords.map(w => ({ key: `${oppRole}-${wordStr(w)}`, word: wordStr(w),  ts: wordTs(w),  color: oppColor }));
+    const all = [...my, ...opp];
+    all.sort((a, b) => sortDesc ? (b.ts || 0) - (a.ts || 0) : (a.ts || 0) - (b.ts || 0));
+    return all;
+  }, [myWords, oppWords, sortDesc, myRole, oppRole, myColor, oppColor]);
+
   const timerDisplay = timeLeft >= 60
     ? `${Math.floor(timeLeft / 60)}:${Math.floor(timeLeft % 60).toString().padStart(2, '0')}`
-    : timeLeft >= 10 ? Math.floor(timeLeft).toString()
-    : timeLeft.toFixed(1);
+    : Math.ceil(timeLeft).toString();
+
+  const timerCirc = 2 * Math.PI * 34;
+  const timerOffset = timerCirc * (1 - Math.min(1, timeLeft / duration));
+
+  const BAR_COUNT = 10;
+
+  const fmtTs = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+  };
 
   return (
     <div className="flex flex-col bg-stone-950 text-stone-100" style={{ height: '100dvh', userSelect: 'none' }}>
 
-      {/* الهيدر: النقاط + المؤقت */}
-      <div className="flex items-stretch border-b border-white/10 shrink-0" style={{ minHeight: 76 }}>
+      {/* ===== الهيدر ===== */}
+      <div className="shrink-0 px-3 pt-3 pb-2 border-b border-white/10">
+        <div className="flex items-start gap-2">
 
-        {/* نقاط الخصم */}
-        <div className="flex-1 flex flex-col items-center justify-center p-3 border-r border-white/10">
-          <div className="text-xs text-stone-400 mb-1 truncate max-w-full">{oppName}</div>
-          <div className="relative inline-block">
-            <div key={`opp-${oppScore}`} className="score-bump font-display font-bold leading-none"
-              style={{ fontSize: '2.4rem', color: oppColor }}>
-              {oppScore}
+          {/* الخصم */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {(!tied && !myLeading)
+                ? <Trophy className="w-3.5 h-3.5 shrink-0" style={{ color: oppColor }} />
+                : <span className="text-xs leading-none opacity-50">🛋</span>
+              }
+              <span className="font-display text-xs font-semibold truncate" style={{ color: oppColor }}>{oppName}</span>
             </div>
-            {floaters.filter(f => f.side === 'opp').map(f => (
-              <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1.05rem' }}>+1</div>
-            ))}
-          </div>
-          {oppIsFrozen && <div className="text-xs mt-1" style={{ color: '#93c5fd' }}>❄️ مجمّد</div>}
-        </div>
-
-        {/* المؤقت */}
-        <div className="flex flex-col items-center justify-center px-4 shrink-0">
-          <div className="font-mono-ar font-bold tabular-nums" style={{ fontSize: '2rem', color: timeColor, letterSpacing: '-0.02em' }}>{timerDisplay}</div>
-          <div className="text-xs text-stone-500 mt-0.5">نهايتها «{ending}»</div>
-        </div>
-
-        {/* نقاطي */}
-        <div className="flex-1 flex flex-col items-center justify-center p-3 border-l border-white/10">
-          <div className="text-xs mb-1 truncate max-w-full" style={{ color: myColor }}>{myName} ●</div>
-          <div className="relative inline-block">
-            <div key={`my-${myScore}`} className="score-bump font-display font-bold leading-none"
-              style={{ fontSize: '2.4rem', color: myColor }}>
-              {myScore}
+            <div className="relative inline-block">
+              <div key={`opp-${oppScore}`} className="score-bump font-display font-bold leading-none"
+                style={{ fontSize: '2.8rem', color: oppColor }}>
+                {oppScore}
+              </div>
+              {floaters.filter(f => f.side === 'opp').map(f => (
+                <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
+              ))}
             </div>
-            {floaters.filter(f => f.side === 'mine').map(f => (
-              <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1.05rem' }}>+1</div>
-            ))}
+            <div className="flex gap-0.5 mt-1.5">
+              {Array.from({ length: BAR_COUNT }).map((_, i) => (
+                <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                  style={{ background: i < Math.min(oppScore, BAR_COUNT) ? oppColor : `${oppColor}20` }} />
+              ))}
+            </div>
+            {oppIsFrozen && <div className="text-xs mt-1 font-display" style={{ color: '#93c5fd' }}>❄️ مجمّد</div>}
           </div>
+
+          {/* المؤقت المركزي */}
+          <div className="flex flex-col items-center shrink-0 px-1">
+            <div className="relative" style={{ width: 72, height: 72 }}>
+              <svg width="72" height="72" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="36" cy="36" r="34" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4.5" />
+                <circle cx="36" cy="36" r="34" fill="none" stroke={timeColor} strokeWidth="4.5"
+                  strokeDasharray={timerCirc} strokeDashoffset={timerOffset} strokeLinecap="round" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-mono-ar font-bold leading-none" style={{ fontSize: '1.45rem', color: timeColor }}>{timerDisplay}</span>
+                <span className="text-stone-500 font-display" style={{ fontSize: '0.6rem', marginTop: 2 }}>ثانية</span>
+              </div>
+            </div>
+            <div className="text-stone-400 font-display mt-1.5" style={{ fontSize: '0.65rem' }}>نهايتها «{ending}»</div>
+          </div>
+
+          {/* أنا */}
+          <div className="flex-1 min-w-0 flex flex-col items-end">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-row-reverse">
+              {(!tied && myLeading)
+                ? <Trophy className="w-3.5 h-3.5 shrink-0" style={{ color: myColor }} />
+                : <span className="text-xs leading-none opacity-50">🛋</span>
+              }
+              <span className="font-display text-xs font-semibold truncate" style={{ color: myColor }}>{myName}</span>
+            </div>
+            <div className="relative inline-block">
+              <div key={`my-${myScore}`} className="score-bump font-display font-bold leading-none"
+                style={{ fontSize: '2.8rem', color: myColor }}>
+                {myScore}
+              </div>
+              {floaters.filter(f => f.side === 'mine').map(f => (
+                <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1rem' }}>+1</div>
+              ))}
+            </div>
+            <div className="flex gap-0.5 mt-1.5">
+              {Array.from({ length: BAR_COUNT }).map((_, i) => (
+                <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                  style={{ background: i < Math.min(myScore, BAR_COUNT) ? myColor : `${myColor}20` }} />
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* بطاقات الكلمات */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
+      {/* ===== قائمة الكلمات ===== */}
+      <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
-        {/* كلمات الخصم */}
-        <div className="flex-1 overflow-y-auto p-2 border-r border-white/5 flex flex-col-reverse gap-1.5">
-          {[...oppWords].reverse().slice(0, 25).map((w, i) => (
-            <div
-              key={w}
-              className="word-pop font-display text-center rounded-xl transition-all duration-300"
-              style={{
-                padding: i === 0 ? '7px 10px' : '4px 10px',
-                fontSize: i === 0 ? '1.05rem' : i <= 2 ? '0.88rem' : '0.78rem',
-                fontWeight: i === 0 ? '700' : '400',
-                opacity: Math.max(0.45, 1 - i * 0.09),
-                background: i === 0 ? `${oppColor}25` : `${oppColor}0e`,
-                border: `1px solid ${i === 0 ? oppColor + '65' : oppColor + '20'}`,
-                boxShadow: i === 0 ? `0 0 14px 2px ${oppColor}28` : 'none',
-                color: oppColor,
-              }}>
-              {w}
-            </div>
-          ))}
+        {/* رأس القائمة */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 shrink-0">
+          <button onClick={() => setSortDesc(v => !v)}
+            className="flex items-center gap-1 text-stone-500 hover:text-stone-300 transition-colors">
+            <span style={{ fontSize: '0.8rem' }}>≡</span>
+            <span className="font-display" style={{ fontSize: '0.7rem' }}>الترتيب: {sortDesc ? 'الأحدث' : 'الأقدم'}</span>
+          </button>
+          <div className="font-display text-stone-600 flex items-center gap-1.5" style={{ fontSize: '0.7rem' }}>
+            <span>◇</span>
+            <span>كلمات منتهية بـ «{ending}»</span>
+            <span>◇</span>
+          </div>
         </div>
 
-        {/* كلماتي */}
-        <div className="flex-1 overflow-y-auto p-2 flex flex-col-reverse gap-1.5">
-          {[...myWords].reverse().slice(0, 25).map((w, i) => (
-            <div
-              key={w}
-              className="word-pop font-display text-center rounded-xl transition-all duration-300"
+        {/* الكلمات */}
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+          {combinedWords.length === 0 ? (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-stone-700 font-display text-sm">لا توجد كلمات بعد</p>
+            </div>
+          ) : combinedWords.map((entry, i) => (
+            <div key={entry.key}
+              className="word-pop flex items-center gap-3 rounded-2xl"
               style={{
-                padding: i === 0 ? '7px 10px' : '4px 10px',
-                fontSize: i === 0 ? '1.05rem' : i <= 2 ? '0.88rem' : '0.78rem',
-                fontWeight: i === 0 ? '700' : '400',
-                opacity: Math.max(0.45, 1 - i * 0.09),
-                background: i === 0 ? `${myColor}25` : `${myColor}0e`,
-                border: `1px solid ${i === 0 ? myColor + '65' : myColor + '20'}`,
-                boxShadow: i === 0 ? `0 0 14px 2px ${myColor}28` : 'none',
-                color: myColor,
+                padding: i === 0 ? '10px 14px' : '7px 14px',
+                background: i === 0 ? `${entry.color}18` : `${entry.color}08`,
+                border: `1px solid ${i === 0 ? entry.color + '55' : entry.color + '18'}`,
+                boxShadow: i === 0 ? `0 0 22px 2px ${entry.color}22` : 'none',
               }}>
-              {w}
+              {/* المؤشر والوقت */}
+              <div className="flex flex-col items-start shrink-0" style={{ minWidth: 52 }}>
+                <span style={{ color: entry.color, fontSize: '0.5rem', lineHeight: 1 }}>◆</span>
+                {entry.ts && (
+                  <span className="font-mono-ar text-stone-600 mt-0.5" style={{ fontSize: '0.6rem' }}>{fmtTs(entry.ts)}</span>
+                )}
+              </div>
+              {/* الكلمة */}
+              <div className="flex-1 text-center font-display"
+                style={{
+                  fontSize: i === 0 ? '1.15rem' : '0.9rem',
+                  fontWeight: i === 0 ? '700' : '600',
+                  color: entry.color,
+                  opacity: Math.max(0.55, 1 - i * 0.06),
+                }}>
+                {entry.word}
+              </div>
+              {/* النقاط */}
+              <div className="shrink-0 font-display font-bold text-left" style={{ minWidth: 28, fontSize: i === 0 ? '0.95rem' : '0.8rem', color: entry.color, opacity: i === 0 ? 1 : 0.65 }}>
+                +1
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* مكافأة السلسلة */}
+      {/* ===== مكافأة السلسلة ===== */}
       {streakReady && (
         <div className="border-t border-amber-400/30 bg-amber-400/5 p-3 slide-in shrink-0">
           <div className="text-center text-xs font-semibold mb-2" style={{ color: '#fcd34d' }}>🔥 سلسلة! اختر مكافأة:</div>
@@ -360,7 +429,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
         </div>
       )}
 
-      {/* منطقة الإدخال */}
+      {/* ===== الإدخال ===== */}
       <div className="border-t border-white/10 p-3 shrink-0">
         {localFeedback && (
           <div className={`text-center text-sm font-semibold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
