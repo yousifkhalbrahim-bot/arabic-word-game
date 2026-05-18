@@ -98,6 +98,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const [displayNow, setDisplayNow] = useState(Date.now());
   const [streakReady, setStreakReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(null);
+  const [floaters, setFloaters] = useState([]);
 
   const myWordKey = `words_p${myRole}`;
   const oppWordKey = `words_p${myRole === 1 ? 2 : 1}`;
@@ -228,6 +229,27 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const myScore = myWords.length;
   const oppScore = oppWords.length;
 
+  const prevMyScoreRef = useRef(myScore);
+  const prevOppScoreRef = useRef(oppScore);
+
+  useEffect(() => {
+    if (myScore > prevMyScoreRef.current) {
+      const id = Date.now() + Math.random();
+      setFloaters(f => [...f, { id, side: 'mine' }]);
+      setTimeout(() => setFloaters(f => f.filter(x => x.id !== id)), 950);
+    }
+    prevMyScoreRef.current = myScore;
+  }, [myScore]);
+
+  useEffect(() => {
+    if (oppScore > prevOppScoreRef.current) {
+      const id = Date.now() + Math.random();
+      setFloaters(f => [...f, { id, side: 'opp' }]);
+      setTimeout(() => setFloaters(f => f.filter(x => x.id !== id)), 950);
+    }
+    prevOppScoreRef.current = oppScore;
+  }, [oppScore]);
+
   const timerDisplay = timeLeft >= 60
     ? `${Math.floor(timeLeft / 60)}:${Math.floor(timeLeft % 60).toString().padStart(2, '0')}`
     : timeLeft >= 10 ? Math.floor(timeLeft).toString()
@@ -238,35 +260,83 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
 
       {/* الهيدر: النقاط + المؤقت */}
       <div className="flex items-stretch border-b border-white/10 shrink-0" style={{ minHeight: 76 }}>
+
+        {/* نقاط الخصم */}
         <div className="flex-1 flex flex-col items-center justify-center p-3 border-r border-white/10">
           <div className="text-xs text-stone-400 mb-1 truncate max-w-full">{oppName}</div>
-          <div className="font-display font-bold leading-none" style={{ fontSize: '2.4rem', color: oppColor }}>{oppScore}</div>
+          <div className="relative inline-block">
+            <div key={`opp-${oppScore}`} className="score-bump font-display font-bold leading-none"
+              style={{ fontSize: '2.4rem', color: oppColor }}>
+              {oppScore}
+            </div>
+            {floaters.filter(f => f.side === 'opp').map(f => (
+              <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1.05rem' }}>+1</div>
+            ))}
+          </div>
           {oppIsFrozen && <div className="text-xs mt-1" style={{ color: '#93c5fd' }}>❄️ مجمّد</div>}
         </div>
+
+        {/* المؤقت */}
         <div className="flex flex-col items-center justify-center px-4 shrink-0">
           <div className="font-mono-ar font-bold tabular-nums" style={{ fontSize: '2rem', color: timeColor, letterSpacing: '-0.02em' }}>{timerDisplay}</div>
           <div className="text-xs text-stone-500 mt-0.5">نهايتها «{ending}»</div>
         </div>
+
+        {/* نقاطي */}
         <div className="flex-1 flex flex-col items-center justify-center p-3 border-l border-white/10">
           <div className="text-xs mb-1 truncate max-w-full" style={{ color: myColor }}>{myName} ●</div>
-          <div className="font-display font-bold leading-none" style={{ fontSize: '2.4rem', color: myColor }}>{myScore}</div>
+          <div className="relative inline-block">
+            <div key={`my-${myScore}`} className="score-bump font-display font-bold leading-none"
+              style={{ fontSize: '2.4rem', color: myColor }}>
+              {myScore}
+            </div>
+            {floaters.filter(f => f.side === 'mine').map(f => (
+              <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1.05rem' }}>+1</div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* بطاقات الكلمات */}
       <div className="flex flex-1 overflow-hidden min-h-0">
+
+        {/* كلمات الخصم */}
         <div className="flex-1 overflow-y-auto p-2 border-r border-white/5 flex flex-col-reverse gap-1.5">
-          {[...oppWords].reverse().slice(0, 20).map((w, i) => (
-            <div key={w + i} className="slide-in text-sm px-2.5 py-1 rounded-lg text-center font-display"
-              style={{ background: `${oppColor}18`, border: `1px solid ${oppColor}35`, color: oppColor }}>
+          {[...oppWords].reverse().slice(0, 25).map((w, i) => (
+            <div
+              key={w}
+              className="word-pop font-display text-center rounded-xl transition-all duration-300"
+              style={{
+                padding: i === 0 ? '7px 10px' : '4px 10px',
+                fontSize: i === 0 ? '1.05rem' : i <= 2 ? '0.88rem' : '0.78rem',
+                fontWeight: i === 0 ? '700' : '400',
+                opacity: Math.max(0.45, 1 - i * 0.09),
+                background: i === 0 ? `${oppColor}25` : `${oppColor}0e`,
+                border: `1px solid ${i === 0 ? oppColor + '65' : oppColor + '20'}`,
+                boxShadow: i === 0 ? `0 0 14px 2px ${oppColor}28` : 'none',
+                color: oppColor,
+              }}>
               {w}
             </div>
           ))}
         </div>
+
+        {/* كلماتي */}
         <div className="flex-1 overflow-y-auto p-2 flex flex-col-reverse gap-1.5">
-          {[...myWords].reverse().slice(0, 20).map((w, i) => (
-            <div key={w + i} className={`text-sm px-2.5 py-1 rounded-lg text-center font-display${i === 0 ? ' slide-in' : ''}`}
-              style={{ background: `${myColor}18`, border: `1px solid ${myColor}35`, color: myColor }}>
+          {[...myWords].reverse().slice(0, 25).map((w, i) => (
+            <div
+              key={w}
+              className="word-pop font-display text-center rounded-xl transition-all duration-300"
+              style={{
+                padding: i === 0 ? '7px 10px' : '4px 10px',
+                fontSize: i === 0 ? '1.05rem' : i <= 2 ? '0.88rem' : '0.78rem',
+                fontWeight: i === 0 ? '700' : '400',
+                opacity: Math.max(0.45, 1 - i * 0.09),
+                background: i === 0 ? `${myColor}25` : `${myColor}0e`,
+                border: `1px solid ${i === 0 ? myColor + '65' : myColor + '20'}`,
+                boxShadow: i === 0 ? `0 0 14px 2px ${myColor}28` : 'none',
+                color: myColor,
+              }}>
               {w}
             </div>
           ))}
