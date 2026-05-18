@@ -152,7 +152,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     playGameOver();
     const p1 = (roomState.words_p1 || []).length;
     const p2 = (roomState.words_p2 || []).length;
-    const winner = p1 >= p2 ? 1 : 2;
+    const winner = p1 === p2 ? 0 : (p1 > p2 ? 1 : 2);
     const newState = { ...roomState, [myWordKey]: myWordsRef.current, status: 'finished', winner };
     setRoomState(newState);
     saveRoom(roomCode, newState).catch(console.error);
@@ -1632,52 +1632,80 @@ export default function Game() {
   }
 
   // -------- شاشة النهاية --------
-  if (screen === 'gameover' && roomState && roomState.winner) {
+  if (screen === 'gameover' && roomState && roomState.winner !== null) {
     const winner = roomState.winner;
-    const winnerName = roomState.players[winner].name;
-    const loserRole = winner === 1 ? 2 : 1;
-    const winnerCount = roomState.mode === 'race'
-      ? (roomState[`words_p${winner}`] || []).length
-      : wordCounts[winner];
-    const loserCount = roomState.mode === 'race'
-      ? (roomState[`words_p${loserRole}`] || []).length
-      : wordCounts[loserRole];
-    const iWon = winner === myRole;
+    const isDraw = winner === 0;
     const oppRole = myRole === 1 ? 2 : 1;
     const oppLeft = roomState.players[oppRole]?.left === true;
     const oppName = roomState.players[oppRole]?.name || 'الخصم';
+
+    const p1Count = roomState.mode === 'race'
+      ? (roomState.words_p1 || []).length : wordCounts[1];
+    const p2Count = roomState.mode === 'race'
+      ? (roomState.words_p2 || []).length : wordCounts[2];
+
+    const winnerName = !isDraw ? roomState.players[winner].name : '';
+    const iWon = !isDraw && winner === myRole;
+    const winnerCount = isDraw ? p1Count : (winner === 1 ? p1Count : p2Count);
+    const loserCount  = isDraw ? p2Count : (winner === 1 ? p2Count : p1Count);
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-          backgroundImage: winner === 1
-            ? `radial-gradient(circle at 50% 30%, #fbbf24 0%, transparent 60%)`
-            : `radial-gradient(circle at 50% 30%, #2dd4bf 0%, transparent 60%)`
+          backgroundImage: isDraw
+            ? `radial-gradient(circle at 50% 30%, #a8a29e 0%, transparent 60%)`
+            : winner === 1
+              ? `radial-gradient(circle at 50% 30%, #fbbf24 0%, transparent 60%)`
+              : `radial-gradient(circle at 50% 30%, #2dd4bf 0%, transparent 60%)`
         }} />
         <div className="relative w-full max-w-xl text-center fade-in">
-          <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
-            winner === 1 ? 'bg-amber-400/20 text-amber-300' : 'bg-teal-400/20 text-teal-300'
-          }`}>
-            <Trophy className="w-12 h-12 bounce-gentle" />
-          </div>
-          <p className="text-stone-400 text-sm mb-2 font-display">الفائز</p>
-          <h1 className={`font-display text-5xl sm:text-6xl font-bold mb-3 ${
-            winner === 1
-              ? 'bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent'
-              : 'bg-gradient-to-b from-teal-200 to-teal-500 bg-clip-text text-transparent'
-          }`}>
-            {winnerName}
-          </h1>
-          <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-              <div className="text-xs text-stone-400 mb-1">كلمات الفائز</div>
-              <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
-            </div>
-            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-              <div className="text-xs text-stone-400 mb-1">كلمات الخاسر</div>
-              <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
-            </div>
-          </div>
+
+          {isDraw ? (
+            <>
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 bg-stone-700/50 text-stone-300">
+                <Sparkles className="w-12 h-12 bounce-gentle" />
+              </div>
+              <p className="text-stone-400 text-sm mb-2 font-display">النتيجة</p>
+              <h1 className="font-display text-5xl sm:text-6xl font-bold mb-3 text-stone-200">تعادل</h1>
+              <p className="text-stone-400 mb-8">كلاكم على نفس المستوى! 🤝</p>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-white/[0.03] border border-amber-400/20 rounded-2xl p-4">
+                  <div className="text-xs text-amber-400/80 mb-1 font-display truncate">{roomState.players[1].name}</div>
+                  <div className="font-display text-3xl font-bold text-stone-300">{p1Count}</div>
+                </div>
+                <div className="bg-white/[0.03] border border-teal-400/20 rounded-2xl p-4">
+                  <div className="text-xs text-teal-400/80 mb-1 font-display truncate">{roomState.players[2].name}</div>
+                  <div className="font-display text-3xl font-bold text-stone-300">{p2Count}</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
+                winner === 1 ? 'bg-amber-400/20 text-amber-300' : 'bg-teal-400/20 text-teal-300'
+              }`}>
+                <Trophy className="w-12 h-12 bounce-gentle" />
+              </div>
+              <p className="text-stone-400 text-sm mb-2 font-display">الفائز</p>
+              <h1 className={`font-display text-5xl sm:text-6xl font-bold mb-3 ${
+                winner === 1
+                  ? 'bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent'
+                  : 'bg-gradient-to-b from-teal-200 to-teal-500 bg-clip-text text-transparent'
+              }`}>{winnerName}</h1>
+              <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-1">كلمات الفائز</div>
+                  <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
+                </div>
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-1">كلمات الخاسر</div>
+                  <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
+                </div>
+              </div>
+            </>
+          )}
+
           {oppLeft && (
             <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in">
               غادر <span className="text-stone-200 font-semibold">{oppName}</span> الغرفة
@@ -1688,9 +1716,11 @@ export default function Game() {
               <button
                 onClick={rematch}
                 className={`flex-1 bg-gradient-to-l ${
-                  winner === 1
-                    ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
-                    : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
+                  isDraw
+                    ? 'from-stone-500 to-stone-400 hover:from-stone-400 hover:to-stone-300 shadow-stone-500/20'
+                    : winner === 1
+                      ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
+                      : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
                 } text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2`}
               >
                 <RotateCcw className="w-5 h-5" /> جولة ثانية
