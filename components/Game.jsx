@@ -99,7 +99,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const [streakReady, setStreakReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(null);
   const [floaters, setFloaters] = useState([]);
-  const [sortDesc, setSortDesc] = useState(true);
+  const sortDesc = true;
 
   const oppRole = myRole === 1 ? 2 : 1;
   const myWordKey = `words_p${myRole}`;
@@ -344,12 +344,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
         {/* رأس القائمة */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 shrink-0">
-          <button onClick={() => setSortDesc(v => !v)}
-            className="flex items-center gap-1 text-stone-500 hover:text-stone-300 transition-colors">
-            <span style={{ fontSize: '0.8rem' }}>≡</span>
-            <span className="font-display" style={{ fontSize: '0.7rem' }}>الترتيب: {sortDesc ? 'الأحدث' : 'الأقدم'}</span>
-          </button>
+        <div className="flex items-center justify-center px-4 py-2 border-b border-white/5 shrink-0">
           <div className="font-display text-stone-600 flex items-center gap-1.5" style={{ fontSize: '0.7rem' }}>
             <span>◇</span>
             <span>كلمات منتهية بـ «{ending}»</span>
