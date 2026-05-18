@@ -524,12 +524,14 @@ export default function Game() {
     } else if (roomState.status === 'finished' && (screen === 'playing' || screen === 'waiting')) {
       setScreen('gameover');
     } else if (roomState.status === 'playing' && screen === 'gameover') {
+      const opp = myRole === 1 ? 2 : 1;
+      if (roomState.players[opp]?.left) return;
       setCurrentInput('');
       setFeedback(null);
       winSubmittedRef.current = false;
       setScreen('playing');
     }
-  }, [roomState, screen]);
+  }, [roomState, screen, myRole]);
 
   // ============== مؤقت العرض ==============
   useEffect(() => {
@@ -823,11 +825,16 @@ export default function Game() {
   const rematch = useCallback(async () => {
     if (!roomState) return;
     const newGameNum = (roomState.gameNumber || 1) + 1;
+    const cleanPlayers = {
+      1: { ...roomState.players[1], left: false },
+      2: { ...roomState.players[2], left: false },
+    };
     let newState;
     if (roomState.mode === 'race') {
       newState = {
         ...roomState,
         status: 'playing',
+        players: cleanPlayers,
         words_p1: [],
         words_p2: [],
         frozenUntil_p1: null,
@@ -841,6 +848,7 @@ export default function Game() {
       newState = {
         ...roomState,
         status: 'playing',
+        players: cleanPlayers,
         timeRemaining: { 1: seconds, 2: seconds },
         currentTurn: newGameNum % 2 === 0 ? 2 : 1,
         turnStartedAt: Date.now(),
@@ -860,6 +868,16 @@ export default function Game() {
   }, [roomState, roomCode]);
 
   const leaveRoom = useCallback(async () => {
+    if (roomCode && roomCode !== 'local' && myRole && roomState) {
+      const leftState = {
+        ...roomState,
+        players: {
+          ...roomState.players,
+          [myRole]: { ...roomState.players[myRole], left: true },
+        },
+      };
+      saveRoom(roomCode, leftState).catch(() => {});
+    }
     if (roomCode && roomCode !== 'local') clearMyRole(roomCode);
     setScreen('menu');
     setRoomCode('');
@@ -872,7 +890,7 @@ export default function Game() {
     setJoinPreview(null);
     setHostName('');
     setGlobalError(null);
-  }, [roomCode]);
+  }, [roomCode, myRole, roomState]);
 
   const copyCode = useCallback(() => {
     if (!roomCode) return;
@@ -1625,6 +1643,9 @@ export default function Game() {
       ? (roomState[`words_p${loserRole}`] || []).length
       : wordCounts[loserRole];
     const iWon = winner === myRole;
+    const oppRole = myRole === 1 ? 2 : 1;
+    const oppLeft = roomState.players[oppRole]?.left === true;
+    const oppName = roomState.players[oppRole]?.name || 'الخصم';
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
@@ -1646,8 +1667,8 @@ export default function Game() {
           }`}>
             {winnerName}
           </h1>
-          <p className="text-stone-400 mb-10">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
-          <div className="grid grid-cols-2 gap-3 mb-8">
+          <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
+          <div className="grid grid-cols-2 gap-3 mb-6">
             <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
               <div className="text-xs text-stone-400 mb-1">كلمات الفائز</div>
               <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
@@ -1657,17 +1678,24 @@ export default function Game() {
               <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
             </div>
           </div>
+          {oppLeft && (
+            <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in">
+              غادر <span className="text-stone-200 font-semibold">{oppName}</span> الغرفة
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={rematch}
-              className={`flex-1 bg-gradient-to-l ${
-                winner === 1
-                  ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
-                  : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
-              } text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2`}
-            >
-              <RotateCcw className="w-5 h-5" /> جولة ثانية
-            </button>
+            {!oppLeft && (
+              <button
+                onClick={rematch}
+                className={`flex-1 bg-gradient-to-l ${
+                  winner === 1
+                    ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
+                    : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
+                } text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2`}
+              >
+                <RotateCcw className="w-5 h-5" /> جولة ثانية
+              </button>
+            )}
             <button onClick={leaveRoom} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-stone-200 font-display font-bold py-3 rounded-xl transition-colors">
               خروج
             </button>
