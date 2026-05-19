@@ -1787,11 +1787,13 @@ export default function Game() {
               <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-1">كلمات الفائز</div>
+                  <div className="text-xs text-stone-400 mb-0.5">كلمات الفائز</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: winner === 1 ? '#fbbf24' : '#2dd4bf' }}>{roomState.players[winner].name}</div>
                   <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
                 </div>
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-1">كلمات الخاسر</div>
+                  <div className="text-xs text-stone-400 mb-0.5">كلمات الخاسر</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: winner === 1 ? '#2dd4bf' : '#fbbf24' }}>{roomState.players[winner === 1 ? 2 : 1].name}</div>
                   <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
                 </div>
               </div>
