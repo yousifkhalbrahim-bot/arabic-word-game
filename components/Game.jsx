@@ -103,7 +103,7 @@ const BG_STYLE = {
 };
 
 // ============== مكون سباق الكلمات ==============
-function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
+function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   const [input, setInput] = useState('');
   const [displayNow, setDisplayNow] = useState(Date.now());
   const [localFeedback, setLocalFeedback] = useState(null);
@@ -209,19 +209,17 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     });
   }, [input, timeLeft, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
-  const handleExit = useCallback(async () => {
-    if (roomState.status === 'playing') {
-      const newState = {
-        ...roomState,
-        [myWordKey]: myWordsRef.current,
-        status: 'finished',
-        winner: oppRole,
-      };
-      setRoomState(newState);
-      await saveRoom(roomCode, newState).catch(console.error);
-    }
-    onExit();
-  }, [roomState, myWordKey, oppRole, roomCode, setRoomState, onExit]);
+  const handleResign = useCallback(async () => {
+    const newState = {
+      ...roomState,
+      [myWordKey]: myWordsRef.current,
+      status: 'finished',
+      winner: oppRole,
+      resigned: myRole,
+    };
+    setRoomState(newState);
+    await saveRoom(roomCode, newState).catch(console.error);
+  }, [roomState, myWordKey, oppRole, myRole, roomCode, setRoomState]);
 
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
@@ -454,11 +452,16 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
         )}
       </div>
 
-      <button onClick={handleExit} className="shrink-0 py-2.5 font-display transition-colors text-center" style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.12)' }}
-        onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.12)'}>
-        خروج
-      </button>
+      <div className="shrink-0 px-4 pb-3">
+        <button
+          onClick={handleResign}
+          className="w-full font-display font-bold py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
+          style={{ background: 'rgba(239,68,68,0.12)', border: '1.5px solid rgba(239,68,68,0.35)', color: '#f87171', fontSize: '0.95rem' }}
+        >
+          <Flag className="w-4 h-4" />
+          استسلام
+        </button>
+      </div>
     </div>
   );
 }
@@ -920,6 +923,7 @@ export default function Game() {
         currentEndingIndex: 0,
         gameStartedAt: Date.now(),
         winner: null,
+        resigned: null,
         gameNumber: newGameNum,
       };
     } else {
@@ -934,6 +938,7 @@ export default function Game() {
         pendingWord: null,
         usedWords: [],
         winner: null,
+        resigned: null,
         gameNumber: newGameNum,
       };
     }
@@ -1524,7 +1529,7 @@ export default function Game() {
 
   // -------- شاشة اللعب --------
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
-    return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} myRole={myRole} roomCode={roomCode} onExit={leaveRoom} />;
+    return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} myRole={myRole} roomCode={roomCode} />;
   }
 
   if (screen === 'playing' && roomState && myRole) {
@@ -1722,6 +1727,8 @@ export default function Game() {
     const isDraw = winner === 0;
     const oppRole = myRole === 1 ? 2 : 1;
     const oppLeft = roomState.players[oppRole]?.left === true;
+    const oppResigned = roomState.resigned === oppRole;
+    const iResigned = roomState.resigned === myRole;
     const oppName = roomState.players[oppRole]?.name || 'الخصم';
 
     const p1Count = roomState.mode === 'race'
@@ -1791,13 +1798,23 @@ export default function Game() {
             </>
           )}
 
-          {oppLeft && (
+          {oppResigned && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-rose-300 slide-in font-display">
+              🏳️ استسلم <span className="font-bold text-rose-200">{oppName}</span>
+            </div>
+          )}
+          {iResigned && (
+            <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in font-display">
+              لقد استسلمت في هذه الجولة
+            </div>
+          )}
+          {oppLeft && !oppResigned && (
             <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in">
               غادر <span className="text-stone-200 font-semibold">{oppName}</span> الغرفة
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-3">
-            {!oppLeft && (
+            {!oppLeft && !oppResigned && (
               <button
                 onClick={rematch}
                 className={`flex-1 bg-gradient-to-l ${
