@@ -1736,10 +1736,14 @@ export default function Game() {
     const p2Count = roomState.mode === 'race'
       ? (roomState.words_p2 || []).length : wordCounts[2];
 
+    const myName = roomState.players[myRole]?.name || '';
+    const myColor  = myRole === 1 ? '#fbbf24' : '#2dd4bf';
+    const oppColor = myRole === 1 ? '#2dd4bf' : '#fbbf24';
+    const myCount  = myRole === 1 ? p1Count : p2Count;
+    const oppCount = myRole === 1 ? p2Count : p1Count;
+
     const winnerName = !isDraw ? roomState.players[winner].name : '';
     const iWon = !isDraw && winner === myRole;
-    const winnerCount = isDraw ? p1Count : (winner === 1 ? p1Count : p2Count);
-    const loserCount  = isDraw ? p2Count : (winner === 1 ? p2Count : p1Count);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
@@ -1761,13 +1765,15 @@ export default function Game() {
               <h1 className="font-display text-5xl sm:text-6xl font-bold mb-3 text-stone-200">تعادل</h1>
               <p className="text-stone-400 mb-8">كلاكم على نفس المستوى! 🤝</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-white/[0.03] border border-amber-400/20 rounded-2xl p-4">
-                  <div className="text-xs text-amber-400/80 mb-1 font-display truncate">{roomState.players[1].name}</div>
-                  <div className="font-display text-3xl font-bold text-stone-300">{p1Count}</div>
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-0.5">الخصم</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
+                  <div className="font-display text-3xl font-bold text-stone-300">{oppCount}</div>
                 </div>
-                <div className="bg-white/[0.03] border border-teal-400/20 rounded-2xl p-4">
-                  <div className="text-xs text-teal-400/80 mb-1 font-display truncate">{roomState.players[2].name}</div>
-                  <div className="font-display text-3xl font-bold text-stone-300">{p2Count}</div>
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-0.5">أنا</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
+                  <div className="font-display text-3xl font-bold text-stone-300">{myCount}</div>
                 </div>
               </div>
             </>
@@ -1787,14 +1793,14 @@ export default function Game() {
               <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">كلمات الفائز</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: winner === 1 ? '#fbbf24' : '#2dd4bf' }}>{roomState.players[winner].name}</div>
-                  <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
+                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الخاسر' : 'كلمات الفائز'}</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
+                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? '#78716c' : oppColor }}>{oppCount}</div>
                 </div>
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">كلمات الخاسر</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: winner === 1 ? '#2dd4bf' : '#fbbf24' }}>{roomState.players[winner === 1 ? 2 : 1].name}</div>
-                  <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
+                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الفائز' : 'كلمات الخاسر'}</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
+                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? myColor : '#78716c' }}>{myCount}</div>
                 </div>
               </div>
             </>
