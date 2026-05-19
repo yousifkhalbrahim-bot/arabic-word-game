@@ -1766,14 +1766,14 @@ export default function Game() {
               <p className="text-stone-400 mb-8">كلاكم على نفس المستوى! 🤝</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">الخصم</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
-                  <div className="font-display text-3xl font-bold text-stone-300">{oppCount}</div>
-                </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
                   <div className="text-xs text-stone-400 mb-0.5">أنا</div>
                   <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
                   <div className="font-display text-3xl font-bold text-stone-300">{myCount}</div>
+                </div>
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-0.5">الخصم</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
+                  <div className="font-display text-3xl font-bold text-stone-300">{oppCount}</div>
                 </div>
               </div>
             </>
@@ -1793,14 +1793,14 @@ export default function Game() {
               <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الخاسر' : 'كلمات الفائز'}</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
-                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? '#78716c' : oppColor }}>{oppCount}</div>
-                </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
                   <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الفائز' : 'كلمات الخاسر'}</div>
                   <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
                   <div className="font-display text-3xl font-bold" style={{ color: iWon ? myColor : '#78716c' }}>{myCount}</div>
+                </div>
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
+                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الخاسر' : 'كلمات الفائز'}</div>
+                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
+                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? '#78716c' : oppColor }}>{oppCount}</div>
                 </div>
               </div>
             </>
