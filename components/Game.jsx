@@ -546,6 +546,7 @@ export default function Game() {
               const role = myRoleRef.current;
               const myKey = `words_p${role}`;
               setRoomState(prev => {
+                if (newState.gameNumber !== prev?.gameNumber) return newState;
                 const prevLen = (prev?.[myKey] || []).length;
                 const newLen = (newState[myKey] || []).length;
                 return prevLen > newLen
