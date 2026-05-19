@@ -7,7 +7,7 @@ import {
   Loader2, Smartphone, UserPlus, LogIn,
 } from 'lucide-react';
 import { supabase, getRoom, saveRoom, getMyRole, setMyRole, clearMyRole } from '@/lib/supabase';
-import { NORMALIZED_DICT, normalize } from '@/lib/dictionary';
+import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak, playFreeze, playSteal } from '@/lib/sounds';
 
 // ============== الثوابت ==============
@@ -180,18 +180,23 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
       playReject(); showFeedback(false, `لازم تنتهي بـ "${ending}"`); return;
     }
     const allWords = [...(roomState.words_p1 || []), ...(roomState.words_p2 || [])];
-    if (allWords.some(w => normalize(wordStr(w)) === normalize(word))) {
+    if (allWords.some(w => normalizeStrict(wordStr(w)) === normalizeStrict(word))) {
       playReject(); showFeedback(false, 'كلمة مستخدمة'); return;
     }
-    if (NORMALIZED_DICT.size > 0 && !NORMALIZED_DICT.has(normalize(word))) {
-      playReject(); showFeedback(false, 'كلمة غير معروفة'); return;
+    let storeWord = word;
+    if (NORMALIZED_DICT.size > 0) {
+      const lu = lookupWord(word);
+      if (!lu.valid) {
+        playReject(); showFeedback(false, lu.ambiguous ? 'حدد موضع الهمزة' : 'كلمة غير معروفة'); return;
+      }
+      storeWord = lu.canonical;
     }
 
     playAccept();
     setInput('');
-    showFeedback(true, '✓ ' + word);
+    showFeedback(true, '✓ ' + storeWord);
 
-    const newEntry = { w: word, ts: Date.now() };
+    const newEntry = { w: storeWord, ts: Date.now() };
     const newMyWords = [...myWordsRef.current, newEntry];
     myWordsRef.current = newMyWords;
 
@@ -795,20 +800,30 @@ export default function Game() {
       setFeedback({ type: 'error', text: 'الكلمة قصيرة جداً' });
       return;
     }
-    if (roomState.usedWords.some(w => normalize(w.word) === normalized)) {
+    if (roomState.usedWords.some(w => normalizeStrict(w.word) === normalizeStrict(word))) {
       playReject();
       setFeedback({ type: 'error', text: 'استُخدمت من قبل' });
       return;
     }
 
-    const inDict = NORMALIZED_DICT.has(normalized) || roomState.customDict.includes(normalized);
+    let canonicalWord = word;
+    let inDict = roomState.customDict.includes(normalized);
+    if (!inDict && NORMALIZED_DICT.size > 0) {
+      const lu = lookupWord(word);
+      if (lu.ambiguous) {
+        playReject();
+        setFeedback({ type: 'error', text: 'حدد موضع الهمزة' });
+        return;
+      }
+      if (lu.valid) { canonicalWord = lu.canonical; inDict = true; }
+    }
     const elapsed = (Date.now() - roomState.turnStartedAt) / 1000;
     const newTimeForCurrent = Math.max(0, roomState.timeRemaining[myRole] - elapsed);
 
     if (inDict) {
       const newState = {
         ...roomState,
-        usedWords: [{ word, player: myRole }, ...roomState.usedWords],
+        usedWords: [{ word: canonicalWord, player: myRole }, ...roomState.usedWords],
         timeRemaining: { ...roomState.timeRemaining, [myRole]: newTimeForCurrent },
         currentTurn: myRole === 1 ? 2 : 1,
         turnStartedAt: Date.now(),
@@ -1940,13 +1955,23 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
       setFeedback({ type: 'error', text: 'الكلمة قصيرة' });
       return;
     }
-    if (roomState.usedWords.some(w => normalize(w.word) === normalized)) {
+    if (roomState.usedWords.some(w => normalizeStrict(w.word) === normalizeStrict(word))) {
       playReject();
       setFeedback({ type: 'error', text: 'استُخدمت من قبل' });
       return;
     }
-    const inDict = NORMALIZED_DICT.has(normalized) || roomState.customDict.includes(normalized);
-    if (inDict) acceptWord(word);
+    let canonicalLocal = word;
+    let inDict = roomState.customDict.includes(normalized);
+    if (!inDict && NORMALIZED_DICT.size > 0) {
+      const lu = lookupWord(word);
+      if (lu.ambiguous) {
+        playReject();
+        setFeedback({ type: 'error', text: 'حدد موضع الهمزة' });
+        return;
+      }
+      if (lu.valid) { canonicalLocal = lu.canonical; inDict = true; }
+    }
+    if (inDict) acceptWord(canonicalLocal);
     else { setPendingWord(word); setFeedback(null); }
   };
 
