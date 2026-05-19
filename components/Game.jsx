@@ -209,6 +209,20 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     });
   }, [input, timeLeft, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
+  const handleExit = useCallback(async () => {
+    if (roomState.status === 'playing') {
+      const newState = {
+        ...roomState,
+        [myWordKey]: myWordsRef.current,
+        status: 'finished',
+        winner: oppRole,
+      };
+      setRoomState(newState);
+      await saveRoom(roomCode, newState).catch(console.error);
+    }
+    onExit();
+  }, [roomState, myWordKey, oppRole, roomCode, setRoomState, onExit]);
+
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
 
@@ -440,7 +454,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
         )}
       </div>
 
-      <button onClick={onExit} className="shrink-0 py-2.5 font-display transition-colors text-center" style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.12)' }}
+      <button onClick={handleExit} className="shrink-0 py-2.5 font-display transition-colors text-center" style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.12)' }}
         onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
         onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.12)'}>
         خروج
