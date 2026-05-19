@@ -272,21 +272,21 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       <div className="shrink-0 px-4 pt-3 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-center gap-3">
 
-          {/* الخصم */}
+          {/* أنا — يمين (أول عنصر في RTL) */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 mb-1">
-              {(!tied && !myLeading)
-                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: oppColor }} />
+              {(!tied && myLeading)
+                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: myColor }} />
                 : <span style={{ fontSize: '0.65rem', opacity: 0.35 }}>🛋</span>
               }
-              <span className="font-display font-semibold truncate" style={{ color: oppColor, fontSize: '0.72rem' }}>{oppName}</span>
+              <span className="font-display font-semibold truncate" style={{ color: myColor, fontSize: '0.72rem' }}>{myName}</span>
             </div>
             <div className="relative inline-block">
-              <div key={`opp-${oppScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: oppColor, lineHeight: 1 }}>
-                {oppScore}
+              <div key={`my-${myScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: myColor, lineHeight: 1 }}>
+                {myScore}
               </div>
-              {floaters.filter(f => f.side === 'opp').map(f => (
-                <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
+              {floaters.filter(f => f.side === 'mine').map(f => (
+                <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1rem' }}>+1</div>
               ))}
             </div>
           </div>
@@ -306,21 +306,21 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
             </div>
           </div>
 
-          {/* أنا */}
+          {/* الخصم — يسار (آخر عنصر في RTL) */}
           <div className="flex-1 min-w-0 flex flex-col items-end">
             <div className="flex items-center gap-1 mb-1 flex-row-reverse">
-              {(!tied && myLeading)
-                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: myColor }} />
+              {(!tied && !myLeading)
+                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: oppColor }} />
                 : <span style={{ fontSize: '0.65rem', opacity: 0.35 }}>🛋</span>
               }
-              <span className="font-display font-semibold truncate" style={{ color: myColor, fontSize: '0.72rem' }}>{myName}</span>
+              <span className="font-display font-semibold truncate" style={{ color: oppColor, fontSize: '0.72rem' }}>{oppName}</span>
             </div>
             <div className="relative inline-block">
-              <div key={`my-${myScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: myColor, lineHeight: 1 }}>
-                {myScore}
+              <div key={`opp-${oppScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: oppColor, lineHeight: 1 }}>
+                {oppScore}
               </div>
-              {floaters.filter(f => f.side === 'mine').map(f => (
-                <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1rem' }}>+1</div>
+              {floaters.filter(f => f.side === 'opp').map(f => (
+                <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
               ))}
             </div>
           </div>
