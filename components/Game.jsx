@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase, getRoom, saveRoom, getMyRole, setMyRole, clearMyRole } from '@/lib/supabase';
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
-import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak, playFreeze, playSteal } from '@/lib/sounds';
+import { playAccept, playReject, playSkip, playTick, playGameOver } from '@/lib/sounds';
 
 // ============== الثوابت ==============
 const TIME_CONTROLS = [
@@ -73,16 +73,26 @@ const createInitialState = (code, hostName, settings) => {
   };
 };
 
+const generateEndingQueue = () => {
+  const endings = ENDING_PRESETS.map(p => p.value);
+  const result = [];
+  for (let round = 0; round < 6; round++) {
+    const shuffled = [...endings].sort(() => Math.random() - 0.5);
+    result.push(...shuffled);
+  }
+  return result;
+};
+
 const createRaceState = (code, hostName, settings) => ({
   code,
   mode: 'race',
   status: 'waiting',
   players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
-  settings: { ending: settings.ending, duration: settings.duration },
+  settings: { duration: settings.duration },
   words_p1: [],
   words_p2: [],
-  frozenUntil_p1: null,
-  frozenUntil_p2: null,
+  endingQueue: generateEndingQueue(),
+  currentEndingIndex: 0,
   gameStartedAt: null,
   winner: null,
   gameNumber: 1,
@@ -96,26 +106,24 @@ const BG_STYLE = {
 function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   const [input, setInput] = useState('');
   const [displayNow, setDisplayNow] = useState(Date.now());
-  const [streakReady, setStreakReady] = useState(false);
   const [localFeedback, setLocalFeedback] = useState(null);
   const [floaters, setFloaters] = useState([]);
-  const sortDesc = true;
 
   const oppRole = myRole === 1 ? 2 : 1;
   const myWordKey = `words_p${myRole}`;
   const oppWordKey = `words_p${oppRole}`;
-  const myFrozenKey = `frozenUntil_p${myRole}`;
-  const oppFrozenKey = `frozenUntil_p${oppRole}`;
 
   const myWordsRef = useRef(roomState[myWordKey] || []);
-  const lastWordTimesRef = useRef([]);
   const winSavedRef = useRef(false);
   const feedbackTimer = useRef(null);
-  const lastTickBlitzRef = useRef(null);
+  const lastTickRef = useRef(null);
   const inputRef = useRef(null);
 
   const duration = roomState.settings?.duration ?? 60;
-  const ending = roomState.settings?.ending ?? 'ام';
+  const endingQueue = roomState.endingQueue || [];
+  const currentEndingIndex = roomState.currentEndingIndex ?? 0;
+  const currentEnding = endingQueue[currentEndingIndex] ?? 'ام';
+
   const myName = roomState.players[myRole]?.name || '';
   const oppName = roomState.players[oppRole]?.name || 'الخصم';
   const myColor = myRole === 1 ? '#fbbf24' : '#2dd4bf';
@@ -135,18 +143,12 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
 
   useEffect(() => {
     const secs = Math.ceil(timeLeft);
-    if (secs <= 5 && secs > 0 && secs !== lastTickBlitzRef.current && roomState.status === 'playing') {
-      lastTickBlitzRef.current = secs;
+    if (secs <= 5 && secs > 0 && secs !== lastTickRef.current && roomState.status === 'playing') {
+      lastTickRef.current = secs;
       playTick();
     }
-    if (secs > 5) lastTickBlitzRef.current = null;
+    if (secs > 5) lastTickRef.current = null;
   }, [timeLeft, roomState.status]);
-
-  const frozenUntil = roomState[myFrozenKey];
-  const isFrozen = frozenUntil && displayNow < frozenUntil;
-  const frozenSecsLeft = isFrozen ? Math.ceil((frozenUntil - displayNow) / 1000) : 0;
-  const oppFrozenUntil = roomState[oppFrozenKey];
-  const oppIsFrozen = oppFrozenUntil && displayNow < oppFrozenUntil;
 
   useEffect(() => {
     if (timeLeft > 0 || winSavedRef.current || roomState.status === 'finished') return;
@@ -172,12 +174,12 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
   }, []);
 
   const submitWord = useCallback(() => {
-    if (isFrozen || timeLeft <= 0) return;
+    if (timeLeft <= 0) return;
     const word = input.trim();
     if (!word) return;
 
-    if (!normalize(word).endsWith(normalize(ending))) {
-      playReject(); showFeedback(false, `لازم تنتهي بـ "${ending}"`); return;
+    if (!normalize(word).endsWith(normalize(currentEnding))) {
+      playReject(); showFeedback(false, `لازم تنتهي بـ "${currentEnding}"`); return;
     }
     const allWords = [...(roomState.words_p1 || []), ...(roomState.words_p2 || [])];
     if (allWords.some(w => normalizeStrict(wordStr(w)) === normalizeStrict(word))) {
@@ -196,38 +198,19 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     setInput('');
     showFeedback(true, '✓ ' + storeWord);
 
-    const newEntry = { w: storeWord, ts: Date.now() };
+    const newEntry = { w: storeWord, ts: Date.now(), ending: currentEnding };
     const newMyWords = [...myWordsRef.current, newEntry];
     myWordsRef.current = newMyWords;
 
-    const now = Date.now();
-    const times = [...lastWordTimesRef.current, now].slice(-3);
-    lastWordTimesRef.current = times;
-    if (times.length === 3 && times[2] - times[1] <= 1500 && times[1] - times[0] <= 1500) {
-      playStreak();
-      setStreakReady(true);
-      lastWordTimesRef.current = [];
-    }
-
-    saveRace({ ...roomState, [myWordKey]: newMyWords });
-  }, [input, isFrozen, timeLeft, roomState, myWordKey, ending, saveRace, showFeedback]);
-
-  const usePowerUp = useCallback((type) => {
-    setStreakReady(false);
-    lastWordTimesRef.current = [];
-    if (type === 'freeze') {
-      playFreeze();
-      saveRace({ ...roomState, [myWordKey]: myWordsRef.current, [oppFrozenKey]: Date.now() + 5000 });
-    } else {
-      playSteal();
-      const oppWds = [...(roomState[oppWordKey] || [])];
-      oppWds.splice(Math.max(0, oppWds.length - 2));
-      saveRace({ ...roomState, [myWordKey]: myWordsRef.current, [oppWordKey]: oppWds });
-    }
-  }, [roomState, myWordKey, oppWordKey, oppFrozenKey, saveRace]);
+    saveRace({
+      ...roomState,
+      [myWordKey]: newMyWords,
+      currentEndingIndex: currentEndingIndex + 1,
+    });
+  }, [input, timeLeft, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
-  useEffect(() => { if (!isFrozen && inputRef.current) inputRef.current.focus(); }, [isFrozen]);
+  useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
 
   const myWords = myWordsRef.current;
   const oppWords = roomState[oppWordKey] || [];
@@ -257,13 +240,11 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
     prevOppScoreRef.current = oppScore;
   }, [oppScore]);
 
-  const combinedWords = useMemo(() => {
-    const my  = myWords.map(w  => ({ key: `${myRole}-${wordStr(w)}`,  word: wordStr(w),  ts: wordTs(w),  color: myColor }));
-    const opp = oppWords.map(w => ({ key: `${oppRole}-${wordStr(w)}`, word: wordStr(w),  ts: wordTs(w),  color: oppColor }));
-    const all = [...my, ...opp];
-    all.sort((a, b) => sortDesc ? (b.ts || 0) - (a.ts || 0) : (a.ts || 0) - (b.ts || 0));
-    return all;
-  }, [myWords, oppWords, sortDesc, myRole, oppRole, myColor, oppColor]);
+  const recentAnswers = useMemo(() => {
+    const my  = myWords.map(w  => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: myColor,  name: myName }));
+    const opp = oppWords.map(w => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: oppColor, name: oppName }));
+    return [...my, ...opp].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 8);
+  }, [myWords, oppWords, myColor, oppColor, myName, oppName]);
 
   const timerDisplay = timeLeft >= 60
     ? `${Math.floor(timeLeft / 60)}:${Math.floor(timeLeft % 60).toString().padStart(2, '0')}`
@@ -271,12 +252,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
 
   const timerCirc = 2 * Math.PI * 34;
   const timerOffset = timerCirc * (1 - Math.min(1, timeLeft / duration));
-
-  const fmtTs = (ts) => {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
-  };
 
   return (
     <div className="flex flex-col bg-stone-950 text-stone-100" style={{ height: '100dvh', userSelect: 'none' }}>
@@ -303,7 +278,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
                 <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
               ))}
             </div>
-            {oppIsFrozen && <div className="text-xs mt-1 font-display" style={{ color: '#93c5fd' }}>❄️ مجمّد</div>}
           </div>
 
           {/* المؤقت المركزي */}
@@ -319,7 +293,6 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
                 <span className="text-stone-500 font-display" style={{ fontSize: '0.6rem', marginTop: 2 }}>ثانية</span>
               </div>
             </div>
-            <div className="text-stone-400 font-display mt-1.5" style={{ fontSize: '0.65rem' }}>نهايتها «{ending}»</div>
           </div>
 
           {/* أنا */}
@@ -345,75 +318,59 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
         </div>
       </div>
 
-      {/* ===== قائمة الكلمات ===== */}
-      <div className="flex flex-col flex-1 overflow-hidden min-h-0">
-
-        {/* رأس القائمة */}
-        <div className="flex items-center justify-center px-4 py-2 border-b border-white/5 shrink-0">
-          <div className="font-display text-stone-600 flex items-center gap-1.5" style={{ fontSize: '0.7rem' }}>
-            <span>◇</span>
-            <span>كلمات منتهية بـ «{ending}»</span>
-            <span>◇</span>
-          </div>
-        </div>
-
-        {/* الكلمات */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-          {combinedWords.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <p className="text-stone-700 font-display text-sm">لا توجد كلمات بعد</p>
-            </div>
-          ) : combinedWords.map((entry, i) => (
-            <div key={entry.key}
-              className="word-pop flex items-center gap-3 rounded-2xl"
-              style={{
-                padding: i === 0 ? '10px 14px' : '7px 14px',
-                background: i === 0 ? `${entry.color}18` : `${entry.color}08`,
-                border: `1px solid ${i === 0 ? entry.color + '55' : entry.color + '18'}`,
-                boxShadow: i === 0 ? `0 0 22px 2px ${entry.color}22` : 'none',
-              }}>
-              {/* المؤشر والوقت */}
-              <div className="flex flex-col items-start shrink-0" style={{ minWidth: 52 }}>
-                <span style={{ color: entry.color, fontSize: '0.5rem', lineHeight: 1 }}>◆</span>
-                {entry.ts && (
-                  <span className="font-mono-ar text-stone-600 mt-0.5" style={{ fontSize: '0.6rem' }}>{fmtTs(entry.ts)}</span>
-                )}
-              </div>
-              {/* الكلمة */}
-              <div className="flex-1 text-center font-display"
-                style={{
-                  fontSize: i === 0 ? '1.15rem' : '0.9rem',
-                  fontWeight: i === 0 ? '700' : '600',
-                  color: entry.color,
-                  opacity: Math.max(0.55, 1 - i * 0.06),
-                }}>
-                {entry.word}
-              </div>
-              {/* النقاط */}
-              <div className="shrink-0 font-display font-bold text-left" style={{ minWidth: 28, fontSize: i === 0 ? '0.95rem' : '0.8rem', color: entry.color, opacity: i === 0 ? 1 : 0.65 }}>
-                +1
-              </div>
-            </div>
-          ))}
+      {/* ===== بطاقة السؤال ===== */}
+      <div className="shrink-0 px-4 py-4 border-b border-white/10 text-center">
+        <div className="text-stone-500 font-display mb-1" style={{ fontSize: '0.72rem' }}>كلمة تنتهي بـ</div>
+        <div
+          key={currentEndingIndex}
+          className="word-pop font-display font-bold inline-block"
+          style={{
+            fontSize: '4rem',
+            color: '#f7d060',
+            textShadow: '0 0 40px rgba(247,208,96,0.35)',
+            lineHeight: 1.1,
+          }}
+        >
+          {currentEnding}
         </div>
       </div>
 
-      {/* ===== مكافأة السلسلة ===== */}
-      {streakReady && (
-        <div className="border-t border-amber-400/30 bg-amber-400/5 p-3 slide-in shrink-0">
-          <div className="text-center text-xs font-semibold mb-2" style={{ color: '#fcd34d' }}>🔥 سلسلة! اختر مكافأة:</div>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => usePowerUp('freeze')} className="py-2.5 rounded-xl text-sm font-display font-semibold transition-all active:scale-95"
-              style={{ background: '#1e3a5f', border: '1px solid #60a5fa', color: '#93c5fd' }}>
-              ❄️ جمّد ٥ ثواني
-            </button>
-            <button onClick={() => usePowerUp('steal')} className="py-2.5 rounded-xl text-sm font-display font-semibold transition-all active:scale-95"
-              style={{ background: '#3f1a1a', border: '1px solid #f87171', color: '#fca5a5' }}>
-              💰 اسرق نقطتين
-            </button>
+      {/* ===== قائمة الإجابات ===== */}
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 min-h-0">
+        {recentAnswers.length === 0 ? (
+          <div className="flex items-center justify-center h-24">
+            <p className="text-stone-700 font-display text-sm">لا توجد إجابات بعد</p>
           </div>
-        </div>
-      )}
+        ) : recentAnswers.map((entry, i) => (
+          <div key={`${entry.word}-${entry.ts}`}
+            className="word-pop flex items-center gap-3 rounded-2xl"
+            style={{
+              padding: i === 0 ? '10px 14px' : '7px 14px',
+              background: i === 0 ? `${entry.color}18` : `${entry.color}08`,
+              border: `1px solid ${i === 0 ? entry.color + '55' : entry.color + '18'}`,
+              boxShadow: i === 0 ? `0 0 22px 2px ${entry.color}22` : 'none',
+            }}>
+            <div className="shrink-0" style={{ minWidth: 52 }}>
+              <span className="font-display" style={{ color: entry.color, fontSize: '0.75rem', fontWeight: 600 }}>{entry.name}</span>
+              {entry.ending && (
+                <div className="font-display opacity-50" style={{ fontSize: '0.6rem', color: entry.color }}>‹{entry.ending}›</div>
+              )}
+            </div>
+            <div className="flex-1 text-center font-display"
+              style={{
+                fontSize: i === 0 ? '1.15rem' : '0.9rem',
+                fontWeight: i === 0 ? '700' : '600',
+                color: entry.color,
+                opacity: Math.max(0.55, 1 - i * 0.07),
+              }}>
+              {entry.word}
+            </div>
+            <div className="shrink-0 font-display font-bold" style={{ minWidth: 28, fontSize: i === 0 ? '0.95rem' : '0.8rem', color: entry.color, opacity: i === 0 ? 1 : 0.65 }}>
+              +1
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* ===== الإدخال ===== */}
       <div className="border-t border-white/10 p-3 shrink-0">
@@ -422,28 +379,20 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode, onExit }) {
             {localFeedback.text}
           </div>
         )}
-        {isFrozen ? (
-          <div className="flex items-center justify-center gap-2 py-3.5 rounded-2xl"
-            style={{ background: '#1e3a5f', border: '1px solid #60a5fa' }}>
-            <span style={{ fontSize: '1.4rem' }}>❄️</span>
-            <span className="font-bold" style={{ color: '#93c5fd' }}>مجمّد — {frozenSecsLeft} ثواني</span>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <input ref={inputRef} type="text" value={input}
-              onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
-              placeholder={`كلمة تنتهي بـ "${ending}"`}
-              disabled={timeLeft <= 0}
-              className="flex-1 bg-stone-900 border border-white/10 rounded-xl px-4 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 font-display text-lg text-center transition-all"
-              style={{ direction: 'rtl' }}
-            />
-            <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0}
-              className="px-5 rounded-xl font-bold text-xl transition-all active:scale-95 disabled:opacity-30"
-              style={{ background: myColor, color: '#0f0a00', minWidth: 56 }}>
-              ✓
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <input ref={inputRef} type="text" value={input}
+            onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
+            placeholder={`كلمة تنتهي بـ "${currentEnding}"`}
+            disabled={timeLeft <= 0}
+            className="flex-1 bg-stone-900 border border-white/10 rounded-xl px-4 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 font-display text-lg text-center transition-all"
+            style={{ direction: 'rtl' }}
+          />
+          <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0}
+            className="px-5 rounded-xl font-bold text-xl transition-all active:scale-95 disabled:opacity-30"
+            style={{ background: myColor, color: '#0f0a00', minWidth: 56 }}>
+            ✓
+          </button>
+        </div>
         <button onClick={onExit} className="w-full mt-2 text-xs text-stone-700 hover:text-stone-500 py-1 transition-colors">خروج</button>
       </div>
     </div>
@@ -693,7 +642,7 @@ export default function Game() {
   const createRoom = useCallback(async () => {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
     const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
-    if (!finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
+    if (selectedMode !== 'race' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
 
     setBusy(true);
     setGlobalError(null);
@@ -708,7 +657,7 @@ export default function Game() {
       } while (exists && tries < 10);
 
       const state = selectedMode === 'race'
-        ? createRaceState(code, hostName.trim(), { ending: finalEnding, duration: selectedRaceDuration })
+        ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
       await saveRoom(code, state);
@@ -902,8 +851,8 @@ export default function Game() {
         players: cleanPlayers,
         words_p1: [],
         words_p2: [],
-        frozenUntil_p1: null,
-        frozenUntil_p2: null,
+        endingQueue: generateEndingQueue(),
+        currentEndingIndex: 0,
         gameStartedAt: Date.now(),
         winner: null,
         gameNumber: newGameNum,
@@ -1253,47 +1202,49 @@ export default function Game() {
               </div>
             )}
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">نهاية الكلمات</label>
-                <button
-                  onClick={() => setUseCustom(!useCustom)}
-                  className="text-xs text-amber-400/80 hover:text-amber-300 transition-colors flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  {useCustom ? 'الجاهزة' : 'مخصصة'}
-                </button>
-              </div>
-              {!useCustom ? (
-                <div className="grid grid-cols-5 gap-2">
-                  {ENDING_PRESETS.map(p => {
-                    const isSel = selectedEnding === p.value;
-                    return (
-                      <button
-                        key={p.value}
-                        onClick={() => setSelectedEnding(p.value)}
-                        title={p.example}
-                        className={`py-3 rounded-xl font-display text-2xl font-semibold border-2 transition-all ${
-                          isSel ? 'bg-amber-400/15 border-amber-400/60 text-amber-200 scale-105'
-                                : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'
-                        }`}
-                      >
-                        {p.value}
-                      </button>
-                    );
-                  })}
+            {(isLocal || selectedMode !== 'race') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">نهاية الكلمات</label>
+                  <button
+                    onClick={() => setUseCustom(!useCustom)}
+                    className="text-xs text-amber-400/80 hover:text-amber-300 transition-colors flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {useCustom ? 'الجاهزة' : 'مخصصة'}
+                  </button>
                 </div>
-              ) : (
-                <input
-                  type="text"
-                  value={customEnding}
-                  onChange={(e) => setCustomEnding(e.target.value)}
-                  placeholder="مثلا: وب، اف"
-                  maxLength={4}
-                  className="w-full bg-stone-900/60 border border-white/10 rounded-xl px-4 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 transition-all text-center font-display text-xl"
-                />
-              )}
-            </div>
+                {!useCustom ? (
+                  <div className="grid grid-cols-5 gap-2">
+                    {ENDING_PRESETS.map(p => {
+                      const isSel = selectedEnding === p.value;
+                      return (
+                        <button
+                          key={p.value}
+                          onClick={() => setSelectedEnding(p.value)}
+                          title={p.example}
+                          className={`py-3 rounded-xl font-display text-2xl font-semibold border-2 transition-all ${
+                            isSel ? 'bg-amber-400/15 border-amber-400/60 text-amber-200 scale-105'
+                                  : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'
+                          }`}
+                        >
+                          {p.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={customEnding}
+                    onChange={(e) => setCustomEnding(e.target.value)}
+                    placeholder="مثلا: وب، اف"
+                    maxLength={4}
+                    className="w-full bg-stone-900/60 border border-white/10 rounded-xl px-4 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 transition-all text-center font-display text-xl"
+                  />
+                )}
+              </div>
+            )}
 
             {globalError && (
               <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm rounded-xl p-3 text-center slide-in">
@@ -1386,10 +1337,12 @@ export default function Game() {
                       </div>
                     </>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-400">نهاية الكلمات</span>
-                    <span className="font-display text-2xl font-bold text-teal-300">{joinPreview.settings.ending}</span>
-                  </div>
+                  {joinPreview.mode !== 'race' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-stone-400">نهاية الكلمات</span>
+                      <span className="font-display text-2xl font-bold text-teal-300">{joinPreview.settings.ending}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">اسمك</label>
@@ -1489,10 +1442,12 @@ export default function Game() {
                 </div>
               </>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-stone-400">نهاية الكلمات</span>
-              <span className="font-display text-xl font-bold text-amber-300">{roomState.settings.ending}</span>
-            </div>
+            {roomState.mode !== 'race' && (
+              <div className="flex items-center justify-between">
+                <span className="text-stone-400">نهاية الكلمات</span>
+                <span className="font-display text-xl font-bold text-amber-300">{roomState.settings.ending}</span>
+              </div>
+            )}
           </div>
           <button onClick={leaveRoom} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">
             إلغاء الغرفة
