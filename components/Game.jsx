@@ -474,16 +474,6 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
             )}
           </div>
 
-          {/* شريط الوقت الأخضر */}
-          <div className="shrink-0 w-full rounded-full overflow-hidden" style={{ height: 10, background: 'rgba(255,255,255,0.06)' }}>
-            <div className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(100, (timeLeft / duration) * 100)}%`,
-                background: 'linear-gradient(to left, #4ade80, #16a34a)',
-                boxShadow: '0 0 8px rgba(74,222,128,0.5)',
-              }} />
-          </div>
-
         </div>
 
         {/* عمود كلمات الخصم — يسار */}
@@ -509,7 +499,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       </div>
 
       {/* ===== الإدخال ===== */}
-      <div className="shrink-0 px-3 pb-1 pt-0">
+      <div className="shrink-0 px-3 pb-0 pt-0">
         {localFeedback && (
           <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
             {localFeedback.text}
