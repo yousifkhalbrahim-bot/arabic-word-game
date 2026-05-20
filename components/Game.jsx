@@ -217,6 +217,14 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     });
   }, [input, timeLeft, isFrozen, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
+  const handleSkip = useCallback(() => {
+    if (myDisplayScore < 1 || timeLeft <= 0 || isFrozen) return;
+    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 1 };
+    const newState = { ...roomState, [myWordKey]: myWordsRef.current, currentEndingIndex: currentEndingIndex + 1, penalties: newPenalties };
+    saveRace(newState);
+    playSkip();
+  }, [myDisplayScore, timeLeft, isFrozen, roomState, myRole, myWordKey, currentEndingIndex, saveRace]);
+
   const handleResign = useCallback(async () => {
     const newState = {
       ...roomState,
@@ -430,6 +438,13 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
               }}>
               {currentEnding}
             </div>
+            <button onClick={handleSkip}
+              disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
+              className="mt-2 font-display flex items-center gap-1 mx-auto transition-all active:scale-95 disabled:opacity-30"
+              style={{ fontSize: '0.68rem', color: 'rgba(251,191,36,0.6)', background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 8, padding: '3px 10px' }}>
+              <span>تجاوز</span>
+              <span style={{ opacity: 0.7 }}>• 💎1</span>
+            </button>
           </div>
 
           {/* زر تجميد الخصم — تحت السؤال */}
