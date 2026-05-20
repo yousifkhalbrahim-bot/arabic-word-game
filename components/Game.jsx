@@ -4,11 +4,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake,
 } from 'lucide-react';
 import { supabase, getRoom, saveRoom, getMyRole, setMyRole, clearMyRole } from '@/lib/supabase';
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
-import { playAccept, playReject, playSkip, playTick, playGameOver } from '@/lib/sounds';
+import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
 
 // ============== الثوابت ==============
 const TIME_CONTROLS = [
@@ -96,6 +96,8 @@ const createRaceState = (code, hostName, settings) => ({
   gameStartedAt: null,
   winner: null,
   gameNumber: 1,
+  penalties: { 1: 0, 2: 0 },
+  frozenUntil: { 1: null, 2: null },
 });
 
 const BG_STYLE = {
@@ -103,7 +105,7 @@ const BG_STYLE = {
 };
 
 // ============== مكون سباق الكلمات ==============
-function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
+export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   const [input, setInput] = useState('');
   const [displayNow, setDisplayNow] = useState(Date.now());
   const [localFeedback, setLocalFeedback] = useState(null);
@@ -141,6 +143,12 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   const timeLeft = Math.max(0, duration - elapsed);
   const timeColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fb923c' : '#4ade80';
 
+  const myFrozenUntil = roomState.frozenUntil?.[myRole] ?? null;
+  const isFrozen = !!(myFrozenUntil && displayNow < myFrozenUntil);
+  const freezeSecsLeft = isFrozen ? Math.ceil((myFrozenUntil - displayNow) / 1000) : 0;
+  const oppFrozenUntil = roomState.frozenUntil?.[oppRole] ?? null;
+  const isOppFrozen = !!(oppFrozenUntil && displayNow < oppFrozenUntil);
+
   useEffect(() => {
     const secs = Math.ceil(timeLeft);
     if (secs <= 5 && secs > 0 && secs !== lastTickRef.current && roomState.status === 'playing') {
@@ -154,8 +162,8 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     if (timeLeft > 0 || winSavedRef.current || roomState.status === 'finished') return;
     winSavedRef.current = true;
     playGameOver();
-    const p1 = (roomState.words_p1 || []).length;
-    const p2 = (roomState.words_p2 || []).length;
+    const p1 = (roomState.words_p1 || []).length - (roomState.penalties?.[1] ?? 0);
+    const p2 = (roomState.words_p2 || []).length - (roomState.penalties?.[2] ?? 0);
     const winner = p1 === p2 ? 0 : (p1 > p2 ? 1 : 2);
     const newState = { ...roomState, [myWordKey]: myWordsRef.current, status: 'finished', winner };
     setRoomState(newState);
@@ -174,7 +182,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   }, []);
 
   const submitWord = useCallback(() => {
-    if (timeLeft <= 0) return;
+    if (timeLeft <= 0 || isFrozen) return;
     const word = input.trim();
     if (!word) return;
 
@@ -207,7 +215,7 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       [myWordKey]: newMyWords,
       currentEndingIndex: currentEndingIndex + 1,
     });
-  }, [input, timeLeft, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
+  }, [input, timeLeft, isFrozen, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
   const handleResign = useCallback(async () => {
     const newState = {
@@ -224,13 +232,16 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
 
+  const lastAnswerTsRef = useRef(undefined);
+
   const myWords = myWordsRef.current;
   const oppWords = roomState[oppWordKey] || [];
   const myScore = myWords.length;
   const oppScore = oppWords.length;
-  const myLeading = myScore > oppScore;
-  const tied = myScore === oppScore;
-
+  const myPenalty = roomState.penalties?.[myRole] ?? 0;
+  const oppPenalty = roomState.penalties?.[oppRole] ?? 0;
+  const myDisplayScore = myScore - myPenalty;
+  const oppDisplayScore = oppScore - oppPenalty;
   const prevMyScoreRef = useRef(myScore);
   const prevOppScoreRef = useRef(oppScore);
 
@@ -252,216 +263,299 @@ function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     prevOppScoreRef.current = oppScore;
   }, [oppScore]);
 
+  const wasFrozenRef = useRef(false);
+  useEffect(() => {
+    if (isFrozen && !wasFrozenRef.current) {
+      wasFrozenRef.current = true;
+      playFreeze();
+    }
+    if (!isFrozen) wasFrozenRef.current = false;
+  }, [isFrozen]);
+
+  const handleFreeze = useCallback(async () => {
+    if (myDisplayScore < 3 || isOppFrozen) return;
+    const newFrozenUntil = { ...(roomState.frozenUntil || { 1: null, 2: null }), [oppRole]: Date.now() + 5000 };
+    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 3 };
+    const newState = { ...roomState, [myWordKey]: myWordsRef.current, frozenUntil: newFrozenUntil, penalties: newPenalties };
+    saveRace(newState);
+    playFreeze();
+  }, [roomState, myDisplayScore, isOppFrozen, oppRole, myRole, myWordKey, saveRace]);
+
   const recentAnswers = useMemo(() => {
     const my  = myWords.map(w  => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: myColor,  name: myName }));
     const opp = oppWords.map(w => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: oppColor, name: oppName }));
     return [...my, ...opp].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 8);
   }, [myWords, oppWords, myColor, oppColor, myName, oppName]);
 
-  const timerDisplay = timeLeft >= 60
-    ? `${Math.floor(timeLeft / 60)}:${Math.floor(timeLeft % 60).toString().padStart(2, '0')}`
-    : Math.ceil(timeLeft).toString();
+  const mins = Math.floor(timeLeft / 60);
+  const secs = Math.floor(timeLeft % 60);
+  const timerDisplay = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
-  const timerCirc = 2 * Math.PI * 34;
+  const timerR = 30;
+  const timerCirc = 2 * Math.PI * timerR;
   const timerOffset = timerCirc * (1 - Math.min(1, timeLeft / duration));
 
-  return (
-    <div className="flex flex-col bg-stone-950 text-stone-100" style={{ height: '100dvh', userSelect: 'none', background: '#0a0908' }}>
+  const lastAnswer = recentAnswers[0] ?? null;
 
-      {/* ===== الهيدر ===== */}
-      <div className="shrink-0 px-4 pt-3 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+  useEffect(() => {
+    if (lastAnswerTsRef.current === undefined) {
+      lastAnswerTsRef.current = lastAnswer?.ts ?? null;
+      return;
+    }
+    if (lastAnswer?.ts && lastAnswer.ts !== lastAnswerTsRef.current) {
+      lastAnswerTsRef.current = lastAnswer.ts;
+      playWordAppear();
+    }
+  }, [lastAnswer?.ts]);
+
+  return (
+    <div className="flex flex-col" style={{ height: '100dvh', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
+
+      {/* ===== شريط العنوان ===== */}
+      <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+        <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90">
+          <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
+        </button>
+        <div className="flex items-center gap-1.5 font-display font-bold" style={{ fontSize: '0.9rem' }}>
+          <Zap className="w-4 h-4 text-amber-400" />
+          <span>سباق الكلمات</span>
+        </div>
+        <div style={{ width: 20 }} />
+      </div>
+
+      {/* ===== لوحة النقاط ===== */}
+      <div className="shrink-0 px-4 pb-2">
         <div className="flex items-center gap-3">
 
-          {/* أنا — يمين (أول عنصر في RTL) */}
+          {/* أنا — يمين */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1 mb-1">
-              {(!tied && myLeading)
-                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: myColor }} />
-                : <span style={{ fontSize: '0.65rem', opacity: 0.35 }}>🛋</span>
-              }
-              <span className="font-display font-semibold truncate" style={{ color: myColor, fontSize: '0.72rem' }}>{myName}</span>
-            </div>
-            <div className="relative inline-block">
-              <div key={`my-${myScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: myColor, lineHeight: 1 }}>
-                {myScore}
+            <div className="mb-1.5">
+              <div className="font-display font-black mb-0.5"
+                style={{ fontSize: '1.15rem', color: myColor, textShadow: `0 0 12px ${myColor}90, 0 0 28px ${myColor}50` }}>
+                {myName}
               </div>
-              {floaters.filter(f => f.side === 'mine').map(f => (
-                <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '1rem' }}>+1</div>
-              ))}
+              <div className="relative inline-block">
+                <div key={`my-${myDisplayScore}`} className="score-bump font-display font-black" style={{ fontSize: '1.7rem', color: myColor, lineHeight: 1 }}>
+                  {myDisplayScore}
+                </div>
+                {floaters.filter(f => f.side === 'mine').map(f => (
+                  <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '0.85rem' }}>+1</div>
+                ))}
+              </div>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, myDisplayScore) * 5)}%`, background: myColor }} />
             </div>
           </div>
 
           {/* المؤقت */}
-          <div className="shrink-0 flex flex-col items-center">
-            <div className="relative" style={{ width: 64, height: 64 }}>
-              <svg width="64" height="64" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="32" cy="32" r="29" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
-                <circle cx="32" cy="32" r="29" fill="none" stroke={timeColor} strokeWidth="4"
+          <div className="shrink-0 flex flex-col items-center gap-1">
+            <div className="relative" style={{ width: 80, height: 80 }}>
+              <svg width="80" height="80" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="40" cy="40" r={timerR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+                <circle cx="40" cy="40" r={timerR} fill="none" stroke={timeColor} strokeWidth="5"
                   strokeDasharray={timerCirc} strokeDashoffset={timerOffset} strokeLinecap="round" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono-ar font-bold" style={{ fontSize: '1.25rem', color: timeColor, lineHeight: 1 }}>{timerDisplay}</span>
-                <span className="font-display" style={{ fontSize: '0.5rem', color: timeColor, opacity: 0.6, marginTop: 1 }}>ثانية</span>
+                <span className="font-mono-ar font-black" style={{ fontSize: '1.15rem', color: timeColor, lineHeight: 1 }}>{timerDisplay}</span>
               </div>
             </div>
+            <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>الوقت</span>
           </div>
 
-          {/* الخصم — يسار (آخر عنصر في RTL) */}
+          {/* الخصم — يسار */}
           <div className="flex-1 min-w-0 flex flex-col items-end">
-            <div className="flex items-center gap-1 mb-1 flex-row-reverse">
-              {(!tied && !myLeading)
-                ? <Trophy className="w-3 h-3 shrink-0" style={{ color: oppColor }} />
-                : <span style={{ fontSize: '0.65rem', opacity: 0.35 }}>🛋</span>
-              }
-              <span className="font-display font-semibold truncate" style={{ color: oppColor, fontSize: '0.72rem' }}>{oppName}</span>
-            </div>
-            <div className="relative inline-block">
-              <div key={`opp-${oppScore}`} className="score-bump font-display font-bold" style={{ fontSize: '3rem', color: oppColor, lineHeight: 1 }}>
-                {oppScore}
+            <div className="mb-1.5 flex flex-col items-end">
+              <div className="font-display font-black mb-0.5"
+                style={{ fontSize: '1.15rem', color: oppColor, textShadow: `0 0 12px ${oppColor}90, 0 0 28px ${oppColor}50` }}>
+                {oppName}
               </div>
-              {floaters.filter(f => f.side === 'opp').map(f => (
-                <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '1rem' }}>+1</div>
-              ))}
+              <div className="relative inline-block">
+                <div key={`opp-${oppDisplayScore}`} className="score-bump font-display font-black" style={{ fontSize: '1.7rem', color: oppColor, lineHeight: 1 }}>
+                  {oppDisplayScore}
+                </div>
+                {floaters.filter(f => f.side === 'opp').map(f => (
+                  <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '0.85rem' }}>+1</div>
+                ))}
+              </div>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden w-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
+              <div className="h-full rounded-full transition-all duration-300 float-left" style={{ width: `${Math.min(100, Math.max(0, oppDisplayScore) * 5)}%`, background: oppColor }} />
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* ===== بطاقة السؤال ===== */}
-      <div className="shrink-0 px-4 pt-5 pb-4">
-        <div
-          className="rounded-3xl text-center relative overflow-hidden"
-          style={{
-            padding: '22px 20px 26px',
-            background: 'linear-gradient(160deg, rgba(247,208,96,0.09) 0%, rgba(247,208,96,0.04) 60%, rgba(0,0,0,0) 100%)',
-            border: '1.5px solid rgba(247,208,96,0.22)',
-            boxShadow: '0 0 50px -15px rgba(247,208,96,0.25), inset 0 1px 0 rgba(247,208,96,0.12)',
-          }}
-        >
-          {/* رقم السؤال */}
-          <div className="font-display mb-3" style={{ fontSize: '0.65rem', color: 'rgba(247,208,96,0.4)', letterSpacing: '0.12em' }}>
-            السؤال {currentEndingIndex + 1}
-          </div>
+      {/* ===== المنطقة الرئيسية: ٣ أعمدة ===== */}
+      <div className="flex-1 flex gap-2 px-3 pt-1 pb-2 min-h-0 overflow-hidden">
 
-          {/* تعليمة */}
-          <div className="font-display mb-2" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>
-            اكتب كلمة تنتهي بـ
+        {/* عمود كلماتي — يمين */}
+        <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden"
+          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
+          <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.75rem', color: myColor, borderBottom: `1px solid ${myColor}25` }}>
+            كلماتك
           </div>
-
-          {/* الحرف الكبير */}
-          <div
-            key={currentEndingIndex}
-            className="word-pop font-display font-bold"
-            style={{
-              fontSize: 'clamp(4.5rem, 18vw, 6.5rem)',
-              color: '#f7d060',
-              textShadow: '0 0 50px rgba(247,208,96,0.55), 0 0 100px rgba(247,208,96,0.2)',
-              lineHeight: 1,
-              letterSpacing: '0.06em',
-            }}
-          >
-            {currentEnding}
+          <div className="flex-1 overflow-y-auto py-1.5 px-1.5">
+            {[...myWords].reverse().map((w, i) => (
+              <div key={`${wordStr(w)}-${i}`}
+                className={i === 0 ? 'word-pop' : ''}
+                style={{ padding: '5px 7px', borderRadius: 9, marginBottom: 3, background: i === 0 ? `${myColor}22` : 'rgba(255,255,255,0.03)', borderRight: i === 0 ? `2px solid ${myColor}` : '2px solid transparent' }}>
+                <div className="font-display font-bold truncate" style={{ fontSize: i === 0 ? '1rem' : '0.88rem', color: i === 0 ? myColor : 'rgba(255,255,255,0.8)' }}>
+                  {wordStr(w)}
+                </div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: myColor, opacity: i === 0 ? 0.9 : 0.45 }}>+1 نقطة</div>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* العمود الأوسط — السؤال + الإجابة */}
+        <div className="flex-1 flex flex-col items-center min-h-0">
+
+          {/* السؤال */}
+          <div className="shrink-0 w-full text-center mb-1 rounded-2xl px-3 py-4"
+            style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 0 24px rgba(251,191,36,0.1)' }}>
+            <div className="font-display" style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)', marginBottom: 4, letterSpacing: '0.06em' }}>
+              السؤال {currentEndingIndex + 1}
+            </div>
+            <div className="font-display font-bold" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>اكتب كلمة تنتهي بـ</div>
+            <div key={`q-${currentEndingIndex}`} className="word-pop font-display font-black"
+              style={{
+                fontSize: 'clamp(2.4rem, 12vw, 3.4rem)',
+                lineHeight: 1,
+                color: '#fbbf24',
+                textShadow: '0 0 24px rgba(251,191,36,0.7), 0 0 60px rgba(251,191,36,0.3)',
+                letterSpacing: '0.05em',
+              }}>
+              {currentEnding}
+            </div>
+          </div>
+
+          {/* الكلمة الأخيرة */}
+          <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
+            {lastAnswer ? (
+              <>
+                <div key={lastAnswer.ts} className="center-word-burst font-display font-black text-center"
+                  style={{
+                    fontSize: 'clamp(1.8rem, 9vw, 2.8rem)',
+                    color: lastAnswer.color,
+                    textShadow: `0 0 30px ${lastAnswer.color}90, 0 0 70px ${lastAnswer.color}40`,
+                    lineHeight: 1.1,
+                  }}>
+                  {lastAnswer.word}
+                </div>
+                <div className="font-display mt-1.5" style={{ fontSize: '0.72rem', color: lastAnswer.color, opacity: 0.7 }}>
+                  +1 نقطة
+                </div>
+              </>
+            ) : (
+              <div className="font-display text-center" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.12)' }}>
+                اكتب أول كلمة 🏁
+              </div>
+            )}
+          </div>
+
+          {/* بطاقة تجميد الخصم */}
+          <button onClick={handleFreeze}
+            disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
+            className="shrink-0 w-full text-center rounded-2xl p-3 mb-2 transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: 'rgba(10,14,28,0.8)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.22)'}` }}>
+            <div className="mx-auto mb-2 flex items-center justify-center rounded-full"
+              style={{ width: 48, height: 48, background: 'rgba(56,189,248,0.1)', border: '2px solid rgba(56,189,248,0.4)', boxShadow: '0 0 18px rgba(56,189,248,0.25)' }}>
+              <Snowflake className="w-6 h-6" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
+            </div>
+            <div className="font-display font-bold mb-1" style={{ fontSize: '0.85rem', color: '#fff' }}>
+              {isOppFrozen ? 'الخصم مجمّد ❄' : 'تجميد الخصم'}
+            </div>
+            <div className="font-display mb-2" style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+              {isOppFrozen ? `يتحرر بعد ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث` : 'تجمد خصمك لمدة 5 ثواني ولا بستطيع كتابة كلمات'}
+            </div>
+            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full"
+              style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)' }}>
+              <span style={{ fontSize: '0.85rem' }}>💎</span>
+              <span className="font-display font-bold" style={{ color: '#38bdf8', fontSize: '0.82rem' }}>3</span>
+            </div>
+          </button>
+
+          {/* شريط الوقت الأخضر */}
+          <div className="shrink-0 w-full rounded-full overflow-hidden" style={{ height: 10, background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.min(100, (timeLeft / duration) * 100)}%`,
+                background: 'linear-gradient(to left, #4ade80, #16a34a)',
+                boxShadow: '0 0 8px rgba(74,222,128,0.5)',
+              }} />
+          </div>
+
+        </div>
+
+        {/* عمود كلمات الخصم — يسار */}
+        <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden"
+          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
+          <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.68rem', color: oppColor, borderBottom: `1px solid ${oppColor}20` }}>
+            كلمات {oppName}
+          </div>
+          <div className="flex-1 overflow-y-auto py-1.5 px-1.5">
+            {[...oppWords].reverse().map((w, i) => (
+              <div key={`${wordStr(w)}-${i}`}
+                className={i === 0 ? 'word-pop' : ''}
+                style={{ padding: '5px 7px', borderRadius: 9, marginBottom: 3, background: i === 0 ? `${oppColor}22` : 'rgba(255,255,255,0.03)', borderLeft: i === 0 ? `2px solid ${oppColor}` : '2px solid transparent' }}>
+                <div className="font-display font-bold truncate" style={{ fontSize: i === 0 ? '1rem' : '0.88rem', color: i === 0 ? oppColor : 'rgba(255,255,255,0.8)' }}>
+                  {wordStr(w)}
+                </div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: oppColor, opacity: i === 0 ? 0.9 : 0.45 }}>+1 نقطة</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
       {/* ===== الإدخال ===== */}
-      <div className="shrink-0 px-4 pb-3">
+      <div className="shrink-0 px-4 pb-4 pt-1">
         {localFeedback && (
-          <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.9rem' }}>
+          <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
             {localFeedback.text}
           </div>
         )}
-        <div className="flex gap-2.5">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder={`...${currentEnding}`}
-            disabled={timeLeft <= 0}
-            className="flex-1 font-display text-xl text-center focus:outline-none transition-all"
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: `1.5px solid ${input.trim() ? myColor + '70' : 'rgba(255,255,255,0.1)'}`,
-              borderRadius: '16px',
-              padding: '14px 18px',
-              color: '#f5f0e8',
-              direction: 'rtl',
-              boxShadow: input.trim() ? `0 0 24px -6px ${myColor}40` : 'none',
-            }}
-          />
-          <button
-            onClick={submitWord}
-            disabled={!input.trim() || timeLeft <= 0}
-            className="font-bold text-2xl transition-all active:scale-95 disabled:opacity-20"
-            style={{
-              background: myColor,
-              color: '#0f0a00',
-              minWidth: 62,
-              borderRadius: '16px',
-              boxShadow: `0 4px 20px -4px ${myColor}50`,
-            }}
-          >
-            ✓
-          </button>
-        </div>
-      </div>
-
-      {/* ===== آخر الإجابات ===== */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-1">
-        {recentAnswers.length > 0 && (
-          <>
-            <div className="font-display text-center mb-2" style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.12em' }}>
-              ◈  آخر الإجابات  ◈
-            </div>
-            <div className="space-y-1.5">
-              {recentAnswers.map((entry, i) => (
-                <div key={`${entry.word}-${entry.ts}`}
-                  className="word-pop flex items-center gap-3 rounded-2xl"
-                  style={{
-                    padding: '9px 14px',
-                    background: i === 0 ? `${entry.color}12` : `${entry.color}07`,
-                    border: `1px solid ${i === 0 ? entry.color + '35' : entry.color + '12'}`,
-                  }}>
-                  <span className="font-display shrink-0" style={{ color: entry.color, fontSize: '0.7rem', fontWeight: 600, minWidth: 48, opacity: 0.85 }}>
-                    {entry.name}
-                  </span>
-                  <span className="flex-1 text-center font-display font-bold"
-                    style={{
-                      color: entry.color,
-                      fontSize: i === 0 ? '1.05rem' : '0.88rem',
-                      opacity: Math.max(0.45, 1 - i * 0.1),
-                    }}>
-                    {entry.word}
-                  </span>
-                  <span className="font-display shrink-0" style={{ fontSize: '0.6rem', color: entry.color, opacity: 0.4 }}>
-                    ‹{entry.ending}›
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        {recentAnswers.length === 0 && (
-          <div className="flex items-center justify-center h-16">
-            <p className="font-display" style={{ color: 'rgba(255,255,255,0.12)', fontSize: '0.85rem' }}>اكتب أول إجابة 🏁</p>
+        <div className="relative rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3"
+            style={{ background: isFrozen ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.06)', border: `1px solid ${isFrozen ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 16 }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder={isFrozen ? `مجمّد لـ ${freezeSecsLeft}ث` : 'اكتب كلمة...'}
+              disabled={timeLeft <= 0 || isFrozen}
+              className="flex-1 bg-transparent font-display text-lg focus:outline-none"
+              style={{ color: isFrozen ? 'rgba(56,189,248,0.6)' : '#f5f0e8', direction: 'rtl' }}
+            />
+            {isFrozen ? (
+              <Snowflake className="shrink-0 w-6 h-6" style={{ color: '#38bdf8', animation: 'spin-slow 3s linear infinite' }} />
+            ) : (
+              <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0}
+                className="shrink-0 transition-all active:scale-90 disabled:opacity-25"
+                style={{ color: input.trim() ? myColor : 'rgba(255,255,255,0.2)' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: 26, height: 26 }}>
+                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className="shrink-0 px-4 pb-3">
-        <button
-          onClick={handleResign}
-          className="w-full font-display font-bold py-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
-          style={{ background: 'rgba(239,68,68,0.12)', border: '1.5px solid rgba(239,68,68,0.35)', color: '#f87171', fontSize: '0.95rem' }}
-        >
-          <Flag className="w-4 h-4" />
-          استسلام
+        <button onClick={handleResign}
+          className="w-full mt-2 font-display flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all active:scale-95"
+          style={{ fontSize: '0.8rem', color: 'rgba(239,68,68,0.45)', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.8)'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.45)'; e.currentTarget.style.background = 'rgba(239,68,68,0.05)'; }}>
+          <Flag className="w-3.5 h-3.5" /> استسلام
         </button>
       </div>
+
     </div>
   );
 }
@@ -924,6 +1018,8 @@ export default function Game() {
         gameStartedAt: Date.now(),
         winner: null,
         resigned: null,
+        penalties: { 1: 0, 2: 0 },
+        frozenUntil: { 1: null, 2: null },
         gameNumber: newGameNum,
       };
     } else {
