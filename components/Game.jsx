@@ -309,7 +309,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   }, [lastAnswer?.ts]);
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
+    <div className="flex flex-col" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
 
       {/* ===== شريط العنوان ===== */}
       <div className="shrink-0 flex items-center justify-between px-4 pt-2 pb-1">
