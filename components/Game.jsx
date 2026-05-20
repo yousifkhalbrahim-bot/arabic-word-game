@@ -391,8 +391,8 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       <div className="flex-1 flex gap-2 px-3 pt-1 pb-2 min-h-0 overflow-hidden">
 
         {/* عمود كلماتي — يمين */}
-        <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden"
-          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
+        <div className="flex flex-col rounded-2xl overflow-hidden"
+          style={{ width: '27%', maxHeight: '42vh', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
           <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.75rem', color: myColor, borderBottom: `1px solid ${myColor}25` }}>
             كلماتك
           </div>
@@ -487,8 +487,8 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
         </div>
 
         {/* عمود كلمات الخصم — يسار */}
-        <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden"
-          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
+        <div className="flex flex-col rounded-2xl overflow-hidden"
+          style={{ width: '27%', maxHeight: '42vh', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
           <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.68rem', color: oppColor, borderBottom: `1px solid ${oppColor}20` }}>
             كلمات {oppName}
           </div>
