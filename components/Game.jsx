@@ -309,10 +309,10 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
   }, [lastAnswer?.ts]);
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
 
       {/* ===== شريط العنوان ===== */}
-      <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+      <div className="shrink-0 flex items-center justify-between px-4 pt-2 pb-1">
         <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90">
           <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
         </button>
@@ -324,7 +324,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       </div>
 
       {/* ===== لوحة النقاط ===== */}
-      <div className="shrink-0 px-4 pb-2">
+      <div className="shrink-0 px-3 pb-1">
         <div className="flex items-center gap-3">
 
           {/* أنا — يمين */}
@@ -414,7 +414,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
         <div className="flex-1 flex flex-col items-center min-h-0">
 
           {/* السؤال */}
-          <div className="shrink-0 w-full text-center mb-1 rounded-2xl px-3 py-4"
+          <div className="shrink-0 w-full text-center mb-1 rounded-2xl px-3 py-2"
             style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 0 24px rgba(251,191,36,0.1)' }}>
             <div className="font-display" style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)', marginBottom: 4, letterSpacing: '0.06em' }}>
               السؤال {currentEndingIndex + 1}
@@ -456,25 +456,29 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
             )}
           </div>
 
-          {/* بطاقة تجميد الخصم */}
+          {/* زر تجميد الخصم */}
           <button onClick={handleFreeze}
             disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
-            className="shrink-0 w-full text-center rounded-2xl p-3 mb-2 transition-all active:scale-95 disabled:opacity-40"
+            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 mb-1.5 transition-all active:scale-95 disabled:opacity-40"
             style={{ background: 'rgba(10,14,28,0.8)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.22)'}` }}>
-            <div className="mx-auto mb-2 flex items-center justify-center rounded-full"
-              style={{ width: 48, height: 48, background: 'rgba(56,189,248,0.1)', border: '2px solid rgba(56,189,248,0.4)', boxShadow: '0 0 18px rgba(56,189,248,0.25)' }}>
-              <Snowflake className="w-6 h-6" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center rounded-full shrink-0"
+                style={{ width: 32, height: 32, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.4)', boxShadow: '0 0 10px rgba(56,189,248,0.2)' }}>
+                <Snowflake className="w-4 h-4" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
+              </div>
+              <div className="text-right">
+                <div className="font-display font-bold" style={{ fontSize: '0.78rem', color: '#fff' }}>
+                  {isOppFrozen ? 'الخصم مجمّد ❄' : 'تجميد الخصم'}
+                </div>
+                <div className="font-display" style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)' }}>
+                  {isOppFrozen ? `يتحرر بعد ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث` : '5 ثواني • ٣ نقاط'}
+                </div>
+              </div>
             </div>
-            <div className="font-display font-bold mb-1" style={{ fontSize: '0.85rem', color: '#fff' }}>
-              {isOppFrozen ? 'الخصم مجمّد ❄' : 'تجميد الخصم'}
-            </div>
-            <div className="font-display mb-2" style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-              {isOppFrozen ? `يتحرر بعد ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث` : 'تجمد خصمك لمدة 5 ثواني ولا بستطيع كتابة كلمات'}
-            </div>
-            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full"
-              style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)' }}>
-              <span style={{ fontSize: '0.85rem' }}>💎</span>
-              <span className="font-display font-bold" style={{ color: '#38bdf8', fontSize: '0.82rem' }}>3</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0"
+              style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)' }}>
+              <span style={{ fontSize: '0.8rem' }}>💎</span>
+              <span className="font-display font-bold" style={{ color: '#38bdf8', fontSize: '0.78rem' }}>3</span>
             </div>
           </button>
 
@@ -513,7 +517,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       </div>
 
       {/* ===== الإدخال ===== */}
-      <div className="shrink-0 px-4 pb-4 pt-1">
+      <div className="shrink-0 px-3 pb-3 pt-1">
         {localFeedback && (
           <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
             {localFeedback.text}
