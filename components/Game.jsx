@@ -312,7 +312,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     <div className="flex flex-col" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
 
       {/* ===== شريط العنوان ===== */}
-      <div className="shrink-0 flex items-center justify-between px-4 pt-2 pb-1">
+      <div className="shrink-0 flex items-center justify-between px-4 pt-1 pb-0">
         <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90">
           <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
         </button>
@@ -324,7 +324,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       </div>
 
       {/* ===== لوحة النقاط ===== */}
-      <div className="shrink-0 px-3 pb-1">
+      <div className="shrink-0 px-3 pb-0">
         <div className="flex items-center gap-3">
 
           {/* أنا — يمين */}
@@ -499,7 +499,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
       </div>
 
       {/* ===== الإدخال ===== */}
-      <div className="shrink-0 px-3 pb-0 pt-0">
+      <div className="shrink-0 px-3 pb-2 pt-1">
         {localFeedback && (
           <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
             {localFeedback.text}
