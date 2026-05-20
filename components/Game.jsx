@@ -432,6 +432,24 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
             </div>
           </div>
 
+          {/* زر تجميد الخصم — تحت السؤال */}
+          <button onClick={handleFreeze}
+            disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
+            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: 'rgba(10,14,28,0.7)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.2)'}` }}>
+            <div className="flex items-center gap-1.5">
+              <Snowflake className="w-3.5 h-3.5 shrink-0" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
+              <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: isOppFrozen ? '#38bdf8' : 'rgba(255,255,255,0.8)' }}>
+                {isOppFrozen
+                  ? `مجمّد • ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث`
+                  : 'تجميد الخصم'}
+              </span>
+            </div>
+            <span className="font-display font-bold shrink-0" style={{ fontSize: '0.68rem', color: '#38bdf8' }}>
+              {isOppFrozen ? '❄' : '💎 3'}
+            </span>
+          </button>
+
           {/* الكلمة الأخيرة */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
             {lastAnswer ? (
@@ -455,32 +473,6 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
               </div>
             )}
           </div>
-
-          {/* زر تجميد الخصم */}
-          <button onClick={handleFreeze}
-            disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
-            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 mb-1.5 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: 'rgba(10,14,28,0.8)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.22)'}` }}>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center rounded-full shrink-0"
-                style={{ width: 32, height: 32, background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.4)', boxShadow: '0 0 10px rgba(56,189,248,0.2)' }}>
-                <Snowflake className="w-4 h-4" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
-              </div>
-              <div className="text-right">
-                <div className="font-display font-bold" style={{ fontSize: '0.78rem', color: '#fff' }}>
-                  {isOppFrozen ? 'الخصم مجمّد ❄' : 'تجميد الخصم'}
-                </div>
-                <div className="font-display" style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)' }}>
-                  {isOppFrozen ? `يتحرر بعد ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث` : '5 ثواني • ٣ نقاط'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0"
-              style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)' }}>
-              <span style={{ fontSize: '0.8rem' }}>💎</span>
-              <span className="font-display font-bold" style={{ color: '#38bdf8', fontSize: '0.78rem' }}>3</span>
-            </div>
-          </button>
 
           {/* شريط الوقت الأخضر */}
           <div className="shrink-0 w-full rounded-full overflow-hidden" style={{ height: 10, background: 'rgba(255,255,255,0.06)' }}>
