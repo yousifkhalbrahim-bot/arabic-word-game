@@ -400,7 +400,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
 
         {/* عمود كلماتي — يمين */}
         <div className="flex flex-col rounded-2xl overflow-hidden"
-          style={{ width: '27%', maxHeight: '40vh', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
+          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
           <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.75rem', color: myColor, borderBottom: `1px solid ${myColor}25` }}>
             كلماتك
           </div>
@@ -438,13 +438,6 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
               }}>
               {currentEnding}
             </div>
-            <button onClick={handleSkip}
-              disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
-              className="mt-2 font-display flex items-center gap-1 mx-auto transition-all active:scale-95 disabled:opacity-30"
-              style={{ fontSize: '0.68rem', color: 'rgba(251,191,36,0.6)', background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 8, padding: '3px 10px' }}>
-              <span>تجاوز</span>
-              <span style={{ opacity: 0.7 }}>• 💎1</span>
-            </button>
           </div>
 
           {/* زر تجميد الخصم — تحت السؤال */}
@@ -463,6 +456,17 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
             <span className="font-display font-bold shrink-0" style={{ fontSize: '0.68rem', color: '#38bdf8' }}>
               {isOppFrozen ? '❄' : '💎 3'}
             </span>
+          </button>
+
+          {/* زر تجاوز السؤال — تحت التجميد */}
+          <button onClick={handleSkip}
+            disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
+            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: 'rgba(10,14,28,0.7)', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)' }}>
+              تجاوز السؤال
+            </span>
+            <span className="font-display font-bold shrink-0" style={{ fontSize: '0.68rem', color: '#fbbf24' }}>💎 1</span>
           </button>
 
           {/* الكلمة الأخيرة */}
@@ -493,7 +497,7 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
 
         {/* عمود كلمات الخصم — يسار */}
         <div className="flex flex-col rounded-2xl overflow-hidden"
-          style={{ width: '27%', maxHeight: '40vh', alignSelf: 'flex-start', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
+          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
           <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.68rem', color: oppColor, borderBottom: `1px solid ${oppColor}20` }}>
             كلمات {oppName}
           </div>
