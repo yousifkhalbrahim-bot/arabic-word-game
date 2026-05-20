@@ -217,14 +217,6 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     });
   }, [input, timeLeft, isFrozen, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
 
-  const handleSkip = useCallback(() => {
-    if (myDisplayScore < 1 || timeLeft <= 0 || isFrozen) return;
-    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 1 };
-    const newState = { ...roomState, [myWordKey]: myWordsRef.current, currentEndingIndex: currentEndingIndex + 1, penalties: newPenalties };
-    saveRace(newState);
-    playSkip();
-  }, [myDisplayScore, timeLeft, isFrozen, roomState, myRole, myWordKey, currentEndingIndex, saveRace]);
-
   const handleResign = useCallback(async () => {
     const newState = {
       ...roomState,
@@ -288,6 +280,14 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     saveRace(newState);
     playFreeze();
   }, [roomState, myDisplayScore, isOppFrozen, oppRole, myRole, myWordKey, saveRace]);
+
+  const handleSkip = useCallback(() => {
+    if (myDisplayScore < 1 || timeLeft <= 0 || isFrozen) return;
+    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 1 };
+    const newState = { ...roomState, [myWordKey]: myWordsRef.current, currentEndingIndex: currentEndingIndex + 1, penalties: newPenalties };
+    saveRace(newState);
+    playSkip();
+  }, [myDisplayScore, timeLeft, isFrozen, roomState, myRole, myWordKey, currentEndingIndex, saveRace]);
 
   const recentAnswers = useMemo(() => {
     const my  = myWords.map(w  => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: myColor,  name: myName }));
