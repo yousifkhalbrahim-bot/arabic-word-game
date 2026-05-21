@@ -4,6 +4,10 @@ export const metadata = {
   title: 'لعبة الكلمات',
   description: 'لعبة كلمات عربية ضد ساعة الشطرنج',
   themeColor: '#0c0a09',
+  icons: {
+    icon: '/icon.png.png',
+    apple: '/icon.png.png',
+  },
 };
 
 export const viewport = {

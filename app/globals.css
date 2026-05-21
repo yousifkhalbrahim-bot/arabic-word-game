@@ -43,9 +43,6 @@
 @layer base {
   html, body {
     -webkit-tap-highlight-color: transparent;
-    overflow: hidden;
-    height: 100%;
-    height: 100dvh;
   }
 }
 
