@@ -1,0 +1,23 @@
+{
+  "appId": "com.yousifalbrahim.kalimat",
+  "appName": "لعبة الكلمات",
+  "webDir": "out",
+  "backgroundColor": "#5b3df0",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#5b3df0",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#6d28d9",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "overlaysWebView": true
+    }
+  }
+}

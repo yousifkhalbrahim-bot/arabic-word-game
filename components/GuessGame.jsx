@@ -12,6 +12,7 @@ import {
   dayNumber, dailyAnswer, randomAnswer, shareText,
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
+import { publicUrl, shareContent } from '@/lib/native';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -190,10 +191,8 @@ export default function GuessGame({ onExit }) {
 
   const share = useCallback(async () => {
     const text = shareText({ results: guesses.map(g => g.result), won: status === 'won', tries, len, day: mode === 'daily' ? day : null });
-    const url = typeof window !== 'undefined' ? window.location.origin : '';
-    if (navigator.share) {
-      try { await navigator.share({ text: `${text}\n${url}` }); return; } catch (e) { if (e?.name === 'AbortError') return; }
-    }
+    const url = publicUrl('/');
+    if (await shareContent({ title: 'خمّن الكلمة', text: `${text}\n${url}` })) return;
     try { await navigator.clipboard.writeText(`${text}\n${url}`); flash('تم نسخ النتيجة 📋'); }
     catch { window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener'); }
   }, [guesses, status, tries, len, mode, day, flash]);

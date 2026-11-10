@@ -1,0 +1,67 @@
+# ============================================================
+# بناء تطبيق الآيفون في السحابة (بدون ماك) ورفعه على TestFlight
+# الدليل الكامل خطوة بخطوة: docs/APP_STORE.md
+# ============================================================
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    # اسم مفتاح App Store Connect اللي تضيفه في Codemagic
+    # (Team settings → Team integrations → Developer Portal → Manage keys)
+    integrations:
+      app_store_connect: Kalimat ASC key
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.yousifalbrahim.kalimat
+      vars:
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+        BUNDLE_ID: com.yousifalbrahim.kalimat
+        # رقم التطبيق في App Store Connect (App Information → Apple ID) — غيّره بعد ما تنشئ التطبيق
+        APP_STORE_APP_ID: 0000000000
+        # رابط موقع اللعبة على Vercel (يُستخدم في روابط الدعوة والمشاركة داخل التطبيق)
+        NEXT_PUBLIC_SITE_URL: https://arabic-word-game.vercel.app
+      node: 22
+      xcode: latest
+
+    triggering:
+      events:
+        - tag            # ابنِ تلقائياً لما تسوي tag مثل v1.0.0 — أو شغّله يدوياً من Codemagic
+      tag_patterns:
+        - pattern: 'v*'
+
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build the game and copy it into the iOS project
+        script: npm run build:app
+
+      - name: Set up code signing (Codemagic creates the certificate + profile for you)
+        script: xcode-project use-profiles
+
+      - name: Pick the next build number
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0)
+          case "$LATEST" in ''|*[!0-9]*) LATEST=0 ;; esac
+          echo "BUILD_NUMBER=$((LATEST + 1))" >> "$CM_ENV"
+
+      - name: Build .ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

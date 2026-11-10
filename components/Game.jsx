@@ -15,6 +15,7 @@ import { NORMALIZED_DICT, ARABIC_DICTIONARY, normalize, normalizeStrict, lookupW
 import { now, syncClock } from '@/lib/clock';
 import { useVisualViewport } from '@/lib/useViewport';
 import { demoRoom } from '@/lib/demo';
+import { initNative, publicUrl, shareContent } from '@/lib/native';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
@@ -652,6 +653,7 @@ export default function Game() {
 
   // ============== الإقلاع: مزامنة الساعة + العودة للغرفة / رابط الدعوة ==============
   useEffect(() => {
+    initNative();
     syncClock();
     const savedName = getSavedName();
     if (savedName) { setHostName(savedName); setJoinName(savedName); }
@@ -1170,7 +1172,7 @@ export default function Game() {
   }, [roomCode, myRole, roomState]);
 
   const inviteUrl = roomCode && roomCode !== 'local' && typeof window !== 'undefined'
-    ? `${window.location.origin}/?room=${roomCode}` : '';
+    ? publicUrl(`/?room=${roomCode}`) : '';
 
   const flash = useCallback((text) => {
     setFeedback({ type: 'success', text });
@@ -1190,10 +1192,7 @@ export default function Game() {
   const shareInvite = useCallback(async () => {
     if (!inviteUrl) return;
     const text = `تعال نلعب لعبة الكلمات! 🎮\nكود الغرفة: ${roomCode}`;
-    if (navigator.share) {
-      try { await navigator.share({ title: 'لعبة الكلمات', text, url: inviteUrl }); return; }
-      catch (e) { if (e?.name === 'AbortError') return; }
-    }
+    if (await shareContent({ title: 'لعبة الكلمات', text, url: inviteUrl })) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${inviteUrl}`)}`, '_blank', 'noopener');
   }, [inviteUrl, roomCode]);
 
