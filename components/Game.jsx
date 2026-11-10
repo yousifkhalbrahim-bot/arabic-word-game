@@ -34,6 +34,11 @@ const ENDING_PRESETS = [
   { value: 'وم', example: 'يوم، علوم' },
   { value: 'اب', example: 'كتاب، باب' },
   { value: 'اح', example: 'صباح، نجاح' },
+  { value: 'يل', example: 'جميل، دليل' },
+  { value: 'يد', example: 'جديد، سعيد' },
+  { value: 'يم', example: 'كريم، تعليم' },
+  { value: 'ود', example: 'موجود، حدود' },
+  { value: 'اد', example: 'بلاد، اقتصاد' },
 ];
 
 const TURN_SKIP_SECONDS = 10;
