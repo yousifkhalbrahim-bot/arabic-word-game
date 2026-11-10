@@ -38,6 +38,8 @@ cp .env.local.example .env.local
 6. الصق محتوى ملف `supabase-schema.sql` كامل
 7. اضغط **Run** (أو Ctrl+Enter)
 8. لازم تشوف رسالة "Success"
+9. سوّ **New Query** ثانية والصق محتوى `supabase-migration-v2.sql` واضغط **Run**
+   (دوال السيرفر الذرّية + توقيت موحّد — **ضروري** للنسخة الحالية، وآمن لإعادة التشغيل)
 
 ### 3️⃣ نسخ مفاتيح Supabase
 

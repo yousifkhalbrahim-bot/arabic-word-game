@@ -4,10 +4,16 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn, Snowflake,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target,
 } from 'lucide-react';
-import { supabase, getRoom, saveRoom, getMyRole, setMyRole, clearMyRole } from '@/lib/supabase';
+import {
+  supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole,
+  roomJoin, roomLeave, roomCas, roomRematch, raceSubmit, raceSkip, raceFreeze, raceFinish, raceResign,
+  isNewerState, getCurrentRoom, setCurrentRoom, getSavedName, saveName,
+} from '@/lib/supabase';
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
+import { now, syncClock } from '@/lib/clock';
+import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
 
 // ============== الثوابت ==============
@@ -73,15 +79,10 @@ const createInitialState = (code, hostName, settings) => {
   };
 };
 
-const generateEndingQueue = () => {
-  const endings = ENDING_PRESETS.map(p => p.value);
-  const result = [];
-  for (let round = 0; round < 6; round++) {
-    const shuffled = [...endings].sort(() => Math.random() - 0.5);
-    result.push(...shuffled);
-  }
-  return result;
-};
+const generateEndingQueue = () => shuffledEndingQueue(ENDING_PRESETS.map(p => p.value));
+
+const wordStr = (w) => (typeof w === 'string' ? w : w?.w ?? '');
+const wordTs  = (w) => (typeof w === 'string' ? null : w?.ts ?? null);
 
 const createRaceState = (code, hostName, settings) => ({
   code,
@@ -105,37 +106,48 @@ const BG_STYLE = {
 };
 
 // ============== مكون سباق الكلمات ==============
-export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
+const RACE_REASONS = {
+  used: 'كلمة مستخدمة',
+  frozen: 'أنت مجمّد',
+  time_up: 'انتهى الوقت',
+  not_playing: 'انتهت الجولة',
+  no_points: 'نقاطك ما تكفي',
+  opp_frozen: 'الخصم مجمّد أصلاً',
+};
+
+export function RaceGame({ roomState, setRoomState, applyServerState, myRole, roomCode }) {
+  const apply = applyServerState || setRoomState;
   const [input, setInput] = useState('');
-  const [displayNow, setDisplayNow] = useState(Date.now());
+  const [displayNow, setDisplayNow] = useState(() => now());
   const [localFeedback, setLocalFeedback] = useState(null);
   const [floaters, setFloaters] = useState([]);
+  const [confirmResign, setConfirmResign] = useState(false);
 
   const oppRole = myRole === 1 ? 2 : 1;
   const myWordKey = `words_p${myRole}`;
   const oppWordKey = `words_p${oppRole}`;
 
-  const myWordsRef = useRef(roomState[myWordKey] || []);
-  const winSavedRef = useRef(false);
   const feedbackTimer = useRef(null);
+  const confirmTimer = useRef(null);
   const lastTickRef = useRef(null);
   const inputRef = useRef(null);
+  const finishTriedRef = useRef(0);
+  // كل طلبات السيرفر تمشي بالترتيب حتى ما يسبق طلبٌ طلباً قبله
+  const queueRef = useRef(Promise.resolve());
 
   const duration = roomState.settings?.duration ?? 60;
   const endingQueue = roomState.endingQueue || [];
   const currentEndingIndex = roomState.currentEndingIndex ?? 0;
-  const currentEnding = endingQueue[currentEndingIndex] ?? 'ام';
+  const currentEnding = endingAt(endingQueue, currentEndingIndex);
+  const isPlaying = roomState.status === 'playing';
 
   const myName = roomState.players[myRole]?.name || '';
   const oppName = roomState.players[oppRole]?.name || 'الخصم';
   const myColor = myRole === 1 ? '#fbbf24' : '#2dd4bf';
   const oppColor = myRole === 1 ? '#2dd4bf' : '#fbbf24';
 
-  const wordStr = (w) => (typeof w === 'string' ? w : w?.w ?? '');
-  const wordTs  = (w) => (typeof w === 'string' ? null : w?.ts ?? null);
-
   useEffect(() => {
-    const iv = setInterval(() => setDisplayNow(Date.now()), 100);
+    const iv = setInterval(() => setDisplayNow(now()), 100);
     return () => clearInterval(iv);
   }, []);
 
@@ -151,29 +163,22 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
 
   useEffect(() => {
     const secs = Math.ceil(timeLeft);
-    if (secs <= 5 && secs > 0 && secs !== lastTickRef.current && roomState.status === 'playing') {
+    if (secs <= 5 && secs > 0 && secs !== lastTickRef.current && isPlaying) {
       lastTickRef.current = secs;
       playTick();
     }
     if (secs > 5) lastTickRef.current = null;
-  }, [timeLeft, roomState.status]);
+  }, [timeLeft, isPlaying]);
 
+  // انتهاء الوقت: السيرفر هو اللي يحدد الفائز (نعيد المحاولة كل ٧٠٠ms لين ينجح)
   useEffect(() => {
-    if (timeLeft > 0 || winSavedRef.current || roomState.status === 'finished') return;
-    winSavedRef.current = true;
-    playGameOver();
-    const p1 = (roomState.words_p1 || []).length - (roomState.penalties?.[1] ?? 0);
-    const p2 = (roomState.words_p2 || []).length - (roomState.penalties?.[2] ?? 0);
-    const winner = p1 === p2 ? 0 : (p1 > p2 ? 1 : 2);
-    const newState = { ...roomState, [myWordKey]: myWordsRef.current, status: 'finished', winner };
-    setRoomState(newState);
-    saveRoom(roomCode, newState).catch(console.error);
-  }, [timeLeft, roomState.status]);
-
-  const saveRace = useCallback((ns) => {
-    setRoomState(ns);
-    saveRoom(roomCode, ns).catch(console.error);
-  }, [roomCode, setRoomState]);
+    if (timeLeft > 0 || !isPlaying) return;
+    const t = Date.now();
+    if (t - finishTriedRef.current < 700) return;
+    if (finishTriedRef.current === 0) playGameOver();
+    finishTriedRef.current = t;
+    raceFinish(roomCode).then(r => r?.state && apply(r.state)).catch(console.error);
+  }, [timeLeft, isPlaying, roomCode, apply]);
 
   const showFeedback = useCallback((ok, text) => {
     clearTimeout(feedbackTimer.current);
@@ -181,67 +186,72 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     feedbackTimer.current = setTimeout(() => setLocalFeedback(null), ok ? 700 : 1400);
   }, []);
 
+  // ينفّذ طلب سيرفر بالترتيب، يطبّق الحالة الحقيقية، ويعرض سبب الرفض
+  const runServer = useCallback((call) => {
+    queueRef.current = queueRef.current
+      .then(call)
+      .then(r => {
+        if (r?.state) apply(r.state);
+        if (r && !r.ok) {
+          playReject();
+          showFeedback(false, r.reason === 'stale' ? `سبقك ${oppName}! ⚡` : (RACE_REASONS[r.reason] || 'تعذر التنفيذ'));
+        }
+      })
+      .catch(async (e) => {
+        console.error(e);
+        showFeedback(false, 'مشكلة اتصال — حاول مرة ثانية');
+        try { const s = await getRoom(roomCode); if (s) apply(s); } catch {}
+      });
+  }, [apply, showFeedback, oppName, roomCode]);
+
   const submitWord = useCallback(() => {
-    if (timeLeft <= 0 || isFrozen) return;
+    if (timeLeft <= 0 || isFrozen || !isPlaying) return;
     const word = input.trim();
     if (!word) return;
 
-    if (!normalize(word).endsWith(normalize(currentEnding))) {
-      playReject(); showFeedback(false, `لازم تنتهي بـ "${currentEnding}"`); return;
-    }
-    const allWords = [...(roomState.words_p1 || []), ...(roomState.words_p2 || [])];
-    if (allWords.some(w => normalizeStrict(wordStr(w)) === normalizeStrict(word))) {
-      playReject(); showFeedback(false, 'كلمة مستخدمة'); return;
-    }
-    let storeWord = word;
-    if (NORMALIZED_DICT.size > 0) {
-      const lu = lookupWord(word);
-      if (!lu.valid) {
-        playReject(); showFeedback(false, lu.ambiguous ? 'حدد موضع الهمزة' : 'كلمة غير معروفة'); return;
-      }
-      storeWord = lu.canonical;
-    }
+    const used = [...(roomState.words_p1 || []), ...(roomState.words_p2 || [])].map(wordStr);
+    const check = checkRaceWord(word, currentEnding, used);
+    if (!check.ok) { playReject(); showFeedback(false, check.error); return; }
 
     playAccept();
     setInput('');
-    showFeedback(true, '✓ ' + storeWord);
+    showFeedback(true, '✓ ' + check.word);
 
-    const newEntry = { w: storeWord, ts: Date.now(), ending: currentEnding };
-    const newMyWords = [...myWordsRef.current, newEntry];
-    myWordsRef.current = newMyWords;
+    // عرض فوري (متفائل) — السيرفر يأكّد أو يصحّح
+    const idx = currentEndingIndex;
+    const entry = { w: check.word, ts: now(), ending: currentEnding };
+    setRoomState(prev => ({
+      ...prev,
+      [myWordKey]: [...(prev[myWordKey] || []), entry],
+      currentEndingIndex: idx + 1,
+    }));
+    runServer(() => raceSubmit(roomCode, myRole, check.word, idx));
+  }, [input, timeLeft, isFrozen, isPlaying, roomState, myWordKey, currentEnding, currentEndingIndex, setRoomState, runServer, roomCode, myRole, showFeedback]);
 
-    saveRace({
-      ...roomState,
-      [myWordKey]: newMyWords,
-      currentEndingIndex: currentEndingIndex + 1,
-    });
-  }, [input, timeLeft, isFrozen, roomState, myWordKey, currentEnding, currentEndingIndex, saveRace, showFeedback]);
-
-  const handleResign = useCallback(async () => {
-    const newState = {
-      ...roomState,
-      [myWordKey]: myWordsRef.current,
-      status: 'finished',
-      winner: oppRole,
-      resigned: myRole,
-    };
-    setRoomState(newState);
-    await saveRoom(roomCode, newState).catch(console.error);
-  }, [roomState, myWordKey, oppRole, myRole, roomCode, setRoomState]);
+  const handleResign = useCallback(() => {
+    if (!confirmResign) {
+      setConfirmResign(true);
+      clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirmResign(false), 2500);
+      return;
+    }
+    clearTimeout(confirmTimer.current);
+    setConfirmResign(false);
+    runServer(() => raceResign(roomCode, myRole));
+  }, [confirmResign, runServer, roomCode, myRole]);
 
   const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
+  useEffect(() => () => { clearTimeout(feedbackTimer.current); clearTimeout(confirmTimer.current); }, []);
 
   const lastAnswerTsRef = useRef(undefined);
 
-  const myWords = myWordsRef.current;
+  const myWords = roomState[myWordKey] || [];
   const oppWords = roomState[oppWordKey] || [];
   const myScore = myWords.length;
   const oppScore = oppWords.length;
-  const myPenalty = roomState.penalties?.[myRole] ?? 0;
-  const oppPenalty = roomState.penalties?.[oppRole] ?? 0;
-  const myDisplayScore = myScore - myPenalty;
-  const oppDisplayScore = oppScore - oppPenalty;
+  const myDisplayScore = raceScore(roomState, myRole);
+  const oppDisplayScore = raceScore(roomState, oppRole);
   const prevMyScoreRef = useRef(myScore);
   const prevOppScoreRef = useRef(oppScore);
 
@@ -272,22 +282,28 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
     if (!isFrozen) wasFrozenRef.current = false;
   }, [isFrozen]);
 
-  const handleFreeze = useCallback(async () => {
-    if (myDisplayScore < 3 || isOppFrozen) return;
-    const newFrozenUntil = { ...(roomState.frozenUntil || { 1: null, 2: null }), [oppRole]: Date.now() + 5000 };
-    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 3 };
-    const newState = { ...roomState, [myWordKey]: myWordsRef.current, frozenUntil: newFrozenUntil, penalties: newPenalties };
-    saveRace(newState);
+  const handleFreeze = useCallback(() => {
+    if (myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0) return;
+    setRoomState(prev => ({
+      ...prev,
+      frozenUntil: { ...(prev.frozenUntil || {}), [oppRole]: now() + 5000 },
+      penalties: { ...(prev.penalties || {}), [myRole]: (prev.penalties?.[myRole] ?? 0) + 3 },
+    }));
     playFreeze();
-  }, [roomState, myDisplayScore, isOppFrozen, oppRole, myRole, myWordKey, saveRace]);
+    runServer(() => raceFreeze(roomCode, myRole));
+  }, [myDisplayScore, isOppFrozen, isFrozen, timeLeft, oppRole, myRole, setRoomState, runServer, roomCode]);
 
   const handleSkip = useCallback(() => {
     if (myDisplayScore < 1 || timeLeft <= 0 || isFrozen) return;
-    const newPenalties = { ...(roomState.penalties || { 1: 0, 2: 0 }), [myRole]: (roomState.penalties?.[myRole] ?? 0) + 1 };
-    const newState = { ...roomState, [myWordKey]: myWordsRef.current, currentEndingIndex: currentEndingIndex + 1, penalties: newPenalties };
-    saveRace(newState);
+    const idx = currentEndingIndex;
+    setRoomState(prev => ({
+      ...prev,
+      currentEndingIndex: idx + 1,
+      penalties: { ...(prev.penalties || {}), [myRole]: (prev.penalties?.[myRole] ?? 0) + 1 },
+    }));
     playSkip();
-  }, [myDisplayScore, timeLeft, isFrozen, roomState, myRole, myWordKey, currentEndingIndex, saveRace]);
+    runServer(() => raceSkip(roomCode, myRole, idx));
+  }, [myDisplayScore, timeLeft, isFrozen, currentEndingIndex, myRole, setRoomState, runServer, roomCode]);
 
   const recentAnswers = useMemo(() => {
     const my  = myWords.map(w  => ({ word: wordStr(w), ts: wordTs(w), ending: w?.ending ?? '', color: myColor,  name: myName }));
@@ -321,8 +337,8 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
 
       {/* ===== شريط العنوان ===== */}
       <div className="shrink-0 flex items-center justify-between px-4 pt-1 pb-0">
-        <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90">
-          <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
+        <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90" aria-label="استسلام">
+          <ArrowLeft className="w-5 h-5" style={{ color: confirmResign ? '#f87171' : 'rgba(255,255,255,0.45)' }} />
         </button>
         <div className="flex items-center gap-1.5 font-display font-bold" style={{ fontSize: '0.9rem' }}>
           <Zap className="w-4 h-4 text-amber-400" />
@@ -557,10 +573,64 @@ export function RaceGame({ roomState, setRoomState, myRole, roomCode }) {
           style={{ fontSize: '0.8rem', color: 'rgba(239,68,68,0.45)', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.8)'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
           onMouseLeave={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.45)'; e.currentTarget.style.background = 'rgba(239,68,68,0.05)'; }}>
-          <Flag className="w-3.5 h-3.5" /> استسلام
+          <Flag className="w-3.5 h-3.5" /> {confirmResign ? 'اضغط مرة ثانية للتأكيد' : 'استسلام'}
         </button>
       </div>
 
+    </div>
+  );
+}
+
+// ============== ملخص المباراة (شاشة النهاية) ==============
+function MatchSummary({ roomState, myRole }) {
+  const oppRole = myRole === 1 ? 2 : 1;
+  const isRace = roomState.mode === 'race';
+  const listFor = (r) => isRace
+    ? (roomState[`words_p${r}`] || []).map(wordStr)
+    : (roomState.usedWords || []).filter(w => w.player === r).map(w => w.word).reverse();
+  const colorOf = (r) => (r === 1 ? '#fbbf24' : '#2dd4bf');
+  const nameOf = (r) => roomState.players[r]?.name || '';
+  const lists = { [myRole]: listFor(myRole), [oppRole]: listFor(oppRole) };
+  const all = [...lists[myRole], ...lists[oppRole]];
+  if (!all.length) return null;
+
+  const longest = all.reduce((a, b) => (b.length > a.length ? b : a), '');
+  const longestBy = lists[myRole].includes(longest) ? myRole : oppRole;
+
+  return (
+    <div className="mb-6 space-y-3 text-right slide-in">
+      <div className="flex items-center justify-center gap-2 text-sm bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2">
+        <Target className="w-4 h-4 text-stone-400" />
+        <span className="text-stone-400">أطول كلمة:</span>
+        <span className="font-display font-bold" style={{ color: colorOf(longestBy) }}>{longest}</span>
+        <span className="text-stone-500 text-xs">({nameOf(longestBy)})</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {[myRole, oppRole].map(r => {
+          const color = colorOf(r);
+          const list = lists[r];
+          const penalty = isRace ? (roomState.penalties?.[r] ?? 0) : 0;
+          return (
+            <div key={r} className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 min-w-0">
+              <div className="flex items-center justify-between gap-1 text-xs mb-2">
+                <span className="font-display font-bold truncate" style={{ color }}>{nameOf(r)}</span>
+                <span className="text-stone-500 shrink-0">
+                  {list.length} كلمة{penalty > 0 ? ` · −${penalty}` : ''}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                {list.map((w, i) => (
+                  <span key={i} className="px-2 py-0.5 rounded-md font-display text-sm"
+                    style={{ background: `${color}14`, color, border: `1px solid ${color}30` }}>
+                    {w}
+                  </span>
+                ))}
+                {!list.length && <span className="text-xs text-stone-600">لا شيء</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -583,8 +653,22 @@ function TurnCircle({ timeLeft, total }) {
 }
 
 // ============== المكون الرئيسي ==============
+const screenForStatus = (status) =>
+  status === 'waiting' ? 'waiting' : status === 'finished' ? 'gameover' : 'playing';
+
+function setRoomInUrl(code) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (code) url.searchParams.set('room', code);
+    else url.searchParams.delete('room');
+    window.history.replaceState(null, '', url.toString());
+  } catch {}
+}
+
 export default function Game() {
   const [screen, setScreen] = useState('menu');
+  const [booting, setBooting] = useState(true);
   const [myRole, setMyRoleState] = useState(null);
   const [roomCode, setRoomCode] = useState('');
   const [roomState, setRoomState] = useState(null);
@@ -602,9 +686,6 @@ export default function Game() {
   const [customEnding, setCustomEnding] = useState('');
   const [useCustom, setUseCustom] = useState(false);
 
-  const myRoleRef = useRef(myRole);
-  useEffect(() => { myRoleRef.current = myRole; }, [myRole]);
-
   // الانضمام
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
@@ -613,7 +694,7 @@ export default function Game() {
   // أثناء اللعب
   const [currentInput, setCurrentInput] = useState('');
   const [feedback, setFeedback] = useState(null);
-  const [displayNow, setDisplayNow] = useState(Date.now());
+  const [displayNow, setDisplayNow] = useState(() => now());
   const inputRef = useRef(null);
   const winSubmittedRef = useRef(false);
   const prevWordsLenRef = useRef(0);
@@ -623,69 +704,113 @@ export default function Game() {
   const prevPendingRef = useRef(null);
   const lastTickRef = useRef(null);
 
+  // يطبّق حالة من السيرفر فقط إذا كانت أحدث من الموجودة (يتجاهل التحديثات المتأخرة)
+  const applyServerState = useCallback((next) => {
+    if (!next) return;
+    setRoomState(prev => (isNewerState(prev, next) ? next : prev));
+  }, []);
+
+  const enterRoom = useCallback((code, role, state) => {
+    setMyRole(code, role);
+    setCurrentRoom(code);
+    setRoomInUrl(code);
+    setRoomCode(code);
+    setMyRoleState(role);
+    setRoomState(state);
+    setGlobalError(null);
+    setScreen(screenForStatus(state.status));
+  }, []);
+
+  // ============== الإقلاع: مزامنة الساعة + العودة للغرفة / رابط الدعوة ==============
+  useEffect(() => {
+    syncClock();
+    const savedName = getSavedName();
+    if (savedName) { setHostName(savedName); setJoinName(savedName); }
+
+    let urlCode = '';
+    try { urlCode = (new URLSearchParams(window.location.search).get('room') || '').replace(/\D/g, '').slice(0, 4); } catch {}
+    const code = urlCode || getCurrentRoom();
+    if (!code) { setBooting(false); return; }
+
+    (async () => {
+      try {
+        const state = await getRoom(code);
+        if (!state) {
+          setCurrentRoom(null);
+          setRoomInUrl(null);
+          if (urlCode) { setScreen('join-setup'); setJoinCode(urlCode); setGlobalError('ما لقينا غرفة بهذا الكود'); }
+          return;
+        }
+        const role = getMyRole(code);
+        if (role && !state.players[role]?.left) {
+          enterRoom(code, role, state);
+          return;
+        }
+        if (urlCode) {
+          setJoinCode(urlCode);
+          setScreen('join-setup');
+          if (state.players[2]?.joined) setGlobalError('الغرفة ممتلئة');
+          else setJoinPreview(state);
+        } else {
+          setCurrentRoom(null);
+        }
+      } catch (e) {
+        console.error('[resume]', e);
+      } finally {
+        setBooting(false);
+      }
+    })();
+  }, [enterRoom]);
+
   // ============== الاشتراك بـ Realtime ==============
   useEffect(() => {
     if (!roomCode || roomCode === 'local') return;
 
     let active = true;
 
-    // التحميل الأولي
-    (async () => {
+    const refresh = async () => {
       try {
         const state = await getRoom(roomCode);
-        if (active && state) {
-          setRoomState(state);
-          setConnected(true);
-        }
+        if (active && state) { applyServerState(state); setConnected(true); }
       } catch (e) {
-        console.error('[initial load]', e);
-        setConnected(false);
+        console.error('[refresh]', e);
+        if (active) setConnected(false);
       }
-    })();
+    };
+    refresh();
 
-    // الاشتراك بالتحديثات اللحظية
     const channel = supabase
       .channel(`room-${roomCode}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rooms',
-          filter: `code=eq.${roomCode}`,
-        },
+        { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` },
         (payload) => {
           if (!active) return;
           const newState = payload.new?.state;
-          if (newState) {
-            if (newState.mode === 'race' && myRoleRef.current) {
-              const role = myRoleRef.current;
-              const myKey = `words_p${role}`;
-              setRoomState(prev => {
-                if (newState.gameNumber !== prev?.gameNumber) return newState;
-                const prevLen = (prev?.[myKey] || []).length;
-                const newLen = (newState[myKey] || []).length;
-                return prevLen > newLen
-                  ? { ...newState, [myKey]: prev[myKey] }
-                  : newState;
-              });
-            } else {
-              setRoomState(newState);
-            }
-            setConnected(true);
-          }
+          if (newState) { applyServerState(newState); setConnected(true); }
         }
       )
       .subscribe((status) => {
         if (!active) return;
         setConnected(status === 'SUBSCRIBED');
+        // بعد إعادة الاتصال نجيب آخر حالة (ممكن فاتتنا تحديثات)
+        if (status === 'SUBSCRIBED') refresh();
       });
+
+    // الجوال يوقف الاتصال لما التطبيق بالخلفية — نحدّث عند الرجوع
+    const onWake = () => {
+      if (document.visibilityState === 'visible') { syncClock(); refresh(); }
+    };
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('online', onWake);
 
     return () => {
       active = false;
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('online', onWake);
       supabase.removeChannel(channel);
     };
-  }, [roomCode]);
+  }, [roomCode, applyServerState]);
 
   // ============== انتقال الشاشات ==============
   useEffect(() => {
@@ -707,46 +832,61 @@ export default function Game() {
   // ============== مؤقت العرض ==============
   useEffect(() => {
     if (screen !== 'playing') return;
-    const interval = setInterval(() => setDisplayNow(Date.now()), 100);
+    const interval = setInterval(() => setDisplayNow(now()), 100);
     return () => clearInterval(interval);
   }, [screen]);
 
+  // ============== كتابة مشروطة لساعة الشطرنج ==============
+  // تعرض التغيير فوراً، والسيرفر يرفضه إذا تغيّرت الغرفة في نفس اللحظة
+  const commitChess = useCallback(async (base, next, stamp = null) => {
+    setRoomState(next);
+    try {
+      const r = await roomCas(roomCode, base.version ?? 0, next, stamp);
+      if (r?.state) applyServerState(r.state);
+      return r;
+    } catch (e) {
+      console.error('[commit]', e);
+      setConnected(false);
+      try { const s = await getRoom(roomCode); if (s) applyServerState(s); } catch {}
+      return null;
+    }
+  }, [roomCode, applyServerState]);
+
   // ============== كشف انتهاء الوقت ==============
   useEffect(() => {
-    if (screen !== 'playing' || !roomState || roomState.status !== 'playing') return;
+    if (screen !== 'playing' || !roomState || roomState.mode === 'race' || roomState.status !== 'playing') return;
     if (roomState.pendingWord || roomState.winner || winSubmittedRef.current) return;
-    // فقط اللاعب الحالي يكتب نهاية اللعبة (لتجنب الكتابة المتزامنة)
-    if (roomState.currentTurn !== myRole) return;
+    // اللاعب الحالي يكتب أولاً؛ إذا جواله نايم، الخصم يتولى بعد ثانيتين.
+    // الكتابة المشروطة تمنع أي تكرار لو كتب الاثنان.
+    const grace = roomState.currentTurn === myRole ? 0 : 2;
 
     const elapsed = (displayNow - roomState.turnStartedAt) / 1000;
     const current = roomState.currentTurn;
     const remaining = roomState.timeRemaining[current] - elapsed;
 
-    if (remaining <= 0) {
+    if (remaining <= -grace) {
       winSubmittedRef.current = true;
-      const newState = {
+      commitChess(roomState, {
         ...roomState,
         status: 'finished',
         winner: current === 1 ? 2 : 1,
         timeRemaining: { ...roomState.timeRemaining, [current]: 0 },
-      };
-      saveRoom(roomCode, newState).catch(console.error);
-    } else if (elapsed >= (roomState.settings?.turnSkipSeconds ?? TURN_SKIP_SECONDS)) {
+      });
+    } else if (remaining > 0 && elapsed >= (roomState.settings?.turnSkipSeconds ?? TURN_SKIP_SECONDS) + grace) {
       winSubmittedRef.current = true;
-      const newState = {
+      commitChess(roomState, {
         ...roomState,
         timeRemaining: { ...roomState.timeRemaining, [current]: Math.max(0, remaining) },
         currentTurn: current === 1 ? 2 : 1,
-        turnStartedAt: Date.now(),
-      };
-      saveRoom(roomCode, newState).catch(console.error);
+        turnStartedAt: now(),
+      }, 'turnStartedAt');
     }
-  }, [displayNow, roomState, screen, roomCode, myRole]);
+  }, [displayNow, roomState, screen, myRole, commitChess]);
 
   // إعادة تعيين عند تغيير الدور
   useEffect(() => {
     winSubmittedRef.current = false;
-  }, [roomState?.turnStartedAt]);
+  }, [roomState?.turnStartedAt, roomState?.version]);
 
   // ============== الأصوات ==============
   useEffect(() => {
@@ -828,18 +968,15 @@ export default function Game() {
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
       await saveRoom(code, state);
-      setMyRole(code, 1);
-      setRoomCode(code);
-      setMyRoleState(1);
-      setRoomState(state);
-      setScreen('waiting');
+      saveName(hostName.trim());
+      enterRoom(code, 1, state);
     } catch (e) {
       console.error('[createRoom]', e);
       setGlobalError(`تعذر إنشاء الغرفة: ${e?.message || 'خطأ غير معروف'}`);
     } finally {
       setBusy(false);
     }
-  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration]);
+  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, enterRoom]);
 
   const checkJoinCode = useCallback(async () => {
     if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون ٤ أرقام'); return; }
@@ -848,18 +985,9 @@ export default function Game() {
     try {
       const state = await getRoom(joinCode);
       if (!state) { setGlobalError('ما لقينا غرفة بهذا الكود'); return; }
-      if (state.players[2].joined && state.status !== 'waiting') {
-        const myStoredRole = getMyRole(joinCode);
-        if (myStoredRole) {
-          setRoomCode(joinCode);
-          setMyRoleState(myStoredRole);
-          setRoomState(state);
-          setScreen(state.status === 'finished' ? 'gameover' : 'playing');
-          return;
-        }
-        setGlobalError('الغرفة ممتلئة');
-        return;
-      }
+      const stored = getMyRole(joinCode);
+      if (stored && !state.players[stored]?.left) { enterRoom(joinCode, stored, state); return; }
+      if (state.players[2]?.joined) { setGlobalError('الغرفة ممتلئة'); return; }
       setJoinPreview(state);
     } catch (e) {
       console.error('[checkJoinCode]', e);
@@ -867,36 +995,27 @@ export default function Game() {
     } finally {
       setBusy(false);
     }
-  }, [joinCode]);
+  }, [joinCode, enterRoom]);
 
   const confirmJoin = useCallback(async () => {
     if (!joinName.trim()) { setGlobalError('اكتب اسمك'); return; }
     setBusy(true);
     setGlobalError(null);
     try {
-      const fresh = await getRoom(joinCode);
-      if (!fresh) { setGlobalError('الغرفة لم تعد متاحة'); return; }
-      const updated = {
-        ...fresh,
-        status: 'playing',
-        players: { ...fresh.players, 2: { name: joinName.trim(), joined: true } },
-        ...(fresh.mode === 'race'
-          ? { gameStartedAt: Date.now() }
-          : { turnStartedAt: Date.now() }),
-      };
-      await saveRoom(joinCode, updated);
-      setMyRole(joinCode, 2);
-      setRoomCode(joinCode);
-      setMyRoleState(2);
-      setRoomState(updated);
-      setScreen('playing');
+      const r = await roomJoin(joinCode, joinName.trim());
+      if (!r?.ok) {
+        setGlobalError(r?.reason === 'full' ? 'الغرفة ممتلئة' : 'الغرفة لم تعد متاحة');
+        return;
+      }
+      saveName(joinName.trim());
+      enterRoom(joinCode, 2, r.state);
     } catch (e) {
       console.error('[confirmJoin]', e);
       setGlobalError(`خطأ: ${e?.message || 'تعذر الانضمام'}`);
     } finally {
       setBusy(false);
     }
-  }, [joinCode, joinName]);
+  }, [joinCode, joinName, enterRoom]);
 
   const submitWord = useCallback(async () => {
     if (!roomState || roomState.currentTurn !== myRole || roomState.pendingWord) return;
@@ -933,79 +1052,65 @@ export default function Game() {
       }
       if (lu.valid) { canonicalWord = lu.canonical; inDict = true; }
     }
-    const elapsed = (Date.now() - roomState.turnStartedAt) / 1000;
+    const elapsed = (now() - roomState.turnStartedAt) / 1000;
     const newTimeForCurrent = Math.max(0, roomState.timeRemaining[myRole] - elapsed);
 
+    setCurrentInput('');
     if (inDict) {
-      const newState = {
+      setFeedback({ type: 'success', text: canonicalWord });
+      setTimeout(() => setFeedback(null), 1200);
+      commitChess(roomState, {
         ...roomState,
         usedWords: [{ word: canonicalWord, player: myRole }, ...roomState.usedWords],
         timeRemaining: { ...roomState.timeRemaining, [myRole]: newTimeForCurrent },
         currentTurn: myRole === 1 ? 2 : 1,
-        turnStartedAt: Date.now(),
-      };
-      setRoomState(newState);
-      setCurrentInput('');
-      setFeedback({ type: 'success', text: word });
-      setTimeout(() => setFeedback(null), 1200);
-      try { await saveRoom(roomCode, newState); }
-      catch (e) { console.error('[submit]', e); }
+        turnStartedAt: now(),
+      }, 'turnStartedAt');
     } else {
-      const newState = {
+      commitChess(roomState, {
         ...roomState,
         timeRemaining: { ...roomState.timeRemaining, [myRole]: newTimeForCurrent },
         pendingWord: { word, by: myRole },
-      };
-      setRoomState(newState);
-      setCurrentInput('');
-      try { await saveRoom(roomCode, newState); }
-      catch (e) { console.error('[submit pending]', e); }
+      });
     }
-  }, [roomState, myRole, currentInput, roomCode]);
+  }, [roomState, myRole, currentInput, commitChess]);
 
-  const acceptPending = useCallback(async () => {
+  const acceptPending = useCallback(() => {
     if (!roomState?.pendingWord) return;
     const { word, by } = roomState.pendingWord;
-    const newState = {
+    commitChess(roomState, {
       ...roomState,
       usedWords: [{ word, player: by }, ...roomState.usedWords],
       customDict: [...roomState.customDict, normalize(word)],
       pendingWord: null,
       currentTurn: by === 1 ? 2 : 1,
-      turnStartedAt: Date.now(),
-    };
-    setRoomState(newState);
-    try { await saveRoom(roomCode, newState); }
-    catch (e) { console.error('[accept]', e); }
-  }, [roomState, roomCode]);
+      turnStartedAt: now(),
+    }, 'turnStartedAt');
+  }, [roomState, commitChess]);
 
-  const rejectPending = useCallback(async () => {
+  const rejectPending = useCallback(() => {
     if (!roomState?.pendingWord) return;
-    const newState = {
+    commitChess(roomState, {
       ...roomState,
       pendingWord: null,
-      turnStartedAt: Date.now(),
-    };
-    setRoomState(newState);
-    try { await saveRoom(roomCode, newState); }
-    catch (e) { console.error('[reject]', e); }
-  }, [roomState, roomCode]);
+      turnStartedAt: now(),
+    }, 'turnStartedAt');
+  }, [roomState, commitChess]);
 
-  const resign = useCallback(async () => {
-    if (!roomState) return;
-    const newState = {
+  const resign = useCallback(() => {
+    if (!roomState || roomState.status !== 'playing') return;
+    commitChess(roomState, {
       ...roomState,
       status: 'finished',
       winner: myRole === 1 ? 2 : 1,
-    };
-    setRoomState(newState);
-    try { await saveRoom(roomCode, newState); }
-    catch (e) { console.error('[resign]', e); }
-  }, [roomState, myRole, roomCode]);
+      resigned: myRole,
+    });
+  }, [roomState, myRole, commitChess]);
 
   const rematch = useCallback(async () => {
     if (!roomState) return;
-    const newGameNum = (roomState.gameNumber || 1) + 1;
+    const gameNumber = roomState.gameNumber || 1;
+    const newGameNum = gameNumber + 1;
     const cleanPlayers = {
       1: { ...roomState.players[1], left: false },
       2: { ...roomState.players[2], left: false },
@@ -1020,7 +1125,7 @@ export default function Game() {
         words_p2: [],
         endingQueue: generateEndingQueue(),
         currentEndingIndex: 0,
-        gameStartedAt: Date.now(),
+        gameStartedAt: now(),
         winner: null,
         resigned: null,
         penalties: { 1: 0, 2: 0 },
@@ -1035,7 +1140,7 @@ export default function Game() {
         players: cleanPlayers,
         timeRemaining: { 1: seconds, 2: seconds },
         currentTurn: newGameNum % 2 === 0 ? 2 : 1,
-        turnStartedAt: Date.now(),
+        turnStartedAt: now(),
         pendingWord: null,
         usedWords: [],
         winner: null,
@@ -1043,27 +1148,29 @@ export default function Game() {
         gameNumber: newGameNum,
       };
     }
-    setRoomState(newState);
-    winSubmittedRef.current = false;
-    setCurrentInput('');
-    setFeedback(null);
-    setScreen('playing');
-    try { await saveRoom(roomCode, newState); }
-    catch (e) { console.error('[rematch]', e); }
-  }, [roomState, roomCode]);
+    setBusy(true);
+    try {
+      // إذا ضغط الخصم قبلك، السيرفر يرجع جولته بدل ما تبدأ جولة ثانية
+      const r = await roomRematch(roomCode, gameNumber, newState);
+      if (r?.state) applyServerState(r.state);
+    } catch (e) {
+      console.error('[rematch]', e);
+    } finally {
+      setBusy(false);
+    }
+  }, [roomState, roomCode, applyServerState]);
 
   const leaveRoom = useCallback(async () => {
     if (roomCode && roomCode !== 'local' && myRole && roomState) {
-      const leftState = {
-        ...roomState,
-        players: {
-          ...roomState.players,
-          [myRole]: { ...roomState.players[myRole], left: true },
-        },
-      };
-      saveRoom(roomCode, leftState).catch(() => {});
+      if (roomState.status === 'waiting' && myRole === 1) {
+        deleteRoom(roomCode).catch(() => {});
+      } else {
+        roomLeave(roomCode, myRole).catch(() => {});
+      }
     }
     if (roomCode && roomCode !== 'local') clearMyRole(roomCode);
+    setCurrentRoom(null);
+    setRoomInUrl(null);
     setScreen('menu');
     setRoomCode('');
     setMyRoleState(null);
@@ -1071,20 +1178,37 @@ export default function Game() {
     setCurrentInput('');
     setFeedback(null);
     setJoinCode('');
-    setJoinName('');
     setJoinPreview(null);
-    setHostName('');
     setGlobalError(null);
   }, [roomCode, myRole, roomState]);
 
+  const inviteUrl = roomCode && roomCode !== 'local' && typeof window !== 'undefined'
+    ? `${window.location.origin}/?room=${roomCode}` : '';
+
+  const flash = useCallback((text) => {
+    setFeedback({ type: 'success', text });
+    setTimeout(() => setFeedback(null), 1500);
+  }, []);
+
   const copyCode = useCallback(() => {
     if (!roomCode) return;
-    try {
-      navigator.clipboard?.writeText(roomCode);
-      setFeedback({ type: 'success', text: 'تم نسخ الكود' });
-      setTimeout(() => setFeedback(null), 1500);
-    } catch {}
-  }, [roomCode]);
+    try { navigator.clipboard?.writeText(roomCode); flash('تم نسخ الكود'); } catch {}
+  }, [roomCode, flash]);
+
+  const copyLink = useCallback(() => {
+    if (!inviteUrl) return;
+    try { navigator.clipboard?.writeText(inviteUrl); flash('تم نسخ الرابط'); } catch {}
+  }, [inviteUrl, flash]);
+
+  const shareInvite = useCallback(async () => {
+    if (!inviteUrl) return;
+    const text = `تعال نلعب لعبة الكلمات! 🎮\nكود الغرفة: ${roomCode}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'لعبة الكلمات', text, url: inviteUrl }); return; }
+      catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${inviteUrl}`)}`, '_blank', 'noopener');
+  }, [inviteUrl, roomCode]);
 
   const startLocal = useCallback(() => {
     const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
@@ -1092,6 +1216,7 @@ export default function Game() {
       setGlobalError('أكمل البيانات أولاً');
       return;
     }
+    saveName(hostName.trim());
     const state = createInitialState('local', hostName.trim(), {
       timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip,
     });
@@ -1103,6 +1228,7 @@ export default function Game() {
     setRoomState(state);
     setScreen('local-playing');
   }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip]);
+
 
   // ============== المعطيات المحسوبة ==============
   const displayTimes = useMemo(() => {
@@ -1134,6 +1260,14 @@ export default function Game() {
 
   // ============== الشاشات ==============
   // -------- شاشة القائمة --------
+  if (booting) {
+    return (
+      <div className="flex items-center justify-center bg-stone-950" style={{ width: '100vw', height: '100dvh' }}>
+        <Loader2 className="w-8 h-8 animate-spin text-amber-400/70" />
+      </div>
+    );
+  }
+
   if (screen === 'menu') {
     return (
       <div
@@ -1577,12 +1711,28 @@ export default function Game() {
               {roomCode}
             </div>
             <button
-              onClick={copyCode}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-stone-300 transition-colors"
+              onClick={shareInvite}
+              className="w-full mb-3 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-display font-bold text-stone-950 bg-gradient-to-l from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 shadow-lg shadow-emerald-500/20 transition-all"
             >
-              <Copy className="w-4 h-4" />
-              نسخ الكود
+              <Share2 className="w-5 h-5" />
+              أرسل الدعوة
             </button>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={copyLink}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-stone-300 transition-colors"
+              >
+                <Link2 className="w-4 h-4" />
+                نسخ الرابط
+              </button>
+              <button
+                onClick={copyCode}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-stone-300 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                نسخ الكود
+              </button>
+            </div>
             {feedback?.type === 'success' && (
               <div className="text-emerald-300 text-xs mt-2 slide-in">{feedback.text}</div>
             )}
@@ -1630,7 +1780,7 @@ export default function Game() {
 
   // -------- شاشة اللعب --------
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
-    return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} myRole={myRole} roomCode={roomCode} />;
+    return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} applyServerState={applyServerState} myRole={myRole} roomCode={roomCode} />;
   }
 
   if (screen === 'playing' && roomState && myRole) {
@@ -1823,7 +1973,7 @@ export default function Game() {
   }
 
   // -------- شاشة النهاية --------
-  if (screen === 'gameover' && roomState && roomState.winner !== null) {
+  if (screen === 'gameover' && roomState && roomState.winner != null) {
     const winner = roomState.winner;
     const isDraw = winner === 0;
     const oppRole = myRole === 1 ? 2 : 1;
@@ -1832,10 +1982,8 @@ export default function Game() {
     const iResigned = roomState.resigned === myRole;
     const oppName = roomState.players[oppRole]?.name || 'الخصم';
 
-    const p1Count = roomState.mode === 'race'
-      ? (roomState.words_p1 || []).length : wordCounts[1];
-    const p2Count = roomState.mode === 'race'
-      ? (roomState.words_p2 || []).length : wordCounts[2];
+    const p1Count = roomState.mode === 'race' ? raceScore(roomState, 1) : wordCounts[1];
+    const p2Count = roomState.mode === 'race' ? raceScore(roomState, 2) : wordCounts[2];
 
     const myName = roomState.players[myRole]?.name || '';
     const myColor  = myRole === 1 ? '#fbbf24' : '#2dd4bf';
@@ -1847,7 +1995,7 @@ export default function Game() {
     const iWon = !isDraw && winner === myRole;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 py-8 flex items-center justify-center relative overflow-x-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
           backgroundImage: isDraw
             ? `radial-gradient(circle at 50% 30%, #a8a29e 0%, transparent 60%)`
@@ -1894,18 +2042,20 @@ export default function Game() {
               <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الفائز' : 'كلمات الخاسر'}</div>
+                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'الفائز' : 'الخاسر'}</div>
                   <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
                   <div className="font-display text-3xl font-bold" style={{ color: iWon ? myColor : '#78716c' }}>{myCount}</div>
                 </div>
                 <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'كلمات الخاسر' : 'كلمات الفائز'}</div>
+                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'الخاسر' : 'الفائز'}</div>
                   <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
                   <div className="font-display text-3xl font-bold" style={{ color: iWon ? '#78716c' : oppColor }}>{oppCount}</div>
                 </div>
               </div>
             </>
           )}
+
+          <MatchSummary roomState={roomState} myRole={myRole} />
 
           {oppResigned && (
             <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-rose-300 slide-in font-display">
@@ -1926,7 +2076,8 @@ export default function Game() {
             {!oppLeft && !oppResigned && (
               <button
                 onClick={rematch}
-                className={`flex-1 bg-gradient-to-l ${
+                disabled={busy}
+                className={`flex-1 disabled:opacity-60 bg-gradient-to-l ${
                   isDraw
                     ? 'from-stone-500 to-stone-400 hover:from-stone-400 hover:to-stone-300 shadow-stone-500/20'
                     : winner === 1

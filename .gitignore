@@ -34,3 +34,6 @@ yarn-error.log*
 *.swp
 
 .vercel
+
+# vercel cli env pulls
+.env*.local
