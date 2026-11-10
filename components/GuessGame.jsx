@@ -71,6 +71,7 @@ export default function GuessGame({ onExit }) {
   const [hints, setHints] = useState([]);          // مواضع الحروف المكشوفة
   const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
   const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
+  const [lostStreak, setLostStreak] = useState(0);
   const [rushEndsAt, setRushEndsAt] = useState(0);
   const [rushScore, setRushScore] = useState(0);
   const [rushOver, setRushOver] = useState(null);
@@ -171,6 +172,7 @@ export default function GuessGame({ onExit }) {
       s.best = Math.max(s.best, s.streak);
       s.dist[finalGuesses.length - 1] = (s.dist[finalGuesses.length - 1] || 0) + 1;
     } else {
+      setLostStreak(s.streak);
       s.streak = 0;
     }
     save(statsKey(len), s);
@@ -232,12 +234,15 @@ export default function GuessGame({ onExit }) {
       if (newStatus !== 'playing') {
         setStatus(newStatus);
         finish(won, next);
-        setTimeout(() => setShowResult(true), won ? 2000 : 900);
+        if (won) setTimeout(() => { setWinRow(-1); start('free'); }, 2000);
+        else setTimeout(() => setShowResult(true), 900);
       }
     }, total);
-  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord]);
+  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord, start]);
 
   const bank = useMemo(() => bankFor(len, answer), [len, answer]);
+  // للتجارب فقط (وضع التطوير)
+  useEffect(() => { if (process.env.NODE_ENV !== 'production') window.__guessAnswer = answer; }, [answer]);
 
   // -------- التلميح: يكشف حرف بمكانه --------
   const maxHints = mode === 'rush' ? len - 1 : (len === 3 ? 1 : 2);
@@ -412,7 +417,7 @@ export default function GuessGame({ onExit }) {
           </div>
         )}
 
-        {mode !== 'rush' && status !== 'playing' && !showResult && !busy && (
+        {status === 'lost' && !showResult && !busy && (
           <button onClick={() => setShowResult(true)} className="mt-4 rounded-full bg-white/15 px-4 py-1.5 font-display font-bold text-sm">
             <BarChart3 className="w-4 h-4 inline ml-1" /> النتيجة
           </button>
@@ -448,39 +453,22 @@ export default function GuessGame({ onExit }) {
         </div>
       )}
 
-      {/* النتيجة */}
-      {showResult && (
-        <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in"
-          onClick={() => setShowResult(false)}>
-          {status === 'won' && <Confetti />}
-          <Card className="w-full max-w-sm p-5 slide-in" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-            <div onClick={e => e.stopPropagation()}>
-              <div className="text-center font-display font-black text-2xl text-[#4c1d95]">
-                {status === 'won' ? (PRAISE[guesses.length - 1] || 'فزت!') : 'المرة الجاية! 💪'}
-              </div>
-              <div className="text-center text-muted text-sm font-display font-bold mt-1 mb-3">
-                {status === 'won'
-                  ? <>عرفتها من <Num>{guesses.length}</Num> {guesses.length === 1 ? 'محاولة' : 'محاولات'}</>
-                  : 'الكلمة كانت'}
-              </div>
-              <LetterTiles text={answer} size={len === 3 ? 52 : len === 4 ? 46 : 40} className="mb-4" />
-
-              <div className="grid grid-cols-4 gap-2 text-center mb-4">
-                <MiniStat label="لعبت" value={stats.played} />
-                <MiniStat label="فوز %" value={stats.played ? Math.round((stats.wins / stats.played) * 100) : 0} />
-                <MiniStat label="سلسلة" value={stats.streak} />
-                <MiniStat label="أفضل" value={stats.best} />
-              </div>
-
-              <Distribution dist={stats.dist} highlight={status === 'won' ? guesses.length : 0} />
-
-              <div className="flex gap-2.5 mt-4">
-                <div className="flex-1"><Btn variant="green" size="md" icon={Share2} onClick={share}>شارك</Btn></div>
-                <div className="flex-1">
-                  <Btn size="md" icon={RotateCcw} onClick={() => start('free')}>كلمة ثانية</Btn>
-                </div>
-              </div>
-              <button onClick={() => setShowResult(false)} className="w-full mt-3 text-sm font-display font-bold text-muted py-1">إغلاق</button>
+      {/* الخسارة: صفحة بسيطة */}
+      {showResult && status === 'lost' && (
+        <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in">
+          <Card className="w-full max-w-sm p-5 slide-in text-center" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="font-display font-black text-2xl text-[#4c1d95]">المرة الجاية! 💪</div>
+            <div className="text-muted text-sm font-display font-bold mt-1 mb-3">الكلمة كانت</div>
+            <LetterTiles text={answer} size={len === 3 ? 52 : 40} className="mb-4" />
+            <div className="flex items-center justify-center gap-4 mb-4 font-display font-bold text-[#6d5b95] text-sm">
+              <span>🔥 ستريكك كان <Num>{lostStreak}</Num></span>
+              <span className="w-px h-4 bg-[#ddd6fe]" />
+              <span>🏆 أعلى <Num>{stats.best}</Num></span>
+            </div>
+            <Btn icon={RotateCcw} onClick={() => start('free')}>كلمة ثانية</Btn>
+            <div className="flex justify-center gap-5 mt-3">
+              <button onClick={share} className="text-sm font-display font-bold text-muted py-1 inline-flex items-center gap-1"><Share2 className="w-4 h-4" /> شارك</button>
+              <button onClick={() => setPhase('setup')} className="text-sm font-display font-bold text-muted py-1">رجوع</button>
             </div>
           </Card>
         </div>
