@@ -14,6 +14,7 @@ import {
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
 import { now, syncClock } from '@/lib/clock';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
+import SoloGame from '@/components/SoloGame';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
 
 // ============== الثوابت ==============
@@ -1401,10 +1402,35 @@ export default function Game() {
               <Smartphone className="w-4 h-4" />
               اللعب على جهاز واحد
             </button>
+
+            {/* Solo practice */}
+            <button
+              onClick={() => { setScreen('solo'); setGlobalError(null); }}
+              className="w-full flex items-center justify-center gap-2 transition-all active:translate-y-0.5"
+              style={{
+                padding: '11px 18px',
+                borderRadius: '12px',
+                fontSize: '0.88rem',
+                color: '#c09070',
+                background: 'linear-gradient(180deg, #2e1a0a 0%, #1e1008 100%)',
+                boxShadow: '0 4px 0 #0e0804, 0 6px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.filter = ''; }}
+            >
+              <Target className="w-4 h-4" />
+              تدريب فردي
+            </button>
           </div>
         </div>
       </div>
     );
+  }
+
+  // -------- التدريب الفردي --------
+  if (screen === 'solo') {
+    return <SoloGame endings={ENDING_PRESETS.map(p => p.value)} onExit={() => setScreen('menu')} />;
   }
 
   // -------- شاشة إعداد الإنشاء --------
