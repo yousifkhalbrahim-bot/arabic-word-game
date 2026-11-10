@@ -391,7 +391,22 @@ export default function GuessGame({ onExit }) {
             ))}
           </div>
         )}
-        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush'} />
+        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush' || len === 5} />
+        {mode !== 'rush' && (
+          <div className="mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
+            <div className="flex items-center gap-1.5">
+              <span key={stats.streak} className="score-bump font-display font-black text-xl text-white"><Num>{stats.streak}</Num></span>
+              <span className="text-lg">🔥</span>
+              <span className="text-[0.7rem] font-display font-bold text-white/75">ستريك حالي</span>
+            </div>
+            <div className="w-px h-6 bg-white/20" />
+            <div className="flex items-center gap-1.5">
+              <span className="font-display font-black text-xl text-white"><Num>{stats.best}</Num></span>
+              <Trophy className="w-4 h-4 text-[#fde047]" strokeWidth={2.6} />
+              <span className="text-[0.7rem] font-display font-bold text-white/75">أعلى ستريك</span>
+            </div>
+          </div>
+        )}
 
         {toast && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
