@@ -13,13 +13,14 @@ import {
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
 
-// نفس ترتيب كيبورد الآيفون العربي (+ ء ظاهرة بدل الضغط المطوّل)
+// نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
-  ['ض', 'ص', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج'],
-  ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ء'],
-  ['ENTER', 'ظ', 'ط', 'ذ', 'د', 'ز', 'ر', 'و', 'ة', 'ث', 'BACK'],
+  ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج'],
+  ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ة'],
+  ['ء', 'ظ', 'ط', 'ذ', 'د', 'ز', 'ر', 'و', 'ى', 'BACK'],
+  ['ENTER'],
 ];
-const LETTER_SET = new Set(KEY_ROWS.flat().filter(k => k.length === 1));
+const LETTER_SET = new Set(KEY_ROWS.flat().filter(k => k.length === 1).map(normalizeGuess));
 
 const PRAISE = ['عبقري! 🤯', 'خرافي! 🔥', 'رهيب! ⭐', 'ممتاز! 👏', 'حلو! 😄', 'كفو! 💪', 'لحقت عليها! 😅'];
 
@@ -327,21 +328,21 @@ export default function GuessGame({ onExit }) {
       </div>
 
       {/* الكيبورد */}
-      <div className="shrink-0 px-1.5 pb-2 pt-2 space-y-1.5" dir="rtl">
+      <div className="shrink-0 px-1.5 pb-2 pt-2 space-y-1.5" dir="ltr">
         {KEY_ROWS.map((row, ri) => (
           <div key={ri} className="flex justify-center gap-[4px]">
             {row.map(k => {
               const wide = k === 'ENTER' || k === 'BACK';
-              const st = keyStates[k];
+              const st = keyStates[normalizeGuess(k)];
               const style = k === 'ENTER'
-                ? { background: '#7c3aed', color: '#fff', boxShadow: '0 3px 0 #4c1d95' }
+                ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
                 : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
               return (
                 <button key={k} onClick={() => typeKey(k)}
                   className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                  style={{ height: 'min(13vw, 52px)', flex: wide ? '1.45 1 0' : '1 1 0', maxWidth: wide ? 58 : 40, fontSize: '1.05rem', ...style }}
+                  style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : 40, fontSize: '1.05rem', ...style }}
                   aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
-                  {k === 'ENTER' ? <CornerDownLeft className="w-5 h-5" strokeWidth={3} />
+                  {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
                     : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
                     : k}
                 </button>
