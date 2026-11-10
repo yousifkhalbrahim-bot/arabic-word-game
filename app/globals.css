@@ -397,3 +397,54 @@ html { background: #4f46e5; }
   100% { transform: scale(1); }
 }
 .tile-pop { animation: tile-pop 0.14s ease-out; }
+
+/* ============== كيبورد خمّن الكلمة ============== */
+.kb-tray {
+  background: rgba(30, 12, 90, 0.32);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px 22px 0 0;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 -10px 30px -18px rgba(20, 5, 60, 0.7);
+}
+.kb-key {
+  position: relative;
+  border-radius: 11px;
+  font-size: 1.32rem;
+  line-height: 1;
+  transition: transform 0.06s ease, box-shadow 0.06s ease, background-color 0.25s ease, color 0.25s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.kb-glyph { display: block; padding-bottom: 3px; }
+.kb-key:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18) !important; }
+
+.kb-plain   { background: linear-gradient(180deg, #ffffff 0%, #f3efff 100%); color: #2e1065; box-shadow: 0 3px 0 #b8a6f5, 0 6px 10px -6px rgba(20, 5, 60, 0.55); }
+.kb-correct { background: linear-gradient(180deg, #34d77a 0%, #22c55e 100%); color: #fff; box-shadow: 0 3px 0 #15803d, 0 6px 10px -6px rgba(10, 60, 30, 0.6); }
+.kb-present { background: linear-gradient(180deg, #ffc040 0%, #ffb020 100%); color: #4a2400; box-shadow: 0 3px 0 #b86b00, 0 6px 10px -6px rgba(90, 40, 0, 0.6); }
+.kb-absent  { background: #2f1866; color: rgba(255, 255, 255, 0.38); box-shadow: 0 3px 0 #1d0d45; }
+.kb-off     { background: transparent; color: rgba(255, 255, 255, 0.28); box-shadow: none; border: 1.5px dashed rgba(255, 255, 255, 0.22); cursor: not-allowed; }
+.kb-back    { background: linear-gradient(180deg, #c9b8ff 0%, #b39dfc 100%); color: #2e1065; box-shadow: 0 3px 0 #7c5fd6, 0 6px 10px -6px rgba(20, 5, 60, 0.55); }
+.kb-enter   { background: linear-gradient(180deg, #34d77a 0%, #22c55e 100%); color: #fff; box-shadow: 0 4px 0 #15803d, 0 8px 14px -8px rgba(10, 60, 30, 0.7); border-radius: 14px; }
+
+/* فقاعة الحرف فوق الزر وقت الضغط (مثل الآيفون) */
+.kb-key[data-ch]:active::after {
+  content: attr(data-ch);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  min-width: 52px;
+  height: 58px;
+  padding: 0 8px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #2e1065;
+  font-size: 2.1rem;
+  box-shadow: 0 8px 22px -6px rgba(20, 5, 60, 0.6);
+  z-index: 30;
+  pointer-events: none;
+}

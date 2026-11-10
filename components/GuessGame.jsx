@@ -12,7 +12,7 @@ import {
   dayNumber, dailyAnswer, randomAnswer, shareText,
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
-import { publicUrl, shareContent } from '@/lib/native';
+import { publicUrl, shareContent, haptic } from '@/lib/native';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -468,27 +468,29 @@ export function MiniBoard({ guesses, len, tries, size = 12 }) {
 }
 
 export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null }) {
-  const rows = KEY_ROWS;
-  const keyMax = 40;
+  const press = (k) => { haptic('light'); onKey(k); };
   return (
-    <div className={`shrink-0 px-1.5 pb-2 pt-2 space-y-1.5 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
-      {rows.map((row, ri) => (
-        <div key={ri} className="flex justify-center gap-[4px]">
+    <div className={`kb-tray shrink-0 px-[5px] pt-2.5 pb-2 space-y-[9px] ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
+      {KEY_ROWS.map((row, ri) => (
+        <div key={ri} className="flex justify-center gap-[5px]">
           {row.map(k => {
-            const wide = k === 'ENTER' || k === 'BACK';
+            const isEnter = k === 'ENTER', isBack = k === 'BACK';
             const st = keyStates[normalizeGuess(k)];
             const off = !!allowed && k.length === 1 && !allowed.has(normalizeGuess(k));
-            const style = k === 'ENTER'
-              ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
-              : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
+            const look = isEnter ? 'kb-enter' : isBack ? 'kb-back' : off ? 'kb-off' : st ? `kb-${st}` : 'kb-plain';
             return (
-              <button key={k} onClick={() => onKey(k)} disabled={off}
-                className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : keyMax, fontSize: '1.05rem', ...style, ...(off ? { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.35)', boxShadow: 'none', opacity: 1 } : {}) }}
-                aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
-                {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
-                  : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
-                  : k}
+              <button key={k} onClick={() => press(k)} disabled={off}
+                data-ch={!isEnter && !isBack && !off ? k : undefined}
+                className={`kb-key ${look} flex items-center justify-center font-display font-black`}
+                style={{
+                  height: isEnter ? 'min(11.5vw, 46px)' : 'min(12.4vw, 50px)',
+                  flex: isEnter ? '1 1 100%' : isBack ? '1.55 1 0' : '1 1 0',
+                  maxWidth: isEnter ? 440 : isBack ? 64 : 42,
+                }}
+                aria-label={isEnter ? 'إدخال' : isBack ? 'حذف' : k}>
+                {isEnter ? <span className="flex items-center gap-2 text-[1.1rem]">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
+                  : isBack ? <Delete className="w-[22px] h-[22px]" strokeWidth={2.4} />
+                  : <span className="kb-glyph">{k}</span>}
               </button>
             );
           })}
