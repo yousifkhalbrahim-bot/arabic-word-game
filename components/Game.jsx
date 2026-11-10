@@ -1388,7 +1388,7 @@ export default function Game() {
           <i className="block w-[10px] h-[10px] rounded-[3px] bg-white" />
         </span>
       ),
-      solo: { title: 'تحدي اليوم + لعب حر', desc: 'كلمة جديدة كل يوم، وإحصائياتك', icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />,
+      solo: { title: 'خمّن الكلمة', desc: 'كلمة جديدة كل مرة، وسجّل الستريك', icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />,
         go: () => setScreen('guess') },
     },
   };
@@ -1436,7 +1436,7 @@ export default function Game() {
     const soloGames = [
       { key: 'endings', title: 'تحدي النهايات', desc: 'ضد الكمبيوتر 🤖 أو ضد الوقت ⏱', icon: endingsIcon, bg: '#ffb020', sh: '#b86b00',
         onClick: () => { setSelectedMode('chess'); setMyRoleState('bot'); setGlobalError(null); setScreen('create-setup'); } },
-      { key: 'guess', title: 'خمّن الكلمة', desc: 'تحدي اليوم + لعب حر', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد',
+      { key: 'guess', title: 'خمّن الكلمة', desc: 'اكتشف الكلمة المخفية بالألوان', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد',
         onClick: () => setScreen('guess') },
     ];
     const friendGames = [

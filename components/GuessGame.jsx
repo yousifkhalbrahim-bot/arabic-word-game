@@ -4,7 +4,7 @@
 // خمّن الكلمة المخفية: كل تخمين يكشف لك أي الحروف صح ومكانها.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Delete, CornerDownLeft, CalendarDays, Shuffle, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Timer, Trophy } from 'lucide-react';
+import { ArrowLeft, Delete, CornerDownLeft, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Trophy, Play } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import {
@@ -335,16 +335,7 @@ export default function GuessGame({ onExit }) {
             ))}
           </div>
 
-          <div className="space-y-3">
-            <Btn icon={CalendarDays} onClick={() => start('daily')}>
-              {dailyDone[len] ? (dailyDone[len] === 'won' ? 'تحدي اليوم ✓ (شوف النتيجة)' : 'تحدي اليوم (شوف النتيجة)') : <>تحدي اليوم <span className="opacity-70 text-sm">#<Num>{day}</Num></span></>}
-            </Btn>
-            <Btn variant="teal" icon={Timer} onClick={() => start('rush')}>
-              ضد الساعة · دقيقتين
-              {load(rushKey(len), 0) > 0 && <span className="opacity-75 text-sm">🏆 <Num>{load(rushKey(len), 0)}</Num></span>}
-            </Btn>
-            <Btn variant="wood" icon={Shuffle} onClick={() => start('free')}>لعب حر</Btn>
-          </div>
+          <Btn icon={Play} onClick={() => start('free')}>ابدأ</Btn>
 
           {st.played > 0 && (
             <div className="mt-5 grid grid-cols-3 gap-2 text-center">
@@ -486,9 +477,7 @@ export default function GuessGame({ onExit }) {
               <div className="flex gap-2.5 mt-4">
                 <div className="flex-1"><Btn variant="green" size="md" icon={Share2} onClick={share}>شارك</Btn></div>
                 <div className="flex-1">
-                  <Btn size="md" icon={mode === 'free' ? RotateCcw : Shuffle} onClick={() => start('free')}>
-                    {mode === 'free' ? 'كلمة ثانية' : 'لعب حر'}
-                  </Btn>
+                  <Btn size="md" icon={RotateCcw} onClick={() => start('free')}>كلمة ثانية</Btn>
                 </div>
               </div>
               <button onClick={() => setShowResult(false)} className="w-full mt-3 text-sm font-display font-bold text-muted py-1">إغلاق</button>
@@ -497,7 +486,7 @@ export default function GuessGame({ onExit }) {
         </div>
       )}
     </>,
-    mode === 'daily' ? `#${day}` : mode === 'rush' ? 'ضد الساعة' : 'حر'
+    null
   );
 }
 
@@ -560,7 +549,7 @@ function HelpSheet({ onClose }) {
           <Example word="بحار" mark={0} state="present" text={<><b>ب</b> موجودة لكن بمكان ثاني</>} />
           <Example word="نهار" mark={3} state="absent" text={<><b>ر</b> مو موجودة في الكلمة</>} />
           <p className="text-xs text-muted mb-4 leading-relaxed">
-            الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي). كل يوم فيه كلمة جديدة للجميع.
+            الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي).
           </p>
           <Btn size="md" onClick={onClose}>يلا نلعب</Btn>
         </div>
