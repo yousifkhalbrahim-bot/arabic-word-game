@@ -17,6 +17,7 @@ import { useVisualViewport } from '@/lib/useViewport';
 import { demoRoom } from '@/lib/demo';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
+import GuessGame from '@/components/GuessGame';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
@@ -1235,6 +1236,18 @@ export default function Game() {
               <div className="h-[2px] flex-1 rounded-full bg-white/20" />
             </div>
 
+            <button onClick={() => { setScreen('guess'); setGlobalError(null); }}
+              className="btn-3d relative w-full rounded-2xl py-3 px-4 flex items-center justify-center gap-2.5 font-display font-black text-[1.05rem] text-white"
+              style={{ background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' }}>
+              <span className="flex gap-1">
+                <i className="block w-4 h-4 rounded bg-[#22d3ee]" style={{ boxShadow: '0 2px 0 #0e7490' }} />
+                <i className="block w-4 h-4 rounded bg-[#ffb020]" style={{ boxShadow: '0 2px 0 #b86b00' }} />
+                <i className="block w-4 h-4 rounded bg-white/30" />
+              </span>
+              خمّن الكلمة
+              <span className="absolute -top-2.5 left-3 rounded-full bg-[#ff4d6d] px-2 py-0.5 text-[0.65rem] font-black" style={{ boxShadow: '0 2px 0 #b3123a' }}>جديد</span>
+            </button>
+
             <div className="grid grid-cols-2 gap-3">
               <Btn variant="wood" size="md" icon={Target} onClick={() => { setScreen('solo'); setGlobalError(null); }}>
                 تدريب فردي
@@ -1247,6 +1260,11 @@ export default function Game() {
         </div>
       </Screen>
     );
+  }
+
+  // -------- خمّن الكلمة --------
+  if (screen === 'guess') {
+    return <GuessGame onExit={() => setScreen('menu')} />;
   }
 
   // -------- التدريب الفردي --------

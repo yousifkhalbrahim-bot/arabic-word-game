@@ -384,3 +384,16 @@ html { background: #4f46e5; }
 /* قوائم قابلة للتمرير بدون شريط ظاهر */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* خمّن الكلمة: قلب المربع + نطّة الكتابة */
+@keyframes tile-flip {
+  0%   { transform: rotateX(0deg); }
+  50%  { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+@keyframes tile-pop {
+  0%   { transform: scale(0.85); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.tile-pop { animation: tile-pop 0.14s ease-out; }
