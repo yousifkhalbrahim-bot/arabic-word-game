@@ -32,8 +32,8 @@ import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppea
 // ============== الثوابت ==============
 const TIME_CONTROLS = [
   { id: 'bullet', name: 'بوليت', icon: Zap, minutes: 1, desc: 'دقيقة' },
-  { id: 'blitz', name: 'بليتز', icon: Flame, minutes: 5, desc: '٥ دقائق' },
-  { id: 'rapid', name: 'رابيد', icon: Hourglass, minutes: 10, desc: '١٠ دقائق' },
+  { id: 'blitz', name: 'بليتز', icon: Flame, minutes: 3, desc: '٣ دقائق' },
+  { id: 'rapid', name: 'رابيد', icon: Hourglass, minutes: 5, desc: '٥ دقائق' },
 ];
 
 const ENDING_PRESETS = [
@@ -607,6 +607,8 @@ export default function Game() {
   const [hostName, setHostName] = useState('');
   const [selectedMode, setSelectedMode] = useState('chess');
   const [homeTab, setHomeTab] = useState('solo');
+  const [soloStyle, setSoloStyle] = useState('bot'); // لحالك: bot = ضد الكمبيوتر، time = ضد الوقت
+  const [soloStartDuration, setSoloStartDuration] = useState(null);
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
   const [selectedTurnSkip, setSelectedTurnSkip] = useState(20);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
@@ -1350,17 +1352,18 @@ export default function Game() {
     const gameIcon = (id) => <span style={{ color: GAMES[id].fg }}>{GAMES[id].icon}</span>;
     const createFor = (id) => () => { setSelectedMode(id); setMyRoleState(null); setGlobalError(null); setScreen('create-setup'); };
 
+    const endingsIcon = (
+      <span className="font-display font-black text-[1.25rem] leading-none" style={{ color: '#4a2400', paddingBottom: 3 }}>ـام</span>
+    );
     const soloGames = [
+      { key: 'endings', title: 'تحدي النهايات', desc: 'ضد الكمبيوتر 🤖 أو ضد الوقت ⏱', icon: endingsIcon, bg: '#ffb020', sh: '#b86b00',
+        onClick: () => { setSelectedMode('chess'); setMyRoleState('bot'); setGlobalError(null); setScreen('create-setup'); } },
       { key: 'guess', title: 'خمّن الكلمة', desc: 'تحدي اليوم + لعب حر', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد',
         onClick: () => setScreen('guess') },
-      { key: 'race', title: 'سباق ضد الوقت', desc: 'أكبر عدد كلمات وسجّل رقمك', icon: gameIcon('race'), bg: GAMES.race.bg, sh: GAMES.race.sh,
-        onClick: () => setScreen('solo') },
-      { key: 'chess', title: 'ساعة الشطرنج', desc: 'ضد الكمبيوتر 🤖', icon: gameIcon('chess'), bg: GAMES.chess.bg, sh: GAMES.chess.sh,
-        onClick: () => { setSelectedMode('chess'); setMyRoleState('bot'); setGlobalError(null); setScreen('create-setup'); } },
     ];
     const friendGames = [
-      { key: 'chess', title: 'ساعة الشطرنج', desc: GAMES.chess.tagline, icon: gameIcon('chess'), bg: GAMES.chess.bg, sh: GAMES.chess.sh, onClick: createFor('chess') },
-      { key: 'race', title: 'سباق الكلمات', desc: GAMES.race.tagline, icon: gameIcon('race'), bg: GAMES.race.bg, sh: GAMES.race.sh, onClick: createFor('race') },
+      { key: 'endings', title: 'تحدي النهايات', desc: 'بالدور ⏱ أو سباق ⚡', icon: endingsIcon, bg: '#ffb020', sh: '#b86b00',
+        onClick: () => { setSelectedMode(m => (m === 'race' ? 'race' : 'chess')); setMyRoleState(null); setGlobalError(null); setScreen('create-setup'); } },
       { key: 'guess', title: 'خمّن الكلمة', desc: 'نفس الكلمة، مين يحلها أول؟', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد', onClick: createFor('guess') },
     ];
 
@@ -1449,18 +1452,30 @@ export default function Game() {
 
   // -------- التدريب الفردي --------
   if (screen === 'solo') {
-    return <SoloGame endings={ENDING_PRESETS.map(p => p.value)} onExit={() => setScreen('menu')} />;
+    return <SoloGame endings={ENDING_PRESETS.map(p => p.value)} startDuration={soloStartDuration}
+      onExit={() => { setSoloStartDuration(null); setScreen('menu'); }} />;
   }
 
   // -------- شاشة إعداد الإنشاء --------
   if (screen === 'create-setup') {
     const isBot = myRole === 'bot';
     const isLocal = myRole === 'local' || isBot;
+    const soloTime = isBot && soloStyle === 'time';
     const game = isLocal ? 'chess' : selectedMode;
-    const isRace = game === 'race';
+    const isRace = game === 'race' || soloTime;
     const isGuess = game === 'guess';
-    const isChess = game === 'chess';
-    const gameName = GAMES[game]?.title;
+    const isChess = game === 'chess' && !soloTime;
+    const gameName = isGuess ? GAMES.guess.title : 'تحدي النهايات';
+    const styleOptions = isBot
+      ? [
+          { id: 'bot', label: 'ضد الكمبيوتر', sub: 'بالدور، ولكل واحد ساعة', Icon: Bot },
+          { id: 'time', label: 'ضد الوقت', sub: 'أكبر عدد كلمات', Icon: Target },
+        ]
+      : [
+          { id: 'chess', label: 'بالدور', sub: 'كل واحد له ساعته', Icon: Hourglass },
+          { id: 'race', label: 'سباق', sub: 'الاثنين بنفس الوقت', Icon: Zap },
+        ];
+    const showStyle = isBot || (!isLocal && !isGuess);
     const example = ENDING_PRESETS.find(p => p.value === selectedEnding)?.example;
     const backToMode = () => { setHomeTab(isLocal && isBot ? 'solo' : 'friends'); setMyRoleState(null); setGlobalError(null); setScreen('menu'); };
 
@@ -1468,14 +1483,32 @@ export default function Game() {
       <Screen>
         <BackButton onClick={backToMode} />
         <Card className="p-5 sm:p-7 fade-in">
-          <Title sub={isBot ? `${gameName} · أنت ضد الكمبيوتر بالدور`
+          <Title sub={isBot ? 'اكتب كلمات تنتهي بالحروف المطلوبة'
             : isLocal ? `${gameName} · بالتناوب على نفس الجوال`
             : `${gameName} · بعد الإنشاء أرسل الدعوة لصاحبك`}>
-            {isBot ? 'ضد الكمبيوتر 🤖' : isLocal ? 'جهاز واحد' : 'غرفة جديدة'}
+            {isBot ? 'تحدي النهايات' : isLocal ? 'جهاز واحد' : 'غرفة جديدة'}
           </Title>
 
           <div className="space-y-5">
-            <div>
+            {showStyle && (
+              <div>
+                <Label>طريقة اللعب</Label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {styleOptions.map(({ id, label, sub, Icon }) => {
+                    const sel = isBot ? soloStyle === id : selectedMode === id;
+                    return (
+                      <Choice key={id} selected={sel} onClick={() => (isBot ? setSoloStyle(id) : setSelectedMode(id))} className="p-3">
+                        <Icon className="w-6 h-6 mx-auto mb-1" style={{ color: sel ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
+                        <div className="font-display font-black">{label}</div>
+                        <div className="text-[0.72rem] opacity-75 leading-snug">{sub}</div>
+                      </Choice>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!soloTime && <div>
               <Label>{isLocal && !isBot ? 'اسم اللاعب الأول' : 'اسمك'}</Label>
               <input
                 type="text"
@@ -1487,7 +1520,7 @@ export default function Game() {
                 enterKeyHint="done"
                 className={inputClass}
               />
-            </div>
+            </div>}
 
             {isChess && (
               <>
@@ -1564,7 +1597,9 @@ export default function Game() {
                   ))}
                 </div>
                 <p className="text-xs text-dim mt-2.5 leading-relaxed">
-                  كل سؤال نهاية مختلفة، وأول من يجاوب ياخذ النقطة. تقدر تجمّد خصمك أو تتجاوز السؤال مقابل نقاط.
+                  {soloTime
+                    ? 'كل سؤال نهاية مختلفة. اكتب أكبر عدد كلمات قبل ما يخلص الوقت، والتجاوز يكلّفك ٣ ثواني.'
+                    : 'كل سؤال نهاية مختلفة، وأول من يجاوب ياخذ النقطة. تقدر تجمّد خصمك أو تتجاوز السؤال مقابل نقاط.'}
                 </p>
               </div>
             )}
@@ -1588,7 +1623,8 @@ export default function Game() {
 
             <ErrorNote>{globalError}</ErrorNote>
 
-            <Btn onClick={isLocal ? () => startLocal(isBot) : createRoom} busy={busy} icon={Play}>
+            <Btn onClick={soloTime ? () => { setSoloStartDuration(selectedRaceDuration); setScreen('solo'); }
+                : isLocal ? () => startLocal(isBot) : createRoom} busy={busy} icon={Play}>
               {isLocal ? 'ابدأ اللعبة' : 'إنشاء الغرفة'}
             </Btn>
           </div>

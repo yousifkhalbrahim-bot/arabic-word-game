@@ -24,9 +24,9 @@ function writeBest(d, v) {
   try { localStorage.setItem(bestKey(d), String(v)); } catch {}
 }
 
-export default function SoloGame({ endings, onExit }) {
+export default function SoloGame({ endings, onExit, startDuration }) {
   const [phase, setPhase] = useState('setup'); // setup | playing | done
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState(startDuration || 60);
   const [bests, setBests] = useState({});
   const [queue, setQueue] = useState([]);
   const [index, setIndex] = useState(0);
@@ -81,6 +81,12 @@ export default function SoloGame({ endings, onExit }) {
     setPhase('playing');
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [endings, duration]);
+
+  // جاي من صفحة "تحدي النهايات" بمدة جاهزة → يبدأ على طول
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (startDuration && !autoStarted.current) { autoStarted.current = true; start(); }
+  }, [startDuration, start]);
 
   // نهاية الوقت
   useEffect(() => {
@@ -147,7 +153,7 @@ export default function SoloGame({ endings, onExit }) {
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.9rem' }}>
           <Target className="w-4 h-4 text-[#ffb020]" strokeWidth={2.8} />
-          <span>تدريب فردي</span>
+          <span>تحدي النهايات · ضد الوقت</span>
         </div>
         <div style={{ width: 32 }} />
       </div>
