@@ -8,7 +8,7 @@ import { ArrowLeft, Delete, CornerDownLeft, CalendarDays, Shuffle, Share2, Rotat
 import { ArcadeBg, Card, Choice, Btn, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import {
-  LENGTHS, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN,
+  LENGTHS, PLAYABLE_LENGTHS, bankFor, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN,
   dayNumber, dailyAnswer, randomAnswer, shareText,
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
@@ -50,7 +50,7 @@ function save(key, value) {
 
 export default function GuessGame({ onExit }) {
   const [phase, setPhase] = useState('setup'); // setup | playing
-  const [len, setLen] = useState(4);
+  const [len, setLen] = useState(3);
   const [mode, setMode] = useState('daily');   // daily | free
   const [answer, setAnswer] = useState('');
   const [guesses, setGuesses] = useState([]);  // [{ word, result }]
@@ -63,7 +63,7 @@ export default function GuessGame({ onExit }) {
   const [status, setStatus] = useState('playing'); // playing | won | lost
   const [showResult, setShowResult] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [stats, setStats] = useState(() => emptyStats(4));
+  const [stats, setStats] = useState(() => emptyStats(3));
   const [dailyDone, setDailyDone] = useState({});
   const toastTimer = useRef(null);
   const busy = revealing >= 0;
@@ -74,7 +74,7 @@ export default function GuessGame({ onExit }) {
   // حالة "تحدي اليوم" لكل طول
   useEffect(() => {
     const d = {};
-    for (const l of [3, 4, 5]) {
+    for (const l of PLAYABLE_LENGTHS) {
       const saved = load(dailyKey(l, day), null);
       d[l] = saved?.status && saved.status !== 'playing' ? saved.status : null;
     }
@@ -178,14 +178,16 @@ export default function GuessGame({ onExit }) {
     }, total);
   }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish]);
 
+  const bank = useMemo(() => bankFor(len, answer), [len, answer]);
+
   const typeKey = useCallback((k) => {
     if (busy || status !== 'playing') return;
     if (k === 'ENTER') return submit();
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
-    if (!LETTER_SET.has(ch)) return;
+    if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
     setCurrent(c => ([...c].length < len ? c + ch : c));
-  }, [busy, status, submit, len]);
+  }, [busy, status, submit, len, bank]);
 
   usePhysicalKeys(phase === 'playing', typeKey);
 
@@ -235,11 +237,12 @@ export default function GuessGame({ onExit }) {
           </p>
 
           <div className="font-display font-bold text-[0.85rem] text-muted mb-2">عدد الحروف</div>
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
-            {[3, 4, 5].map(l => (
+          <div className="grid grid-cols-2 gap-2.5 mb-5">
+            {PLAYABLE_LENGTHS.map(l => (
               <Choice key={l} selected={len === l} onClick={() => setLen(l)} className="py-2.5">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
+                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'سهل · حروف أقل' : 'صعب · كل الحروف'}</div>
               </Choice>
             ))}
           </div>
@@ -287,7 +290,7 @@ export default function GuessGame({ onExit }) {
       </div>
 
       {/* الكيبورد */}
-      <GuessKeyboard keyStates={keyStates} onKey={typeKey} />
+      <GuessKeyboard keyStates={keyStates} onKey={typeKey} allowed={bank} />
 
       {/* النتيجة */}
       {showResult && (
@@ -464,11 +467,20 @@ export function MiniBoard({ guesses, len, tries, size = 12 }) {
   );
 }
 
-export function GuessKeyboard({ keyStates, onKey, disabled = false }) {
+export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null }) {
+  const rows = allowed
+    ? KEY_ROWS.map(row => row.filter(k => k.length > 1 || allowed.has(normalizeGuess(k)))).filter(row => row.length)
+    : KEY_ROWS;
+  const keyMax = allowed ? 64 : 40;
   return (
     <div className={`shrink-0 px-1.5 pb-2 pt-2 space-y-1.5 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
-      {KEY_ROWS.map((row, ri) => (
-        <div key={ri} className="flex justify-center gap-[4px]">
+      {allowed && (
+        <div className="text-center text-[0.72rem] font-display font-bold text-white/80" dir="rtl">
+          🔤 الكلمة من هالحروف بس
+        </div>
+      )}
+      {rows.map((row, ri) => (
+        <div key={ri} className={`flex justify-center ${allowed ? 'gap-[6px]' : 'gap-[4px]'}`}>
           {row.map(k => {
             const wide = k === 'ENTER' || k === 'BACK';
             const st = keyStates[normalizeGuess(k)];
@@ -478,7 +490,7 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false }) {
             return (
               <button key={k} onClick={() => onKey(k)}
                 className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : 40, fontSize: '1.05rem', ...style }}
+                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : keyMax, fontSize: allowed ? '1.35rem' : '1.05rem', ...style }}
                 aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
                 {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
                   : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />

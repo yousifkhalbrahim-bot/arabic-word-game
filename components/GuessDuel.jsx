@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { ArrowLeft, Flag } from 'lucide-react';
 import { ArcadeBg, Num, PLAYER_COLORS, PLAYER_ON, PLAYER_DEEP } from '@/components/ui';
 import { GuessBoard, GuessKeyboard, MiniBoard, buildRows, usePhysicalKeys, LETTER_SET, FLIP_MS, PRAISE } from '@/components/GuessGame';
-import { LENGTHS, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN } from '@/lib/guess';
+import { LENGTHS, bankFor, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN } from '@/lib/guess';
 import { playAccept, playReject, playStreak } from '@/lib/sounds';
 import { now } from '@/lib/clock';
 
@@ -157,14 +157,16 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     onSubmitGuess(word, evaluateGuess(word, answer));
   }, [busy, myDone, roomState.status, current, len, confirmUnknown, answer, onSubmitGuess, flash]);
 
+  const bank = useMemo(() => bankFor(len, answer), [len, answer]);
+
   const typeKey = useCallback((k) => {
     if (myDone || roomState.status !== 'playing') return;
     if (k === 'ENTER') return submit();
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
-    if (!LETTER_SET.has(ch)) return;
+    if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
     setCurrent(c => ([...c].length < len ? c + ch : c));
-  }, [myDone, roomState.status, submit, len]);
+  }, [myDone, roomState.status, submit, len, bank]);
 
   usePhysicalKeys(roomState.status === 'playing', typeKey);
 
@@ -278,7 +280,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         )}
       </div>
 
-      <GuessKeyboard keyStates={keyStates} onKey={typeKey} disabled={myDone} />
+      <GuessKeyboard keyStates={keyStates} onKey={typeKey} disabled={myDone} allowed={bank} />
     </div>
   );
 }

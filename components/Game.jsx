@@ -612,7 +612,7 @@ export default function Game() {
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
   const [selectedTurnSkip, setSelectedTurnSkip] = useState(20);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
-  const [selectedGuessLen, setSelectedGuessLen] = useState(4);
+  const [selectedGuessLen, setSelectedGuessLen] = useState(3);
   const [selectedEnding, setSelectedEnding] = useState('ام');
   const [customEnding, setCustomEnding] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -1607,8 +1607,8 @@ export default function Game() {
             {isGuess && (
               <div>
                 <Label>عدد الحروف</Label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {[3, 4, 5].map(l => (
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[3, 5].map(l => (
                     <Choice key={l} selected={selectedGuessLen === l} onClick={() => setSelectedGuessLen(l)} className="py-2.5">
                       <div className="font-display font-black text-xl leading-tight"><bdi className="font-mono-ar">{l}</bdi> أحرف</div>
                       <div className="text-xs opacity-75"><bdi className="font-mono-ar">{GUESS_LENGTHS[l].tries}</bdi> محاولات</div>
