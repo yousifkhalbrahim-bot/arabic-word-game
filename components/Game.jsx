@@ -16,6 +16,7 @@ import { now, syncClock } from '@/lib/clock';
 import { useVisualViewport } from '@/lib/useViewport';
 import { demoRoom } from '@/lib/demo';
 import { initNative, publicUrl, shareContent } from '@/lib/native';
+import { loadWordlist } from '@/lib/wordlist';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
@@ -655,6 +656,7 @@ export default function Game() {
   // ============== الإقلاع: مزامنة الساعة + العودة للغرفة / رابط الدعوة ==============
   useEffect(() => {
     initNative();
+    loadWordlist();
     syncClock();
     const savedName = getSavedName();
     if (savedName) { setHostName(savedName); setJoinName(savedName); }

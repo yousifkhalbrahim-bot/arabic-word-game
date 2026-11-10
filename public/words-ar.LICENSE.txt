@@ -1,0 +1,14 @@
+words-ar.txt — Arabic word list for لعبة الكلمات
+
+Derived from FrequencyWords by Hermit Dave (ar_50k.txt, OpenSubtitles 2018):
+https://github.com/hermitdave/FrequencyWords
+
+The word-frequency content is licensed under Creative Commons
+Attribution-ShareAlike 4.0 (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Changes: filtered to the 40,000 most frequent entries, Arabic letters only,
+3–10 letters, removed words with attached prefixes (ال، و، ف، ب، ل، ك، س),
+removed inappropriate words and words already in the game's core dictionary.
+This derived list is shared under the same CC BY-SA 4.0 license.
+Build script: scripts/build-wordlist.mjs
