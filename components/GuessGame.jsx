@@ -13,22 +13,23 @@ import {
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
 
+// نفس ترتيب كيبورد الآيفون العربي (+ ء ظاهرة بدل الضغط المطوّل)
 const KEY_ROWS = [
-  ['ض', 'ص', 'ث', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج'],
-  ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ط'],
-  ['ENTER', 'ذ', 'ء', 'ر', 'ة', 'و', 'ز', 'ظ', 'د', 'BACK'],
+  ['ض', 'ص', 'ق', 'ف', 'غ', 'ع', 'ه', 'خ', 'ح', 'ج'],
+  ['ش', 'س', 'ي', 'ب', 'ل', 'ا', 'ت', 'ن', 'م', 'ك', 'ء'],
+  ['ENTER', 'ظ', 'ط', 'ذ', 'د', 'ز', 'ر', 'و', 'ة', 'ث', 'BACK'],
 ];
 const LETTER_SET = new Set(KEY_ROWS.flat().filter(k => k.length === 1));
 
 const PRAISE = ['عبقري! 🤯', 'خرافي! 🔥', 'رهيب! ⭐', 'ممتاز! 👏', 'حلو! 😄', 'كفو! 💪', 'لحقت عليها! 😅'];
 
 const TILE = {
-  correct: { background: '#22d3ee', color: '#083344', boxShadow: '0 4px 0 #0e7490', borderColor: '#67e8f9' },
+  correct: { background: '#22c55e', color: '#ffffff', boxShadow: '0 4px 0 #15803d', borderColor: '#4ade80' },
   present: { background: '#ffb020', color: '#4a2400', boxShadow: '0 4px 0 #b86b00', borderColor: '#ffc95c' },
   absent:  { background: '#3b1f7a', color: 'rgba(255,255,255,0.75)', boxShadow: '0 4px 0 #24124f', borderColor: '#4c2a94' },
 };
 const KEY = {
-  correct: { background: '#22d3ee', color: '#083344', boxShadow: '0 3px 0 #0e7490' },
+  correct: { background: '#22c55e', color: '#ffffff', boxShadow: '0 3px 0 #15803d' },
   present: { background: '#ffb020', color: '#4a2400', boxShadow: '0 3px 0 #b86b00' },
   absent:  { background: '#3b1f7a', color: 'rgba(255,255,255,0.45)', boxShadow: '0 3px 0 #24124f' },
 };
@@ -217,7 +218,7 @@ export default function GuessGame({ onExit }) {
           <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.9rem' }}>
-          <span className="flex gap-0.5"><i className="block w-2.5 h-2.5 rounded-sm bg-[#22d3ee]" /><i className="block w-2.5 h-2.5 rounded-sm bg-[#ffb020]" /></span>
+          <span className="flex gap-0.5"><i className="block w-2.5 h-2.5 rounded-sm bg-[#22c55e]" /><i className="block w-2.5 h-2.5 rounded-sm bg-[#ffb020]" /></span>
           <span>خمّن الكلمة</span>
           {sub && <span className="text-white/70 text-[0.75rem]">· {sub}</span>}
         </div>
@@ -328,17 +329,17 @@ export default function GuessGame({ onExit }) {
       {/* الكيبورد */}
       <div className="shrink-0 px-1.5 pb-2 pt-2 space-y-1.5" dir="rtl">
         {KEY_ROWS.map((row, ri) => (
-          <div key={ri} className="flex justify-center gap-[5px]">
+          <div key={ri} className="flex justify-center gap-[4px]">
             {row.map(k => {
               const wide = k === 'ENTER' || k === 'BACK';
               const st = keyStates[k];
               const style = k === 'ENTER'
-                ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
+                ? { background: '#7c3aed', color: '#fff', boxShadow: '0 3px 0 #4c1d95' }
                 : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
               return (
                 <button key={k} onClick={() => typeKey(k)}
                   className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                  style={{ height: 'min(13vw, 52px)', flex: wide ? '1.6 1 0' : '1 1 0', maxWidth: wide ? 64 : 40, fontSize: '1.05rem', ...style }}
+                  style={{ height: 'min(13vw, 52px)', flex: wide ? '1.45 1 0' : '1 1 0', maxWidth: wide ? 58 : 40, fontSize: '1.05rem', ...style }}
                   aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
                   {k === 'ENTER' ? <CornerDownLeft className="w-5 h-5" strokeWidth={3} />
                     : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
@@ -415,8 +416,8 @@ function Distribution({ dist, highlight }) {
             <div className="h-5 rounded-md flex items-center justify-end px-1.5 text-[0.7rem] font-black transition-all"
               style={{
                 width: `${Math.max(8, (n / max) * 100)}%`,
-                background: highlight === i + 1 ? '#22d3ee' : '#ede9fe',
-                color: highlight === i + 1 ? '#083344' : '#6d5b95',
+                background: highlight === i + 1 ? '#22c55e' : '#ede9fe',
+                color: highlight === i + 1 ? '#ffffff' : '#6d5b95',
               }}>
               <Num>{n}</Num>
             </div>

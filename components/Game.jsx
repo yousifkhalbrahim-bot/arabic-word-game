@@ -1240,7 +1240,7 @@ export default function Game() {
               className="btn-3d relative w-full rounded-2xl py-3 px-4 flex items-center justify-center gap-2.5 font-display font-black text-[1.05rem] text-white"
               style={{ background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' }}>
               <span className="flex gap-1">
-                <i className="block w-4 h-4 rounded bg-[#22d3ee]" style={{ boxShadow: '0 2px 0 #0e7490' }} />
+                <i className="block w-4 h-4 rounded bg-[#22c55e]" style={{ boxShadow: '0 2px 0 #15803d' }} />
                 <i className="block w-4 h-4 rounded bg-[#ffb020]" style={{ boxShadow: '0 2px 0 #b86b00' }} />
                 <i className="block w-4 h-4 rounded bg-white/30" />
               </span>
