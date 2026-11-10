@@ -73,7 +73,7 @@ export default function GuessGame({ onExit }) {
   // حالة "تحدي اليوم" لكل طول
   useEffect(() => {
     const d = {};
-    for (const l of [4, 5]) {
+    for (const l of [3, 4, 5]) {
       const saved = load(dailyKey(l, day), null);
       d[l] = saved?.status && saved.status !== 'playing' ? saved.status : null;
     }
@@ -236,8 +236,8 @@ export default function GuessGame({ onExit }) {
           </p>
 
           <div className="font-display font-bold text-[0.85rem] text-muted mb-2">عدد الحروف</div>
-          <div className="grid grid-cols-2 gap-2.5 mb-5">
-            {[4, 5].map(l => (
+          <div className="grid grid-cols-3 gap-2.5 mb-5">
+            {[3, 4, 5].map(l => (
               <Choice key={l} selected={len === l} onClick={() => setLen(l)} className="py-2.5">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
@@ -305,7 +305,7 @@ export default function GuessGame({ onExit }) {
                   ? <>عرفتها من <Num>{guesses.length}</Num> {guesses.length === 1 ? 'محاولة' : 'محاولات'}</>
                   : 'الكلمة كانت'}
               </div>
-              <LetterTiles text={answer} size={len === 4 ? 46 : 40} className="mb-4" />
+              <LetterTiles text={answer} size={len === 3 ? 52 : len === 4 ? 46 : 40} className="mb-4" />
 
               <div className="grid grid-cols-4 gap-2 text-center mb-4">
                 <MiniStat label="لعبت" value={stats.played} />
@@ -416,8 +416,8 @@ export function buildRows(guesses, current, tries, active) {
 export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false }) {
   // حجم المربع: يتسع حسب العرض والارتفاع
   const tileSize = compact
-    ? (len === 4 ? 'min(14vw, 5.6vh, 54px)' : 'min(12.5vw, 5vh, 50px)')
-    : (len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)');
+    ? (len === 3 ? 'min(16vw, 5.6vh, 58px)' : len === 4 ? 'min(14vw, 5.6vh, 54px)' : 'min(12.5vw, 5vh, 50px)')
+    : (len === 3 ? 'min(19vw, 6.6vh, 68px)' : len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)');
   return (
     <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">
       {rows.map((row, r) => (

@@ -1575,8 +1575,8 @@ export default function Game() {
             {isGuess && (
               <div>
                 <Label>عدد الحروف</Label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[4, 5].map(l => (
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[3, 4, 5].map(l => (
                     <Choice key={l} selected={selectedGuessLen === l} onClick={() => setSelectedGuessLen(l)} className="py-2.5">
                       <div className="font-display font-black text-xl leading-tight"><bdi className="font-mono-ar">{l}</bdi> أحرف</div>
                       <div className="text-xs opacity-75"><bdi className="font-mono-ar">{GUESS_LENGTHS[l].tries}</bdi> محاولات</div>
@@ -1848,7 +1848,7 @@ export default function Game() {
           {isGuess ? (
             <div className="mb-5 slide-in">
               <div className="text-center text-white/85 text-sm font-display font-bold mb-2">الكلمة كانت</div>
-              <LetterTiles text={roomState.answer} size={roomState.settings.len === 4 ? 46 : 40} className="mb-4" />
+              <LetterTiles text={roomState.answer} size={roomState.settings.len === 3 ? 52 : roomState.settings.len === 4 ? 46 : 40} className="mb-4" />
               <div className="grid grid-cols-2 gap-3">
                 {[myRole, oppRole].map(r => (
                   <div key={r} className="glass rounded-2xl p-3 flex flex-col items-center gap-2">
