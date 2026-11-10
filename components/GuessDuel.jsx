@@ -10,14 +10,28 @@ import { ArcadeBg, Num, PLAYER_COLORS, PLAYER_ON, PLAYER_DEEP } from '@/componen
 import { GuessBoard, GuessKeyboard, MiniBoard, buildRows, usePhysicalKeys, LETTER_SET, FLIP_MS, PRAISE } from '@/components/GuessGame';
 import { LENGTHS, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN } from '@/lib/guess';
 import { playAccept, playReject, playStreak } from '@/lib/sounds';
+import { now } from '@/lib/clock';
 
 const solvedAt = (guesses) => {
   const i = (guesses || []).findIndex(g => g.result.every(r => r === 'correct'));
   return i < 0 ? 0 : i + 1;
 };
 
+// مدة التحدي (ثواني) — الغرف القديمة بدون مدة تاخذ الافتراضي
+export const DUEL_SECONDS = { 3: 180, 4: 180, 5: 240 };
+export const duelDuration = (state) => state.settings?.duration || DUEL_SECONDS[state.settings?.len] || 180;
+
+// أفضل تقدّم: عدد الحروف الخضراء ثم البرتقالية في أحسن محاولة
+const bestProgress = (guesses) => (guesses || []).reduce((best, g) => {
+  const c = g.result.filter(r => r === 'correct').length;
+  const p = g.result.filter(r => r === 'present').length;
+  const score = c * 10 + p;
+  return Math.max(best, score);
+}, -1);
+
 // يقرر النتيجة بعد كل تخمين — يرجع الحالة مع status/winner إذا انحسمت
-export function settleGuessDuel(state) {
+// timeUp: انتهى الوقت → لازم يتحسم الحين
+export function settleGuessDuel(state, timeUp = false) {
   const tries = LENGTHS[state.settings.len].tries;
   const info = (r) => {
     const g = state[`guesses_p${r}`] || [];
@@ -33,10 +47,19 @@ export function settleGuessDuel(state) {
     if (a.solved && b.solved) winner = a.n < b.n ? 1 : b.n < a.n ? 2 : (a.ts <= b.ts ? 1 : 2);
     else winner = a.solved ? 1 : b.solved ? 2 : 0;
   }
+  if (winner === null && timeUp) {
+    if (a.solved && b.solved) winner = a.n < b.n ? 1 : b.n < a.n ? 2 : (a.ts <= b.ts ? 1 : 2);
+    else if (a.solved || b.solved) winner = a.solved ? 1 : 2;
+    else {
+      const pa = bestProgress(state.guesses_p1), pb = bestProgress(state.guesses_p2);
+      winner = pa > pb ? 1 : pb > pa ? 2 : 0;
+    }
+    return { ...state, status: 'finished', winner, timeUp: true };
+  }
   return winner === null ? state : { ...state, status: 'finished', winner };
 }
 
-export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess, onResign }) {
+export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess, onResign, onTimeUp }) {
   const oppRole = myRole === 1 ? 2 : 1;
   const len = roomState.settings.len;
   const tries = LENGTHS[len].tries;
@@ -54,6 +77,15 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
   const toastTimer = useRef(null);
   const resignTimer = useRef(null);
   const prevLen = useRef(myGuesses.length);
+  const revealTimer = useRef(null);
+  const guessesRef = useRef(myGuesses);
+  guessesRef.current = myGuesses;
+  const timeUpTried = useRef(0);
+  const [nowTs, setNowTs] = useState(() => now());
+  useEffect(() => {
+    const iv = setInterval(() => setNowTs(now()), 250);
+    return () => clearInterval(iv);
+  }, []);
   const prevOppLen = useRef(oppGuesses.length);
 
   const mySolved = solvedAt(myGuesses) > 0;
@@ -74,22 +106,28 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
   }, []);
   useEffect(() => () => { clearTimeout(toastTimer.current); clearTimeout(resignTimer.current); }, []);
 
-  // حركة قلب الصف لما ينضاف تخميني
+  // حركة قلب الصف لما ينضاف تخميني.
+  // مهم: المؤقت محفوظ في ref ويعتمد على "عدد" التخمينات فقط — تأكيد السيرفر
+  // يرجّع نسخة جديدة من نفس القائمة، وقبل كان يلغي المؤقت فتعلق اللعبة.
   useEffect(() => {
-    if (myGuesses.length > prevLen.current) {
-      const idx = myGuesses.length - 1;
+    const n = myGuesses.length;
+    if (n > prevLen.current) {
+      const idx = n - 1;
       setRevealing(idx);
-      const t = setTimeout(() => {
+      clearTimeout(revealTimer.current);
+      revealTimer.current = setTimeout(() => {
         setRevealing(-1);
-        const won = myGuesses[idx].result.every(r => r === 'correct');
-        if (won) { playStreak(); flash(PRAISE[idx] || 'حليتها!', 1800); }
+        const g = guessesRef.current[idx];
+        if (g && g.result.every(r => r === 'correct')) { playStreak(); flash(PRAISE[idx] || 'حليتها!', 1800); }
         else playAccept();
       }, FLIP_MS * len + 250);
-      prevLen.current = myGuesses.length;
-      return () => clearTimeout(t);
+    } else if (n < prevLen.current) {
+      clearTimeout(revealTimer.current);
+      setRevealing(-1);
     }
-    prevLen.current = myGuesses.length;
-  }, [myGuesses, len, flash]);
+    prevLen.current = n;
+  }, [myGuesses.length, len, flash]);
+  useEffect(() => () => clearTimeout(revealTimer.current), []);
 
   // تنبيه لما الخصم يحلها
   useEffect(() => {
@@ -120,13 +158,13 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
   }, [busy, myDone, roomState.status, current, len, confirmUnknown, answer, onSubmitGuess, flash]);
 
   const typeKey = useCallback((k) => {
-    if (busy || myDone) return;
+    if (myDone || roomState.status !== 'playing') return;
     if (k === 'ENTER') return submit();
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
     if (!LETTER_SET.has(ch)) return;
     setCurrent(c => ([...c].length < len ? c + ch : c));
-  }, [busy, myDone, submit, len]);
+  }, [myDone, roomState.status, submit, len]);
 
   usePhysicalKeys(roomState.status === 'playing', typeKey);
 
@@ -140,6 +178,21 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     setConfirmResign(false);
     onResign();
   };
+
+  const total = duelDuration(roomState);
+  const started = roomState.turnStartedAt || nowTs;
+  const timeLeft = Math.max(0, total - (nowTs - started) / 1000);
+  const urgent = timeLeft <= 30;
+  const mm = Math.floor(timeLeft / 60), ss = Math.floor(timeLeft % 60);
+  const clock = `${mm}:${String(ss).padStart(2, '0')}`;
+
+  useEffect(() => {
+    if (roomState.status !== 'playing' || timeLeft > 0 || !onTimeUp) return;
+    const t = Date.now();
+    if (t - timeUpTried.current < 1500) return;
+    timeUpTried.current = t;
+    onTimeUp();
+  }, [timeLeft, roomState.status, onTimeUp]);
 
   const rows = buildRows(myGuesses, current, tries, !myDone);
   const oppStatus = oppSolved ? <>حلّها من <Num>{oppSolved}</Num> ✓</>
@@ -164,8 +217,37 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         <div style={{ width: 32 }} />
       </div>
 
-      {/* تقدّم الخصم */}
+      {/* شريط الحالة: الاثنين يلعبون بنفس الوقت + الوقت المتبقي */}
       <div className="shrink-0 px-3 pt-1">
+        <div className="slide-in rounded-2xl px-3 py-2 flex items-center gap-3"
+          style={myDone
+            ? { background: '#ffffff', color: '#4c1d95', boxShadow: '0 5px 0 #c4b5fd', border: '2px solid rgba(255,255,255,0.6)' }
+            : urgent
+              ? { background: '#ff4d6d', color: '#ffffff', boxShadow: '0 5px 0 #b3123a', border: '2px solid rgba(255,255,255,0.45)' }
+              : { background: '#22c55e', color: '#ffffff', boxShadow: '0 5px 0 #15803d', border: '2px solid rgba(255,255,255,0.45)' }}>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-black text-[1.1rem] leading-tight truncate">
+              {myDone ? (mySolved ? '✅ حليتها!' : '😅 خلصت محاولاتك') : urgent ? '⏰ بسرعة! الوقت يخلص' : oppSolved ? '⚡ خصمك حلّها!' : '🎯 خمّن الكلمة!'}
+            </div>
+            <div className="font-display font-bold text-[0.75rem] opacity-90 truncate">
+              {myDone ? <>بانتظار {oppName}<span className="dot-wave"><span>.</span><span>.</span><span>.</span></span></>
+                : oppSolved ? <>{oppName} حلّها من <bdi>{oppSolved}</bdi> — باقي لك <bdi>{Math.max(0, oppSolved - myGuesses.length)}</bdi> للتعادل!</>
+                : 'الاثنين يلعبون بنفس الوقت — ما فيه أدوار'}
+            </div>
+            <div className="h-2 mt-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.15)' }}>
+              <div className="h-full rounded-full" style={{ width: `${(timeLeft / total) * 100}%`, background: myDone ? '#a78bfa' : 'rgba(255,255,255,0.95)', transition: 'width 0.25s linear' }} />
+            </div>
+          </div>
+          <div className={`shrink-0 rounded-2xl px-2.5 py-1 text-center ${urgent && !myDone ? 'animate-pulse' : ''}`}
+            style={{ background: myDone ? '#f5f3ff' : 'rgba(255,255,255,0.28)' }}>
+            <div className="font-mono-ar font-black text-[1.45rem] leading-none"><bdi>{clock}</bdi></div>
+            <div className="text-[0.6rem] font-black opacity-80">الوقت</div>
+          </div>
+        </div>
+      </div>
+
+      {/* تقدّم الخصم */}
+      <div className="shrink-0 px-3 pt-3">
         <div className="glass rounded-2xl px-3 py-2 flex items-center gap-3">
           <MiniBoard guesses={oppGuesses} len={len} tries={tries} size={9} />
           <div className="flex-1 min-w-0">
@@ -188,7 +270,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
             {toast}
           </div>
         )}
-        {myDone && !busy && roomState.status === 'playing' && (
+        {false && (
           <div className="mt-3 rounded-full bg-white/15 px-4 py-1.5 font-display font-bold text-sm slide-in">
             {mySolved ? 'حليتها! ' : 'خلصت محاولاتك — '}بانتظار {oppName}
             <span className="dot-wave"><span>.</span><span>.</span><span>.</span></span>

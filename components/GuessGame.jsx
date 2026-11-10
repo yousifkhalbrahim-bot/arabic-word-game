@@ -415,7 +415,7 @@ export function buildRows(guesses, current, tries, active) {
 export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false }) {
   // حجم المربع: يتسع حسب العرض والارتفاع
   const tileSize = compact
-    ? (len === 3 ? 'min(16vw, 5.6vh, 58px)' : len === 4 ? 'min(14vw, 5.6vh, 54px)' : 'min(12.5vw, 5vh, 50px)')
+    ? (len === 3 ? 'min(16vw, 4.6vh, 56px)' : len === 4 ? 'min(14vw, 4.6vh, 54px)' : 'min(12.5vw, 4.2vh, 50px)')
     : (len === 3 ? 'min(19vw, 6.6vh, 68px)' : len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)');
   return (
     <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">

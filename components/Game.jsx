@@ -19,7 +19,7 @@ import { initNative, publicUrl, shareContent } from '@/lib/native';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
-import GuessDuel, { settleGuessDuel } from '@/components/GuessDuel';
+import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
@@ -90,7 +90,7 @@ const createGuessState = (code, hostName, len) => ({
   mode: 'guess',
   status: 'waiting',
   players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
-  settings: { len },
+  settings: { len, duration: DUEL_SECONDS[len] },
   answer: randomAnswer(len),
   guesses_p1: [],
   guesses_p2: [],
@@ -1032,16 +1032,8 @@ export default function Game() {
     }
   }, [roomState, myRole, currentInput, commitChess]);
 
-  // كل لاعب يضيف تخمينه فقط؛ لو تعارض مع تخمين الخصم بنفس اللحظة نعيد المحاولة على أحدث نسخة
-  const submitGuessOnline = useCallback(async (word, result) => {
-    const key = `guesses_p${myRole}`;
-    const tries = GUESS_LENGTHS[roomStateRef.current?.settings?.len || 4].tries;
-    const build = (base) => {
-      if (!base || base.status !== 'playing') return null;
-      const mine = base[key] || [];
-      if (mine.length >= tries || mine.some(g => g.result.every(r => r === 'correct'))) return null;
-      return settleGuessDuel({ ...base, [key]: [...mine, { word, result, ts: now() }] });
-    };
+  // كتابة مشروطة مع إعادة محاولة: لو تعارضت مع كتابة الخصم بنفس اللحظة نعيد على أحدث نسخة
+  const casRetry = useCallback(async (build) => {
     let base = roomStateRef.current;
     for (let attempt = 0; attempt < 4; attempt++) {
       const next = build(base);
@@ -1060,7 +1052,25 @@ export default function Game() {
         return;
       }
     }
-  }, [myRole, roomCode, applyServerState]);
+  }, [roomCode, applyServerState]);
+
+  // كل لاعب يضيف تخمينه فقط
+  const submitGuessOnline = useCallback((word, result) => {
+    const key = `guesses_p${myRole}`;
+    const tries = GUESS_LENGTHS[roomStateRef.current?.settings?.len || 4].tries;
+    return casRetry((base) => {
+      if (!base || base.status !== 'playing') return null;
+      const mine = base[key] || [];
+      if (mine.length >= tries || mine.some(g => g.result.every(r => r === 'correct'))) return null;
+      return settleGuessDuel({ ...base, [key]: [...mine, { word, result, ts: now() }] });
+    });
+  }, [myRole, casRetry]);
+
+  // انتهى وقت التحدي → يتحسم الفائز
+  const guessTimeUp = useCallback(() => casRetry((base) => {
+    if (!base || base.status !== 'playing') return null;
+    return settleGuessDuel(base, true);
+  }), [casRetry]);
 
   const acceptPending = useCallback(() => {
     if (!roomState?.pendingWord) return;
@@ -1569,7 +1579,7 @@ export default function Game() {
                   ))}
                 </div>
                 <p className="text-xs text-dim mt-2.5 leading-relaxed">
-                  الاثنين يخمّنون نفس الكلمة. تشوف تقدّم صاحبك بالألوان، واللي يحلها بمحاولات أقل يفوز.
+                  الاثنين يخمّنون نفس الكلمة بنفس الوقت (بدون أدوار)، وعندكم <bdi className="font-mono-ar">{DUEL_SECONDS[selectedGuessLen] / 60}</bdi> دقائق. تشوف تقدّم صاحبك بالألوان، واللي يحلها بمحاولات أقل يفوز.
                 </p>
               </div>
             )}
@@ -1692,7 +1702,7 @@ export default function Game() {
   // -------- شاشة اللعب --------
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'guess') {
     return <GuessDuel key={roomState.gameNumber} roomState={roomState} myRole={myRole} connected={connected}
-      onSubmitGuess={submitGuessOnline} onResign={resign} />;
+      onSubmitGuess={submitGuessOnline} onResign={resign} onTimeUp={guessTimeUp} />;
   }
 
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
@@ -1810,6 +1820,12 @@ export default function Game() {
               ...(isGuess ? { dim: !isDraw && winner !== r } : {}),
             }))}
           />
+
+          {isGuess && roomState.timeUp && (
+            <div className="glass rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display font-bold slide-in text-white">
+              ⏰ انتهى الوقت — {isDraw ? 'ما أحد حلّها' : 'الفائز اللي حلّها أو اللي كان أقرب'}
+            </div>
+          )}
 
           {(oppResigned || iResigned || oppLeft) && (
             <div className="glass rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display font-bold slide-in text-white">
