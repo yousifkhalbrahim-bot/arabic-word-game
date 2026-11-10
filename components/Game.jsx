@@ -18,7 +18,8 @@ import { demoRoom } from '@/lib/demo';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import {
-  Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, PLAYER_COLORS,
+  ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
+  PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
 } from '@/components/ui';
 import { ChessTable, MatchSummary, ResultHeader, Confetti, Thinking } from '@/components/GameParts';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
@@ -105,22 +106,22 @@ const createRaceState = (code, hostName, settings) => ({
 function RoomInfo({ state }) {
   const isRace = state.mode === 'race';
   const rows = [
-    ['المضيف', <span key="h" className="font-bold text-amber-300">{state.players[1]?.name}</span>],
+    ['المضيف', <span key="h" className="font-black" style={{ color: PLAYER_INK[1] }}>{state.players[1]?.name}</span>],
     ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : '⏱ ساعة الشطرنج'],
     ...(isRace
       ? [['المدة', <span key="d"><bdi className="font-mono-ar">{state.settings.duration}</bdi> ثانية</span>]]
       : [
           ['السرعة', TIME_CONTROLS.find(t => t.id === state.settings.timeControlId)?.name],
           ['وقت الدور', <span key="t"><bdi className="font-mono-ar">{state.settings.turnSkipSeconds ?? 10}</bdi> ثانية</span>],
-          ['النهاية', <span key="e" className="font-black text-2xl leading-none text-amber-300">{state.settings.ending}</span>],
+          ['النهاية', <span key="e" className="font-black text-2xl leading-none text-[#7c3aed]">{state.settings.ending}</span>],
         ]),
   ];
   return (
-    <div className="rounded-2xl bg-black/25 border border-[rgba(255,220,170,0.1)] divide-y divide-[rgba(255,220,170,0.07)] text-right">
+    <div className="info-list rounded-2xl divide-y-2 divide-[#ede9fe] text-right">
       {rows.map(([k, v]) => (
         <div key={k} className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-muted">{k}</span>
-          <span className="font-display text-parchment">{v}</span>
+          <span className="font-display font-bold text-parchment">{v}</span>
         </div>
       ))}
     </div>
@@ -165,8 +166,8 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
 
   const myName = roomState.players[myRole]?.name || '';
   const oppName = roomState.players[oppRole]?.name || 'الخصم';
-  const myColor = myRole === 1 ? '#fbbf24' : '#2dd4bf';
-  const oppColor = myRole === 1 ? '#2dd4bf' : '#fbbf24';
+  const myColor = PLAYER_COLORS[myRole];
+  const oppColor = PLAYER_COLORS[oppRole];
 
   useEffect(() => {
     const iv = setInterval(() => setDisplayNow(now()), 100);
@@ -175,7 +176,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
 
   const elapsed = (displayNow - roomState.gameStartedAt) / 1000;
   const timeLeft = Math.max(0, duration - elapsed);
-  const timeColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fb923c' : '#4ade80';
+  const timeColor = timeLeft <= 10 ? '#ff4d6d' : timeLeft <= 20 ? '#ffb020' : '#22c55e';
 
   const myFrozenUntil = roomState.frozenUntil?.[myRole] ?? null;
   const isFrozen = !!(myFrozenUntil && displayNow < myFrozenUntil);
@@ -337,7 +338,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
   const secs = Math.floor(timeLeft % 60);
   const timerDisplay = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
-  const timerR = 30;
+  const timerR = 28;
   const timerCirc = 2 * Math.PI * timerR;
   const timerOffset = timerCirc * (1 - Math.min(1, timeLeft / duration));
 
@@ -354,253 +355,205 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
     }
   }, [lastAnswer?.ts]);
 
+  const myDeep = PLAYER_DEEP[myRole], oppDeep = PLAYER_DEEP[oppRole];
+  const myOn = PLAYER_ON[myRole], oppOn = PLAYER_ON[oppRole];
+
+  const scorePanel = (side) => {
+    const mine = side === 'mine';
+    const color = mine ? myColor : oppColor, deep = mine ? myDeep : oppDeep, on = mine ? myOn : oppOn;
+    const score = mine ? myDisplayScore : oppDisplayScore;
+    const name = mine ? myName : oppName;
+    const frozen = mine ? isFrozen : isOppFrozen;
+    return (
+      <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 text-center relative"
+        style={{ background: frozen ? '#7dd3fc' : color, boxShadow: `0 5px 0 ${frozen ? '#0369a1' : deep}`, border: '2px solid rgba(255,255,255,0.4)' }}>
+        <div className="font-display font-black truncate" style={{ fontSize: '0.85rem', color: frozen ? '#0c4a6e' : on }}>
+          {frozen && '❄ '}{name}
+        </div>
+        <div className="relative inline-block">
+          <div key={`${side}-${score}`} className="score-bump font-display font-black text-white" style={{ fontSize: '1.9rem', lineHeight: 1.05, textShadow: `0 3px 0 ${frozen ? '#0369a1' : deep}` }}>
+            <bdi>{score}</bdi>
+          </div>
+          {floaters.filter(f => f.side === side).map(f => (
+            <div key={f.id} className="float-plus font-display font-black text-white" style={{ fontSize: '0.9rem' }}>+1</div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const wordColumn = (side) => {
+    const mine = side === 'mine';
+    const words = mine ? myWords : oppWords;
+    const color = mine ? myColor : oppColor, deep = mine ? myDeep : oppDeep, on = mine ? myOn : oppOn;
+    return (
+      <div className="glass flex flex-col rounded-2xl overflow-hidden" style={{ width: '27%' }}>
+        <div className="shrink-0 py-1.5 px-1 text-center font-display font-black truncate" style={{ fontSize: '0.72rem', color: '#fff', background: 'rgba(255,255,255,0.12)' }}>
+          {mine ? 'كلماتك' : `كلمات ${oppName}`}
+        </div>
+        <div className="flex-1 overflow-y-auto no-scrollbar p-1.5 space-y-1.5">
+          {[...words].reverse().map((w, i) => (
+            <div key={`${wordStr(w)}-${words.length - i}`}
+              className={`rounded-xl px-2 py-1 text-center ${i === 0 ? 'word-pop' : ''}`}
+              style={i === 0
+                ? { background: color, color: on, boxShadow: `0 3px 0 ${deep}` }
+                : { background: 'rgba(255,255,255,0.9)', color: '#3b1d6e' }}>
+              <div className="font-display font-black truncate" style={{ fontSize: i === 0 ? '0.98rem' : '0.86rem' }}>{wordStr(w)}</div>
+            </div>
+          ))}
+          {!words.length && <div className="text-center text-white/45 font-display text-[0.7rem] pt-2">لا شيء بعد</div>}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="app-fixed flex flex-col" style={{ color: '#fff', userSelect: 'none' }}>
-      <div className="library-bg" aria-hidden="true" />
+      <ArcadeBg letters={false} />
 
       {/* ===== شريط العنوان ===== */}
-      <div className="shrink-0 flex items-center justify-between px-4 pt-1 pb-0">
-        <button onClick={handleResign} className="transition-opacity hover:opacity-70 active:scale-90" aria-label="استسلام">
-          <ArrowLeft className="w-5 h-5" style={{ color: confirmResign ? '#f87171' : 'rgba(255,255,255,0.45)' }} />
+      <div className="shrink-0 flex items-center justify-between px-3 pt-1.5 pb-1">
+        <button onClick={handleResign} aria-label="استسلام"
+          className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
+          style={{ background: confirmResign ? '#ff4d6d' : 'rgba(255,255,255,0.16)' }}>
+          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
         </button>
-        <div className="flex items-center gap-1.5 font-display font-bold" style={{ fontSize: '0.9rem' }}>
-          <Zap className="w-4 h-4 text-amber-400" />
+        <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.85rem' }}>
+          <Zap className="w-4 h-4 text-[#ffb020]" fill="#ffb020" />
           <span>سباق الكلمات</span>
         </div>
-        <div style={{ width: 20 }} />
+        <div style={{ width: 32 }} />
       </div>
 
-      {/* ===== لوحة النقاط ===== */}
-      <div className="shrink-0 px-3 pb-0">
-        <div className="flex items-center gap-3">
-
-          {/* أنا — يمين */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-1.5">
-              <div className="font-display font-black mb-0.5"
-                style={{ fontSize: '1.15rem', color: myColor, textShadow: `0 0 12px ${myColor}90, 0 0 28px ${myColor}50` }}>
-                {myName}
-              </div>
-              <div className="relative inline-block">
-                <div key={`my-${myDisplayScore}`} className="score-bump font-display font-black" style={{ fontSize: '1.7rem', color: myColor, lineHeight: 1 }}>
-                  {myDisplayScore}
-                </div>
-                {floaters.filter(f => f.side === 'mine').map(f => (
-                  <div key={f.id} className="float-plus font-display" style={{ color: myColor, fontSize: '0.85rem' }}>+1</div>
-                ))}
-              </div>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, myDisplayScore) * 5)}%`, background: myColor }} />
+      {/* ===== النقاط + المؤقت ===== */}
+      <div className="shrink-0 px-3 pb-2 pt-1">
+        <div className="flex items-center gap-2.5">
+          {scorePanel('mine')}
+          <div className="race-timer shrink-0 relative rounded-full bg-white" style={{ width: 72, height: 72, boxShadow: '0 5px 0 #c4b5fd' }}>
+            <svg width="72" height="72" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="36" cy="36" r={timerR} fill="none" stroke="#ede9fe" strokeWidth="6" />
+              <circle cx="36" cy="36" r={timerR} fill="none" stroke={timeColor} strokeWidth="6"
+                strokeDasharray={timerCirc} strokeDashoffset={timerOffset} strokeLinecap="round" />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-mono-ar font-black" style={{ fontSize: '1rem', color: '#3b1d6e', lineHeight: 1 }}>{timerDisplay}</span>
             </div>
           </div>
-
-          {/* المؤقت */}
-          <div className="shrink-0 flex flex-col items-center gap-1">
-            <div className="race-timer relative" style={{ width: 80, height: 80 }}>
-              <svg width="80" height="80" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="40" cy="40" r={timerR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
-                <circle cx="40" cy="40" r={timerR} fill="none" stroke={timeColor} strokeWidth="5"
-                  strokeDasharray={timerCirc} strokeDashoffset={timerOffset} strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono-ar font-black" style={{ fontSize: '1.15rem', color: timeColor, lineHeight: 1 }}>{timerDisplay}</span>
-              </div>
-            </div>
-            <span className="kb-hide font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>الوقت</span>
-          </div>
-
-          {/* الخصم — يسار */}
-          <div className="flex-1 min-w-0 flex flex-col items-end">
-            <div className="mb-1.5 flex flex-col items-end">
-              <div className="font-display font-black mb-0.5"
-                style={{ fontSize: '1.15rem', color: oppColor, textShadow: `0 0 12px ${oppColor}90, 0 0 28px ${oppColor}50` }}>
-                {oppName}
-              </div>
-              <div className="relative inline-block">
-                <div key={`opp-${oppDisplayScore}`} className="score-bump font-display font-black" style={{ fontSize: '1.7rem', color: oppColor, lineHeight: 1 }}>
-                  {oppDisplayScore}
-                </div>
-                {floaters.filter(f => f.side === 'opp').map(f => (
-                  <div key={f.id} className="float-plus font-display" style={{ color: oppColor, fontSize: '0.85rem' }}>+1</div>
-                ))}
-              </div>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden w-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-              <div className="h-full rounded-full transition-all duration-300 float-left" style={{ width: `${Math.min(100, Math.max(0, oppDisplayScore) * 5)}%`, background: oppColor }} />
-            </div>
-          </div>
-
+          {scorePanel('opp')}
         </div>
       </div>
 
       {/* ===== المنطقة الرئيسية: ٣ أعمدة ===== */}
-      <div className="flex-1 flex gap-2 px-3 pt-1 pb-3 min-h-0 overflow-hidden">
+      <div className="flex-1 flex gap-2 px-3 pt-1 pb-2 min-h-0 overflow-hidden">
 
-        {/* عمود كلماتي — يمين */}
-        <div className="flex flex-col rounded-2xl overflow-hidden"
-          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${myColor}25` }}>
-          <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.75rem', color: myColor, borderBottom: `1px solid ${myColor}25` }}>
-            كلماتك
-          </div>
-          <div className="flex-1 overflow-y-auto py-1.5 px-1.5">
-            {[...myWords].reverse().map((w, i) => (
-              <div key={`${wordStr(w)}-${i}`}
-                className={i === 0 ? 'word-pop' : ''}
-                style={{ padding: '5px 7px', borderRadius: 9, marginBottom: 3, background: i === 0 ? `${myColor}22` : 'rgba(255,255,255,0.03)', borderRight: i === 0 ? `2px solid ${myColor}` : '2px solid transparent' }}>
-                <div className="font-display font-bold truncate" style={{ fontSize: i === 0 ? '1rem' : '0.88rem', color: i === 0 ? myColor : 'rgba(255,255,255,0.8)' }}>
-                  {wordStr(w)}
-                </div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: myColor, opacity: i === 0 ? 0.9 : 0.45 }}>+1 نقطة</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {wordColumn('mine')}
 
         {/* العمود الأوسط — السؤال + الإجابة */}
-        <div className="flex-1 flex flex-col items-center min-h-0">
+        <div className="flex-1 flex flex-col items-center min-h-0 gap-2">
 
           {/* السؤال */}
-          <div className="shrink-0 w-full text-center mb-1 rounded-2xl px-3 py-2"
-            style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 0 24px rgba(251,191,36,0.1)' }}>
-            <div className="kb-hide font-display" style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)', marginBottom: 4, letterSpacing: '0.06em' }}>
-              السؤال {currentEndingIndex + 1}
+          <div className="wood-card shrink-0 w-full text-center rounded-2xl px-2 pt-2 pb-3">
+            <div className="kb-hide inline-block font-display font-black rounded-full px-2.5 py-0.5 mb-1.5"
+              style={{ fontSize: '0.65rem', background: '#ede9fe', color: '#6d28d9' }}>
+              السؤال <bdi>{currentEndingIndex + 1}</bdi>
             </div>
-            <div className="kb-hide font-display font-bold" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', marginBottom: 0 }}>اكتب كلمة تنتهي بـ</div>
-            <div key={`q-${currentEndingIndex}`} className="word-pop font-display font-black"
-              style={{
-                fontSize: 'clamp(2.4rem, 12vw, 3.4rem)',
-                lineHeight: 1.3,
-                paddingBottom: 2,
-                color: '#fbbf24',
-                textShadow: '0 0 24px rgba(251,191,36,0.7), 0 0 60px rgba(251,191,36,0.3)',
-                letterSpacing: '0.05em',
-              }}>
-              {currentEnding}
-            </div>
+            <div className="kb-hide font-display font-bold text-muted mb-2" style={{ fontSize: '0.75rem' }}>اكتب كلمة تنتهي بـ</div>
+            <LetterTiles key={`q-${currentEndingIndex}`} text={currentEnding} size={42} />
           </div>
 
-          {/* زر تجميد الخصم — تحت السؤال */}
+          {/* تجميد الخصم */}
           <button onClick={handleFreeze}
             disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
-            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: 'rgba(30,18,9,0.8)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.2)'}` }}>
-            <div className="flex items-center gap-1.5">
-              <Snowflake className="w-3.5 h-3.5 shrink-0" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
-              <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: isOppFrozen ? '#38bdf8' : 'rgba(255,255,255,0.8)' }}>
-                {isOppFrozen
-                  ? `مجمّد • ${Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}ث`
-                  : 'تجميد الخصم'}
-              </span>
-            </div>
-            <span className="font-display font-bold shrink-0" style={{ fontSize: '0.68rem', color: '#38bdf8' }}>
-              {isOppFrozen ? '❄' : '💎 3'}
+            className="btn-3d shrink-0 w-full flex items-center justify-between gap-1 rounded-xl px-2.5 py-1.5 font-display font-black"
+            style={{ background: '#38bdf8', color: '#fff', boxShadow: '0 4px 0 #0369a1', border: '2px solid #7dd3fc', fontSize: '0.75rem' }}>
+            <span className="flex items-center gap-1.5">
+              <Snowflake className="w-3.5 h-3.5 shrink-0" strokeWidth={3} style={isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : undefined} />
+              {isOppFrozen
+                ? <>مجمّد <bdi>{Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}</bdi>ث</>
+                : 'تجميد'}
             </span>
+            <span className="shrink-0 rounded-full bg-white/25 px-1.5" style={{ fontSize: '0.68rem' }}>💎 3</span>
           </button>
 
-          {/* زر تجاوز السؤال — تحت التجميد */}
+          {/* تجاوز السؤال */}
           <button onClick={handleSkip}
             disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
-            className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: 'rgba(30,18,9,0.8)', border: '1px solid rgba(251,191,36,0.2)' }}>
-            <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)' }}>
-              تجاوز السؤال
-            </span>
-            <span className="font-display font-bold shrink-0" style={{ fontSize: '0.68rem', color: '#fbbf24' }}>💎 1</span>
+            className="btn-3d shrink-0 w-full flex items-center justify-between gap-1 rounded-xl px-2.5 py-1.5 font-display font-black"
+            style={{ background: '#fff', color: '#5b21b6', boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe', fontSize: '0.75rem' }}>
+            <span>تجاوز السؤال</span>
+            <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.68rem' }}>💎 1</span>
           </button>
 
           {/* الكلمة الأخيرة */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
             {lastAnswer ? (
               <>
-                <div key={lastAnswer.ts} className="center-word-burst font-display font-black text-center"
-                  style={{
-                    fontSize: 'clamp(1.8rem, 9vw, 2.8rem)',
-                    color: lastAnswer.color,
-                    textShadow: `0 0 30px ${lastAnswer.color}90, 0 0 70px ${lastAnswer.color}40`,
-                    lineHeight: 1.1,
-                  }}>
+                <div key={lastAnswer.ts} className="center-word-burst font-display font-black text-center text-white"
+                  style={{ fontSize: 'clamp(1.8rem, 9vw, 2.7rem)', lineHeight: 1.15, textShadow: `0 4px 0 ${lastAnswer.color === myColor ? myDeep : oppDeep}` }}>
                   {lastAnswer.word}
                 </div>
-                <div className="font-display mt-1.5" style={{ fontSize: '0.72rem', color: lastAnswer.color, opacity: 0.7 }}>
-                  +1 نقطة
+                <div className="font-display font-black mt-1.5 rounded-full px-2.5 py-0.5"
+                  style={{ fontSize: '0.72rem', background: lastAnswer.color, color: lastAnswer.color === myColor ? myOn : oppOn }}>
+                  +1 · {lastAnswer.name}
                 </div>
               </>
             ) : (
-              <div className="font-display text-center" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.12)' }}>
+              <div className="font-display font-bold text-center text-white/55" style={{ fontSize: '0.85rem' }}>
                 اكتب أول كلمة 🏁
               </div>
             )}
           </div>
-
         </div>
 
-        {/* عمود كلمات الخصم — يسار */}
-        <div className="flex flex-col rounded-2xl overflow-hidden"
-          style={{ width: '27%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${oppColor}25` }}>
-          <div className="shrink-0 py-2 text-center font-display font-bold" style={{ fontSize: '0.68rem', color: oppColor, borderBottom: `1px solid ${oppColor}20` }}>
-            كلمات {oppName}
-          </div>
-          <div className="flex-1 overflow-y-auto py-1.5 px-1.5">
-            {[...oppWords].reverse().map((w, i) => (
-              <div key={`${wordStr(w)}-${i}`}
-                className={i === 0 ? 'word-pop' : ''}
-                style={{ padding: '5px 7px', borderRadius: 9, marginBottom: 3, background: i === 0 ? `${oppColor}22` : 'rgba(255,255,255,0.03)', borderLeft: i === 0 ? `2px solid ${oppColor}` : '2px solid transparent' }}>
-                <div className="font-display font-bold truncate" style={{ fontSize: i === 0 ? '1rem' : '0.88rem', color: i === 0 ? oppColor : 'rgba(255,255,255,0.8)' }}>
-                  {wordStr(w)}
-                </div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: oppColor, opacity: i === 0 ? 0.9 : 0.45 }}>+1 نقطة</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+        {wordColumn('opp')}
       </div>
 
       {/* ===== الإدخال ===== */}
       <div className="shrink-0 px-3 pb-2 pt-1">
-        {localFeedback && (
-          <div className={`text-center font-bold mb-2 slide-in ${localFeedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
-            {localFeedback.text}
-          </div>
-        )}
-        <div className="relative rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3"
-            style={{ background: isFrozen ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.06)', border: `1px solid ${isFrozen ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 16 }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder={isFrozen ? `مجمّد لـ ${freezeSecsLeft}ث` : 'اكتب كلمة...'}
-              disabled={timeLeft <= 0 || isFrozen}
-              className="flex-1 bg-transparent font-display text-lg focus:outline-none"
-              style={{ color: isFrozen ? 'rgba(56,189,248,0.6)' : '#f5f0e8', direction: 'rtl' }}
-            />
-            {isFrozen ? (
-              <Snowflake className="shrink-0 w-6 h-6" style={{ color: '#38bdf8', animation: 'spin-slow 3s linear infinite' }} />
-            ) : (
-              <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0}
-                className="shrink-0 transition-all active:scale-90 disabled:opacity-25"
-                style={{ color: input.trim() ? myColor : 'rgba(255,255,255,0.2)' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: 26, height: 26 }}>
-                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                </svg>
-              </button>
-            )}
-          </div>
+        <div className="h-7 flex items-center justify-center">
+          {localFeedback && (
+            <div className="slide-in font-display font-black rounded-full px-3 py-0.5 text-white"
+              style={{ fontSize: '0.85rem', background: localFeedback.ok ? '#22c55e' : '#ff4d6d', boxShadow: `0 3px 0 ${localFeedback.ok ? '#15803d' : '#b3123a'}` }}>
+              {localFeedback.text}
+            </div>
+          )}
+        </div>
+        <div className="flex items-stretch gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={isFrozen ? `❄ مجمّد ${freezeSecsLeft}ث` : 'اكتب كلمة...'}
+            disabled={timeLeft <= 0 || isFrozen}
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            className="flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none"
+            style={{
+              direction: 'rtl',
+              background: isFrozen ? '#e0f2fe' : '#fff',
+              color: '#2e1065',
+              border: `3px solid ${isFrozen ? '#7dd3fc' : '#ede9fe'}`,
+              boxShadow: `0 5px 0 ${isFrozen ? '#38bdf8' : '#c4b5fd'}`,
+            }}
+          />
+          <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0 || isFrozen} aria-label="إرسال"
+            className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
+            style={{ background: isFrozen ? '#38bdf8' : '#22c55e', color: '#fff', boxShadow: `0 5px 0 ${isFrozen ? '#0369a1' : '#15803d'}`, border: `2px solid ${isFrozen ? '#7dd3fc' : '#4ade80'}` }}>
+            {isFrozen
+              ? <Snowflake className="w-6 h-6" strokeWidth={3} style={{ animation: 'spin-slow 3s linear infinite' }} />
+              : <Check className="w-7 h-7" strokeWidth={3.2} />}
+          </button>
         </div>
 
         <button onClick={handleResign}
-          className="kb-hide w-full mt-2 font-display flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all active:scale-95"
-          style={{ fontSize: '0.8rem', color: 'rgba(239,68,68,0.45)', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.8)'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.45)'; e.currentTarget.style.background = 'rgba(239,68,68,0.05)'; }}>
+          className="kb-hide w-full mt-3 font-display font-bold flex items-center justify-center gap-1.5 py-1 transition-all active:scale-95"
+          style={{ fontSize: '0.8rem', color: confirmResign ? '#fff' : 'rgba(255,255,255,0.6)' }}>
           <Flag className="w-3.5 h-3.5" /> {confirmResign ? 'اضغط مرة ثانية للتأكيد' : 'استسلام'}
         </button>
       </div>
-
     </div>
   );
 }
@@ -1231,164 +1184,68 @@ export default function Game() {
   if (booting) {
     return (
       <Screen>
-        <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400/70" /></div>
+        <div className="flex justify-center"><Loader2 className="w-9 h-9 animate-spin text-white" /></div>
       </Screen>
     );
   }
 
   if (screen === 'menu') {
+    const logo = [
+      { ch: 'ك', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -8 },
+      { ch: 'ل', bg: '#ffb020', fg: '#4a2400', sh: '#b86b00', r: 5 },
+      { ch: 'م', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -3 },
+      { ch: 'ا', bg: '#22d3ee', fg: '#083344', sh: '#0e7490', r: 7 },
+      { ch: 'ت', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -6 },
+    ];
     return (
-      <div
-        className="text-stone-100 flex items-center justify-center relative overflow-hidden"
-        style={{
-          width: '100vw',
-          height: '100dvh',
-          backgroundColor: '#2a1206',
-          paddingTop: 'env(safe-area-inset-top)',
-          paddingBottom: 'env(safe-area-inset-bottom)',
-        }}
-      >
-        {/* Mobile background */}
-        <img
-          src="/bookshelf-mobile.jpg"
-          alt=""
-          aria-hidden="true"
-          className="sm:hidden"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', pointerEvents: 'none', userSelect: 'none' }}
-        />
-        {/* Desktop background */}
-        <img
-          src="/bookshelf2.png.jpeg"
-          alt=""
-          aria-hidden="true"
-          className="hidden sm:block"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', pointerEvents: 'none', userSelect: 'none' }}
-        />
-        {/* Dark overlay */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.22)' }} />
-
-        <div className="relative w-full max-w-xs px-5 flex flex-col items-center" style={{ gap: '0' }}>
-          {/* Book icon */}
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="h-px w-10" style={{ background: 'linear-gradient(to left, #c8861a, transparent)' }} />
-            <BookOpen className="w-7 h-7 float" style={{ color: '#e8a020', filter: 'drop-shadow(0 0 8px rgba(232,160,32,0.8))' }} />
-            <div className="h-px w-10" style={{ background: 'linear-gradient(to right, #c8861a, transparent)' }} />
+      <Screen>
+        <div className="text-center fade-in py-4">
+          <div className="flex justify-center gap-1.5 mb-5" dir="rtl">
+            {logo.map((t, i) => (
+              <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
+              <div className="word-pop rounded-2xl flex items-center justify-center font-display font-black"
+                style={{
+                  width: 54, height: 58, fontSize: 32, paddingBottom: 4,
+                  background: t.bg, color: t.fg, boxShadow: `0 6px 0 ${t.sh}, 0 14px 20px -10px rgba(30,10,80,.6)`,
+                  border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
+                }}>
+                {t.ch}
+              </div>
+              </div>
+            ))}
           </div>
 
-          {/* Title */}
-          <h1
-            className="font-display font-bold text-center mb-6"
-            style={{
-              fontSize: 'clamp(2.4rem, 10vw, 3.2rem)',
-              lineHeight: 1.15,
-              whiteSpace: 'nowrap',
-              color: '#f7d060',
-              textShadow: [
-                '3px 0 0 #3d1a00',
-                '-1px 0 0 #3d1a00',
-                '0 3px 0 #3d1a00',
-                '0 -1px 0 #3d1a00',
-                '3px 3px 0 #3d1a00',
-                '4px 4px 0 rgba(0,0,0,0.45)',
-                '5px 5px 0 rgba(0,0,0,0.2)',
-              ].join(', '),
-              letterSpacing: '0.02em',
-            }}
-          >
+          <h1 className="font-display font-black text-white"
+            style={{ fontSize: 'clamp(2.7rem, 13vw, 3.5rem)', lineHeight: 1.15, textShadow: '0 5px 0 rgba(46,16,101,0.5)' }}>
             لعبة الكلمات
           </h1>
+          <p className="text-white/85 font-display font-bold mt-1 mb-9">مين أسرع واحد يلقى الكلمة؟ ⚡</p>
 
-          {/* Buttons */}
-          <div className="w-full fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Create room */}
-            <button
-              onClick={() => { setScreen('create-setup'); setGlobalError(null); }}
-              className="w-full font-display font-bold flex items-center justify-center gap-3 transition-all active:translate-y-0.5"
-              style={{
-                padding: '14px 20px',
-                borderRadius: '14px',
-                fontSize: '1.05rem',
-                color: '#1a0800',
-                background: 'linear-gradient(180deg, #ffd060 0%, #e8940a 55%, #c87000 100%)',
-                boxShadow: '0 5px 0 #7a4000, 0 7px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
-                border: '1px solid #b06000',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.filter = ''; }}
-            >
-              <UserPlus className="w-5 h-5" />
-              <span>إنشاء غرفة جديدة</span>
-            </button>
+          <div className="space-y-4">
+            <Btn icon={UserPlus} onClick={() => { setScreen('create-setup'); setGlobalError(null); }}>
+              إنشاء غرفة جديدة
+            </Btn>
+            <Btn variant="teal" icon={LogIn} onClick={() => { setScreen('join-setup'); setGlobalError(null); }}>
+              دخول بكود
+            </Btn>
 
-            {/* Join room */}
-            <button
-              onClick={() => { setScreen('join-setup'); setGlobalError(null); }}
-              className="w-full font-display font-bold flex items-center justify-center gap-3 transition-all active:translate-y-0.5"
-              style={{
-                padding: '14px 20px',
-                borderRadius: '14px',
-                fontSize: '1.05rem',
-                color: '#001a18',
-                background: 'linear-gradient(180deg, #5ef0d8 0%, #0fb89a 55%, #0a9078 100%)',
-                boxShadow: '0 5px 0 #065040, 0 7px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-                border: '1px solid #0a8068',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.filter = ''; }}
-            >
-              <LogIn className="w-5 h-5" />
-              <span>دخول بكود</span>
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3" style={{ margin: '2px 0' }}>
-              <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.1)' }} />
-              <span style={{ color: '#a07850', fontSize: '0.75rem' }}>أو</span>
-              <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.1)' }} />
+            <div className="flex items-center gap-3 py-1">
+              <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+              <span className="text-white/70 text-xs font-display font-bold">أو العب لحالك</span>
+              <div className="h-[2px] flex-1 rounded-full bg-white/20" />
             </div>
 
-            {/* Local play */}
-            <button
-              onClick={() => { setMyRoleState('local'); setScreen('create-setup'); setGlobalError(null); }}
-              className="w-full flex items-center justify-center gap-2 transition-all active:translate-y-0.5"
-              style={{
-                padding: '11px 18px',
-                borderRadius: '12px',
-                fontSize: '0.88rem',
-                color: '#c09070',
-                background: 'linear-gradient(180deg, #2e1a0a 0%, #1e1008 100%)',
-                boxShadow: '0 4px 0 #0e0804, 0 6px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
-              onMouseLeave={e => { e.currentTarget.style.filter = ''; }}
-            >
-              <Smartphone className="w-4 h-4" />
-              اللعب على جهاز واحد
-            </button>
-
-            {/* Solo practice */}
-            <button
-              onClick={() => { setScreen('solo'); setGlobalError(null); }}
-              className="w-full flex items-center justify-center gap-2 transition-all active:translate-y-0.5"
-              style={{
-                padding: '11px 18px',
-                borderRadius: '12px',
-                fontSize: '0.88rem',
-                color: '#c09070',
-                background: 'linear-gradient(180deg, #2e1a0a 0%, #1e1008 100%)',
-                boxShadow: '0 4px 0 #0e0804, 0 6px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
-              onMouseLeave={e => { e.currentTarget.style.filter = ''; }}
-            >
-              <Target className="w-4 h-4" />
-              تدريب فردي
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <Btn variant="wood" size="md" icon={Target} onClick={() => { setScreen('solo'); setGlobalError(null); }}>
+                تدريب فردي
+              </Btn>
+              <Btn variant="wood" size="md" icon={Smartphone} onClick={() => { setMyRoleState('local'); setScreen('create-setup'); setGlobalError(null); }}>
+                جهاز واحد
+              </Btn>
+            </div>
           </div>
         </div>
-      </div>
+      </Screen>
     );
   }
 
@@ -1434,9 +1291,9 @@ export default function Game() {
                     { id: 'race',  label: 'سباق الكلمات', sub: 'الاثنين يكتبون بنفس الوقت', Icon: Zap },
                   ].map(({ id, label, sub, Icon }) => (
                     <Choice key={id} selected={selectedMode === id} onClick={() => setSelectedMode(id)} className="p-3.5">
-                      <Icon className="w-6 h-6 mx-auto mb-1.5" style={{ color: selectedMode === id ? '#fbbf24' : '#9a7d5c' }} />
+                      <Icon className="w-6 h-6 mx-auto mb-1.5" style={{ color: selectedMode === id ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
                       <div className="font-display font-bold">{label}</div>
-                      <div className="text-[0.72rem] text-muted mt-0.5 leading-snug">{sub}</div>
+                      <div className="text-[0.72rem] opacity-75 mt-0.5 leading-snug">{sub}</div>
                     </Choice>
                   ))}
                 </div>
@@ -1453,9 +1310,9 @@ export default function Game() {
                       const sel = selectedTime.id === tc.id;
                       return (
                         <Choice key={tc.id} selected={sel} onClick={() => setSelectedTime(tc)} className="py-3 px-1">
-                          <Icon className="w-5 h-5 mx-auto mb-1" style={{ color: sel ? '#fbbf24' : '#9a7d5c' }} />
+                          <Icon className="w-5 h-5 mx-auto mb-1" style={{ color: sel ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
                           <div className="font-display font-bold">{tc.name}</div>
-                          <div className="text-[0.72rem] text-muted">{tc.desc}</div>
+                          <div className="text-[0.72rem] opacity-75">{tc.desc}</div>
                         </Choice>
                       );
                     })}
@@ -1467,7 +1324,7 @@ export default function Game() {
                     {[10, 20, 30].map(sec => (
                       <Choice key={sec} selected={selectedTurnSkip === sec} onClick={() => setSelectedTurnSkip(sec)} className="py-2.5">
                         <span className="font-mono-ar font-bold text-xl">{sec}</span>
-                        <span className="text-xs text-muted mr-1">ثانية</span>
+                        <span className="text-xs opacity-75 mr-1">ثانية</span>
                       </Choice>
                     ))}
                   </div>
@@ -1482,7 +1339,7 @@ export default function Game() {
                   {[{ s: 30, label: '٣٠', sub: 'ثانية' }, { s: 60, label: '١', sub: 'دقيقة' }, { s: 90, label: '١.٥', sub: 'دقيقة' }].map(({ s, label, sub }) => (
                     <Choice key={s} selected={selectedRaceDuration === s} onClick={() => setSelectedRaceDuration(s)} className="py-2.5">
                       <span className="font-mono-ar font-bold text-xl">{label}</span>
-                      <span className="text-xs text-muted mr-1">{sub}</span>
+                      <span className="text-xs opacity-75 mr-1">{sub}</span>
                     </Choice>
                   ))}
                 </div>
@@ -1496,7 +1353,7 @@ export default function Game() {
               <div>
                 <Label aside={
                   <button onClick={() => setUseCustom(!useCustom)}
-                    className="text-xs text-amber-300/90 hover:text-amber-200 transition-colors inline-flex items-center gap-1">
+                    className="text-xs font-display font-bold text-[#7c3aed] hover:text-[#5b21b6] transition-colors inline-flex items-center gap-1">
                     <Plus className="w-3 h-3" /> {useCustom ? 'النهايات الجاهزة' : 'نهاية مخصصة'}
                   </button>
                 }>نهاية الكلمات</Label>
@@ -1542,7 +1399,7 @@ export default function Game() {
       <Screen glow="#2dd4bf">
         <BackButton onClick={leaveRoom} />
         <Card className="p-5 sm:p-7 fade-in">
-          <Title color="#7ef5e0" sub={joinPreview ? 'تأكد من التفاصيل واكتب اسمك' : 'اكتب الكود اللي وصلك'}>دخول غرفة</Title>
+          <Title sub={joinPreview ? 'تأكد من التفاصيل واكتب اسمك' : 'اكتب الكود اللي وصلك'}>دخول غرفة</Title>
           {!joinPreview ? (
             <div className="space-y-4">
               <input
@@ -1556,7 +1413,7 @@ export default function Game() {
                 dir="ltr"
                 autoComplete="one-time-code"
                 style={{ textIndent: '0.5em' }}
-                className="w-full rounded-2xl py-4 bg-black/30 border-2 border-[rgba(255,220,170,0.14)] focus:border-teal-400/60 focus:outline-none transition-all text-center font-mono-ar text-5xl font-bold tracking-[0.5em] text-parchment placeholder:text-[#3d2c1d]"
+                className="w-full rounded-2xl py-4 bg-[#f5f3ff] border-[3px] border-[#ede9fe] focus:border-[#22d3ee] focus:bg-white focus:outline-none transition-all text-center font-mono-ar text-5xl font-black tracking-[0.5em] text-[#2e1065] placeholder:text-[#d9d0fb]"
               />
               <ErrorNote>{globalError}</ErrorNote>
               <Btn variant="teal" icon={LogIn} busy={busy} disabled={joinCode.length !== 4} onClick={checkJoinCode}>
@@ -1578,7 +1435,7 @@ export default function Game() {
                   autoComplete="nickname"
                   enterKeyHint="go"
                   onKeyDown={(e) => e.key === 'Enter' && confirmJoin()}
-                  className={`${inputClass} focus:border-teal-400/60`}
+                  className={`${inputClass} focus:!border-[#22d3ee]`}
                 />
               </div>
               <ErrorNote>{globalError}</ErrorNote>
@@ -1603,18 +1460,18 @@ export default function Game() {
       <Screen glow="#fbbf24">
         <div className="text-center fade-in">
           <div className="ending-badge mx-auto mb-3 w-16 h-16 rounded-full flex items-center justify-center">
-            <Users className="w-8 h-8 text-amber-300 float" />
+            <Users className="w-8 h-8 text-[#7c3aed] float" strokeWidth={2.4} />
           </div>
-          <h2 className="font-display font-bold title-emboss text-[#f7d060]" style={{ fontSize: 'clamp(1.6rem, 7vw, 2rem)' }}>
+          <h2 className="font-display font-black text-white" style={{ fontSize: 'clamp(1.7rem, 7.5vw, 2.1rem)', textShadow: '0 3px 0 rgba(46,16,101,0.4)' }}>
             <Thinking>بانتظار صاحبك</Thinking>
           </h2>
-          <p className="text-muted text-sm mt-1 mb-5">أرسل له الدعوة، واللعبة تبدأ أول ما يدخل</p>
+          <p className="text-white/85 text-sm font-display mt-1 mb-5">أرسل له الدعوة، واللعبة تبدأ أول ما يدخل</p>
 
           <Card className="p-5 mb-4" accent="#fbbf24">
             <div className="text-xs text-muted font-display font-bold mb-3">كود الغرفة</div>
             <div dir="ltr" className="flex justify-center gap-2.5 mb-5">
               {roomCode.split('').map((d, i) => (
-                <div key={i} className="code-digit w-14 h-16 rounded-xl flex items-center justify-center font-mono-ar text-4xl font-bold text-amber-200 word-pop"
+                <div key={i} className="code-digit w-14 h-16 rounded-xl flex items-center justify-center font-mono-ar text-4xl font-black word-pop"
                   style={{ animationDelay: `${i * 70}ms` }}>
                   {d}
                 </div>
@@ -1625,14 +1482,14 @@ export default function Game() {
               <GhostBtn onClick={copyLink}><Link2 className="w-4 h-4" /> نسخ الرابط</GhostBtn>
               <GhostBtn onClick={copyCode}><Copy className="w-4 h-4" /> نسخ الكود</GhostBtn>
             </div>
-            <div className="h-5 mt-2 text-emerald-300 text-xs">
+            <div className="h-5 mt-2 text-[#16a34a] font-display font-bold text-xs">
               {feedback?.type === 'success' && <span className="slide-in inline-block">{feedback.text}</span>}
             </div>
           </Card>
 
           <RoomInfo state={roomState} />
 
-          <button onClick={leaveRoom} className="mt-5 text-sm text-dim hover:text-muted transition-colors py-2">
+          <button onClick={leaveRoom} className="mt-5 text-sm font-display font-bold text-white/70 hover:text-white transition-colors py-2">
             إلغاء الغرفة
           </button>
         </div>
@@ -1648,7 +1505,6 @@ export default function Game() {
   if (screen === 'playing' && roomState && myRole) {
     const pendingByMe = roomState.pendingWord?.by === myRole;
     const pendingByOpp = roomState.pendingWord && !pendingByMe;
-    const myColor = PLAYER_COLORS[myRole];
     const tcName = TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name;
 
     return (
@@ -1666,15 +1522,15 @@ export default function Game() {
           topInfo={<>
             <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-emerald-400' : 'bg-rose-400 animate-pulse'}`} title={connected ? 'متصل' : 'غير متصل'} />
             <bdi className="font-mono-ar">#{roomCode}</bdi>
-            {tcName && <span className="text-dim">· {tcName}</span>}
+            {tcName && <span className="text-white/75">· {tcName}</span>}
           </>}
         >
-          <Card className="p-4 sm:p-5" accent={isMyTurn ? myColor : undefined}>
+          <Card className="p-4 sm:p-5">
             {roomState.pendingWord ? (
               pendingByOpp ? (
                 <div className="text-center slide-in">
                   <div className="text-xs text-muted font-display">{oppName} يقترح كلمة مو موجودة في القاموس</div>
-                  <div className="font-display font-black my-3" style={{ fontSize: 'clamp(2.2rem, 11vw, 3rem)', color: '#fcd34d', lineHeight: 1.25 }}>
+                  <div className="font-display font-black my-3 text-[#7c3aed]" style={{ fontSize: 'clamp(2.2rem, 11vw, 3rem)', lineHeight: 1.25 }}>
                     {roomState.pendingWord.word}
                   </div>
                   <div className="text-sm text-muted mb-4">تقبلها؟ <span className="text-dim text-xs">(الوقت متوقف)</span></div>
@@ -1685,7 +1541,7 @@ export default function Game() {
                 </div>
               ) : (
                 <div className="text-center py-2 slide-in">
-                  <Loader2 className="w-7 h-7 mx-auto mb-2 text-amber-300/70 animate-spin" />
+                  <Loader2 className="w-7 h-7 mx-auto mb-2 text-[#7c3aed] animate-spin" />
                   <div className="font-display text-2xl text-parchment mb-1">{roomState.pendingWord.word}</div>
                   <div className="text-sm text-muted"><Thinking>بانتظار قرار {oppName}</Thinking></div>
                   <div className="text-xs text-dim mt-1">الوقت متوقف لكم الاثنين</div>
@@ -1693,7 +1549,7 @@ export default function Game() {
               )
             ) : isMyTurn ? (
               <>
-                <div className="text-center text-sm mb-3 font-display font-bold" style={{ color: myColor }}>دورك! ✍️</div>
+                <div className="text-center text-base mb-3 font-display font-black" style={{ color: PLAYER_INK[myRole] }}>دورك! 🔥</div>
                 <div className="flex gap-2">
                   <input
                     ref={inputRef}
@@ -1705,23 +1561,20 @@ export default function Game() {
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${feedback?.type === 'error' ? 'shake !border-rose-400/70' : ''}`}
-                    style={{ borderColor: `${myColor}55` }}
+                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
                   />
                   <button
                     onClick={submitWord}
                     disabled={!currentInput.trim()}
                     aria-label="إرسال"
                     className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
-                    style={myRole === 1
-                      ? { color: '#1a0800', background: 'linear-gradient(180deg, #ffd060, #e8940a 55%, #c87000)', boxShadow: '0 4px 0 #7a4000', border: '1px solid #b06000' }
-                      : { color: '#001a18', background: 'linear-gradient(180deg, #5ef0d8, #0fb89a 55%, #0a9078)', boxShadow: '0 4px 0 #065040', border: '1px solid #0a8068' }}>
-                    <Check className="w-6 h-6" />
+                    style={{ color: '#fff', background: '#22c55e', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
+                    <Check className="w-7 h-7" strokeWidth={3.2} />
                   </button>
                 </div>
                 <div className="h-6 mt-2 text-center text-sm font-display">
                   {feedback && (
-                    <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
                       {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
                     </span>
                   )}
@@ -1757,19 +1610,19 @@ export default function Game() {
           <ResultHeader
             isDraw={isDraw}
             winnerName={!isDraw ? roomState.players[winner].name : ''}
-            winnerColor={PLAYER_COLORS[winner]}
+            winnerPlayer={winner}
             subtitle={isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
             unit={isRace ? 'نقطة' : 'كلمة'}
             sides={[myRole, oppRole].map(r => ({
-              name: roomState.players[r]?.name, color: PLAYER_COLORS[r], score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
+              name: roomState.players[r]?.name, player: r, score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
             }))}
           />
 
           {(oppResigned || iResigned || oppLeft) && (
-            <div className="rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display slide-in bg-black/25 border border-[rgba(255,220,170,0.12)] text-muted">
-              {oppResigned ? <>🏳️ استسلم <span className="text-parchment font-bold">{oppName}</span></>
+            <div className="glass rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display font-bold slide-in text-white">
+              {oppResigned ? <>🏳️ استسلم <span className="font-black">{oppName}</span></>
                 : iResigned ? 'استسلمت في هذه الجولة'
-                : <>غادر <span className="text-parchment font-bold">{oppName}</span> الغرفة</>}
+                : <>غادر <span className="font-black">{oppName}</span> الغرفة</>}
             </div>
           )}
 
@@ -1810,10 +1663,10 @@ export default function Game() {
           <ResultHeader
             isDraw={false}
             winnerName={roomState.players[winner].name}
-            winnerColor={PLAYER_COLORS[winner]}
+            winnerPlayer={winner}
             subtitle="مبروك! 🎉"
             unit="كلمة"
-            sides={[1, 2].map(r => ({ name: roomState.players[r].name, color: PLAYER_COLORS[r], score: countOf(r) }))}
+            sides={[1, 2].map(r => ({ name: roomState.players[r].name, player: r, score: countOf(r) }))}
           />
           <MatchSummary roomState={roomState} myRole={1} />
           <div className="flex gap-2.5">
@@ -1987,7 +1840,6 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
     2: roomState.usedWords.filter(w => w.player === 2).length,
   };
   const cur = roomState.currentTurn;
-  const curColor = PLAYER_COLORS[cur];
 
   return (
     <Screen center={false} className="pt-2">
@@ -2004,11 +1856,11 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
         topInfo={<>
           <Smartphone className="w-3.5 h-3.5" />
           <span>جهاز واحد</span>
-          <span className="text-dim">· {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
+          <span className="text-white/75">· {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
         </>}
       >
-        <Card className="p-4 sm:p-5" accent={pendingWord ? undefined : curColor}>
-          <div className="text-center text-sm mb-3 font-display font-bold" style={{ color: curColor }}>
+        <Card className="p-4 sm:p-5">
+          <div className="text-center text-base mb-3 font-display font-black" style={{ color: PLAYER_INK[cur] }}>
             دور {roomState.players[cur].name}
           </div>
           <div className="flex gap-2">
@@ -2023,24 +1875,21 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               enterKeyHint="send"
               autoComplete="off"
               autoCorrect="off"
-              className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center disabled:opacity-50 ${feedback?.type === 'error' ? 'shake !border-rose-400/70' : ''}`}
-              style={{ borderColor: `${curColor}55` }}
+              className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center disabled:opacity-50 ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
             />
             <button
               onClick={submitWord}
               disabled={!currentInput.trim() || !!pendingWord}
               aria-label="إرسال"
               className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
-              style={cur === 1
-                ? { color: '#1a0800', background: 'linear-gradient(180deg, #ffd060, #e8940a 55%, #c87000)', boxShadow: '0 4px 0 #7a4000', border: '1px solid #b06000' }
-                : { color: '#001a18', background: 'linear-gradient(180deg, #5ef0d8, #0fb89a 55%, #0a9078)', boxShadow: '0 4px 0 #065040', border: '1px solid #0a8068' }}>
-              <Check className="w-6 h-6" />
+              style={{ color: '#fff', background: '#22c55e', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
+              <Check className="w-7 h-7" strokeWidth={3.2} />
             </button>
           </div>
 
           {pendingWord ? (
-            <div className="mt-4 rounded-2xl p-4 slide-in bg-amber-500/10 border border-amber-400/30 text-center">
-              <div className="font-display font-black text-3xl text-amber-200 mb-1">{pendingWord}</div>
+            <div className="mt-4 rounded-2xl p-4 slide-in info-list text-center">
+              <div className="font-display font-black text-3xl text-[#7c3aed] mb-1">{pendingWord}</div>
               <p className="text-sm text-muted mb-3">مو موجودة في القاموس — تتفقون عليها؟</p>
               <div className="flex gap-2.5">
                 <div className="flex-1"><Btn variant="green" size="md" icon={Check} onClick={confirmPending}>نقبلها</Btn></div>
@@ -2050,7 +1899,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
           ) : (
             <div className="h-6 mt-2 text-center text-sm font-display">
               {feedback && (
-                <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
                   {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
                 </span>
               )}

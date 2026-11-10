@@ -7,10 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        parchment: '#f5ead8',
-        muted: '#b49a7c',
-        dim: '#7a644c',
-        ink: '#120a05',
+        // تتغير حسب الخلفية: أبيض على التدرج، بنفسجي غامق داخل البطاقات البيضاء
+        parchment: 'rgb(var(--c-text) / <alpha-value>)',
+        muted: 'rgb(var(--c-muted) / <alpha-value>)',
+        dim: 'rgb(var(--c-dim) / <alpha-value>)',
+        grape: { DEFAULT: '#6d28d9', ink: '#2e1065', soft: '#ede9fe' },
       },
       fontFamily: {
         body: ['ThmanyahSerifText', 'sans-serif'],

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame, Play } from 'lucide-react';
-import { Card, Choice, Btn, WordChip, Num } from '@/components/ui';
+import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check } from 'lucide-react';
+import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
+import { Confetti } from '@/components/GameParts';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -138,16 +139,17 @@ export default function SoloGame({ endings, onExit }) {
 
   const shell = (children) => (
     <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
-      <div className="library-bg" aria-hidden="true" />
-      <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2">
-        <button onClick={onExit} className="transition-opacity hover:opacity-70 active:scale-90" aria-label="رجوع">
-          <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
+      <ArcadeBg letters={phase !== 'playing'} />
+      <div className="shrink-0 flex items-center justify-between px-3 pt-2 pb-2">
+        <button onClick={onExit} aria-label="رجوع"
+          className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
         </button>
-        <div className="flex items-center gap-1.5 font-display font-bold" style={{ fontSize: '0.95rem' }}>
-          <Target className="w-4 h-4 text-amber-400" />
+        <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.9rem' }}>
+          <Target className="w-4 h-4 text-[#ffb020]" strokeWidth={2.8} />
           <span>تدريب فردي</span>
         </div>
-        <div style={{ width: 20 }} />
+        <div style={{ width: 32 }} />
       </div>
       {children}
     </div>
@@ -159,9 +161,9 @@ export default function SoloGame({ endings, onExit }) {
       <div className="flex-1 overflow-y-auto px-4 pb-6 flex items-center justify-center">
         <Card className="w-full max-w-sm p-5 fade-in">
           <div className="ending-badge mx-auto mb-3 w-14 h-14 rounded-full flex items-center justify-center">
-            <Target className="w-7 h-7 text-amber-300" />
+            <Target className="w-7 h-7 text-[#7c3aed]" strokeWidth={2.6} />
           </div>
-          <h2 className="text-center font-display font-bold title-emboss text-[#f7d060] text-2xl mb-1">تحدَّ نفسك</h2>
+          <h2 className="text-center font-display font-black text-[#4c1d95] text-2xl mb-1">تحدَّ نفسك</h2>
           <p className="text-center text-muted text-sm leading-relaxed mb-5">
             أكبر عدد من الكلمات قبل ما يخلص الوقت.<br />
             <span className="text-dim">كل سؤال نهاية مختلفة · التجاوز يكلّفك <Num>{SKIP_COST_SECONDS}</Num> ثوانٍ</span>
@@ -170,8 +172,8 @@ export default function SoloGame({ endings, onExit }) {
             {DURATIONS.map(({ s, label, sub }) => (
               <Choice key={s} selected={duration === s} onClick={() => setDuration(s)} className="py-3 px-1">
                 <div className="font-mono-ar font-bold text-2xl leading-tight">{label}</div>
-                <div className="text-xs text-muted">{sub}</div>
-                <div className="text-[0.72rem] mt-2 flex items-center justify-center gap-1 text-amber-300/80">
+                <div className="text-xs opacity-75">{sub}</div>
+                <div className="text-[0.72rem] mt-2 flex items-center justify-center gap-1 font-bold opacity-80">
                   <Trophy className="w-3 h-3" /> <Num>{bests[s] || 0}</Num>
                 </div>
               </Choice>
@@ -187,28 +189,32 @@ export default function SoloGame({ endings, onExit }) {
   if (phase === 'done' && result) {
     return shell(
       <div className="flex-1 overflow-y-auto px-4 pb-6">
-        <div className="w-full max-w-md mx-auto text-center fade-in pt-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 bg-amber-400/15 text-amber-300">
-            <Trophy className="w-10 h-10 bounce-gentle" />
+        <div className="w-full max-w-md mx-auto text-center fade-in pt-2">
+          {result.isRecord && <Confetti />}
+          <div className="mx-auto mb-2 w-16 h-16 rounded-2xl flex items-center justify-center bounce-gentle rotate-[-6deg]"
+            style={{ background: '#ffb020', boxShadow: '0 6px 0 #b86b00', border: '3px solid rgba(255,255,255,0.6)' }}>
+            <Trophy className="w-8 h-8 text-[#4a2400]" strokeWidth={2.6} />
           </div>
           {result.isRecord && (
-            <div className="font-display font-bold text-emerald-300 mb-1 slide-in">🎉 رقم قياسي جديد!</div>
+            <div className="inline-block font-display font-black text-white bg-[#22c55e] rounded-full px-3 py-0.5 mb-1 slide-in" style={{ boxShadow: '0 3px 0 #15803d' }}>
+              🎉 رقم قياسي جديد!
+            </div>
           )}
-          <div className="font-display font-black" style={{ fontSize: '3.5rem', color: ACCENT, lineHeight: 1.1 }}>{result.score}</div>
-          <div className="text-stone-400 text-sm mb-5">كلمة في {duration} ثانية</div>
+          <div className="font-display font-black text-white" style={{ fontSize: '4rem', lineHeight: 1.1, textShadow: '0 5px 0 rgba(46,16,101,0.45)' }}>
+            <Num>{result.score}</Num>
+          </div>
+          <div className="text-white/85 font-display font-bold text-sm mb-5">كلمة في <Num>{duration}</Num> ثانية</div>
 
-          <div className="grid grid-cols-3 gap-2 mb-5 text-sm">
+          <div className="grid grid-cols-3 gap-2.5 mb-5 text-sm">
             <Stat label="أفضل نتيجة" value={Math.max(result.score, result.prevBest)} />
             <Stat label="أطول سلسلة" value={bestStreak} />
             <Stat label="تجاوزات" value={skips} />
           </div>
 
           {words.length > 0 && (
-            <div className="wood-card rounded-2xl p-3 mb-6 text-right">
-              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                {words.map((w, i) => (
-                  <WordChip key={i} color={ACCENT}>{w.w}</WordChip>
-                ))}
+            <div className="glass rounded-2xl p-3 mb-6 text-right">
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto no-scrollbar pb-1">
+                {words.map((w, i) => <WordChip key={i} player={1}>{w.w}</WordChip>)}
               </div>
             </div>
           )}
@@ -223,52 +229,55 @@ export default function SoloGame({ endings, onExit }) {
   }
 
   // -------- اللعب --------
-  const timeColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fb923c' : '#4ade80';
+  const low = timeLeft <= 10;
+  const timeColor = low ? '#ff4d6d' : timeLeft <= 20 ? '#ffb020' : '#22c55e';
   const pct = Math.min(100, (timeLeft / duration) * 100);
-  const recent = [...words].reverse().slice(0, 12);
+  const recent = [...words].reverse().slice(0, 14);
 
   return shell(
     <div className="flex-1 flex flex-col px-4 pb-3 min-h-0">
-      {/* الوقت + النقاط */}
-      <div className="shrink-0 flex items-end justify-between mb-2">
-        <div>
-          <div className="text-xs text-stone-500">النقاط</div>
-          <div key={words.length} className="score-bump font-display font-black" style={{ fontSize: '2rem', color: ACCENT, lineHeight: 1 }}>{words.length}</div>
-        </div>
-        {streak >= 2 && (
-          <div className="flex items-center gap-1 font-display font-bold text-orange-300 slide-in" style={{ fontSize: '0.9rem' }}>
-            <Flame className="w-4 h-4" /> {streak}
+      {/* النقاط + الوقت */}
+      <div className="shrink-0 flex items-stretch gap-2.5 mb-3">
+        <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid rgba(255,255,255,0.4)' }}>
+          <div className="font-display font-black text-[0.75rem] text-[#4a2400]">النقاط</div>
+          <div key={words.length} className="score-bump font-display font-black text-white" style={{ fontSize: '2rem', lineHeight: 1.05, textShadow: '0 3px 0 #b86b00' }}>
+            <Num>{words.length}</Num>
           </div>
-        )}
-        <div className="text-left">
-          <div className="text-xs text-stone-500">الوقت</div>
-          <div className="font-mono-ar font-black" style={{ fontSize: '1.6rem', color: timeColor, lineHeight: 1 }}>{Math.ceil(timeLeft)}</div>
+        </div>
+        <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: low ? '#ff4d6d' : '#fff', boxShadow: `0 5px 0 ${low ? '#b3123a' : '#c4b5fd'}`, border: '2px solid rgba(255,255,255,0.5)' }}>
+          <div className="font-display font-black text-[0.75rem]" style={{ color: low ? '#fff' : '#6d5b95' }}>الوقت</div>
+          <div className={`font-mono-ar font-black ${low ? 'animate-pulse' : ''}`} style={{ fontSize: '2rem', lineHeight: 1.05, color: low ? '#fff' : '#3b1d6e' }}>
+            <Num>{Math.ceil(timeLeft)}</Num>
+          </div>
         </div>
       </div>
-      <div className="shrink-0 h-1.5 rounded-full overflow-hidden mb-4" style={{ background: 'rgba(255,255,255,0.07)' }}>
+      <div className="shrink-0 h-3 rounded-full overflow-hidden mb-4 bg-white/20">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: timeColor, transition: 'width 0.1s linear' }} />
       </div>
 
       {/* السؤال */}
-      <div className="shrink-0 text-center rounded-2xl px-3 py-3 mb-3"
-        style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)' }}>
-        <div className="kb-hide font-display font-bold text-stone-400 mb-2" style={{ fontSize: '0.85rem' }}>اكتب كلمة تنتهي بـ</div>
-        <div key={index} className="word-pop font-display font-black"
-          style={{ fontSize: 'clamp(2.6rem, 14vw, 3.6rem)', lineHeight: 1.3, color: ACCENT, textShadow: '0 0 24px rgba(251,191,36,0.6)' }}>
-          {ending}
-        </div>
+      <div className="wood-card shrink-0 text-center rounded-3xl px-3 pt-3 pb-4 mb-2 relative">
+        {streak >= 2 && (
+          <div className="absolute -top-3 left-3 flex items-center gap-1 font-display font-black text-white rounded-full px-2.5 py-0.5 slide-in"
+            style={{ background: '#ff7a1a', boxShadow: '0 3px 0 #b84a00', fontSize: '0.8rem' }}>
+            <Flame className="w-3.5 h-3.5" fill="#fff" /> <Num>{streak}</Num>
+          </div>
+        )}
+        <div className="kb-hide font-display font-bold text-muted mb-2.5" style={{ fontSize: '0.85rem' }}>اكتب كلمة تنتهي بـ</div>
+        <LetterTiles key={index} text={ending} size={58} />
       </div>
 
       {/* الإدخال */}
       <div className="shrink-0">
-        <div className="h-6 text-center">
+        <div className="h-8 flex items-center justify-center">
           {feedback && (
-            <div className={`font-bold slide-in ${feedback.ok ? 'text-emerald-400' : 'text-rose-400'}`} style={{ fontSize: '0.85rem' }}>
+            <div className="slide-in font-display font-black rounded-full px-3 py-0.5 text-white"
+              style={{ fontSize: '0.85rem', background: feedback.ok ? '#22c55e' : '#ff4d6d', boxShadow: `0 3px 0 ${feedback.ok ? '#15803d' : '#b3123a'}` }}>
               {feedback.text}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-stretch gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -276,26 +285,30 @@ export default function SoloGame({ endings, onExit }) {
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submit(); }}
             placeholder="اكتب كلمة..."
-            className={`flex-1 min-w-0 rounded-2xl px-4 py-3 font-display text-lg focus:outline-none ${feedback && !feedback.ok ? 'shake' : ''}`}
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#f5f0e8' }}
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            className={`flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none ${feedback && !feedback.ok ? 'shake' : ''}`}
+            style={{ background: '#fff', color: '#2e1065', border: '3px solid #ede9fe', boxShadow: '0 5px 0 #c4b5fd' }}
           />
-          <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS}
-            className="shrink-0 flex flex-col items-center justify-center rounded-2xl px-3 py-2 transition-all active:scale-95 disabled:opacity-30"
-            style={{ background: 'rgba(30,18,9,0.8)', border: '1px solid rgba(251,191,36,0.25)' }}>
-            <SkipForward className="w-4 h-4 text-amber-300" />
-            <span className="text-[0.65rem] text-stone-400 mt-0.5">−{SKIP_COST_SECONDS}ث</span>
+          <button onClick={submit} disabled={!input.trim()} aria-label="إرسال"
+            className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
+            style={{ background: '#22c55e', color: '#fff', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
+            <Check className="w-7 h-7" strokeWidth={3.2} />
           </button>
         </div>
+        <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS}
+          className="kb-hide btn-3d mx-auto mt-4 flex items-center gap-1.5 rounded-full px-4 py-1.5 font-display font-black text-sm"
+          style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', boxShadow: '0 3px 0 rgba(0,0,0,0.15)' }}>
+          <SkipForward className="w-4 h-4" strokeWidth={2.8} /> تجاوز <span className="opacity-75">(−<Num>{SKIP_COST_SECONDS}</Num>ث)</span>
+        </button>
       </div>
 
       {/* آخر الكلمات */}
       <div className="flex-1 min-h-0 overflow-y-auto mt-4">
-        <div className="flex flex-wrap gap-1.5 justify-center">
+        <div className="flex flex-wrap gap-2 justify-center pb-1">
           {recent.map((w, i) => (
-            <span key={words.length - i} className={`px-2 py-0.5 rounded-md font-display text-sm ${i === 0 ? 'word-pop' : ''}`}
-              style={{ background: i === 0 ? `${ACCENT}22` : 'rgba(255,255,255,0.03)', color: i === 0 ? ACCENT : 'rgba(255,255,255,0.6)' }}>
-              {w.w}
-            </span>
+            <WordChip key={words.length - i} player={1} fresh={i === 0}>{w.w}</WordChip>
           ))}
         </div>
       </div>
@@ -305,9 +318,9 @@ export default function SoloGame({ endings, onExit }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="wood-card rounded-xl py-2">
-      <div className="font-display font-bold text-lg text-parchment"><Num>{value}</Num></div>
-      <div className="text-[0.7rem] text-muted">{label}</div>
+    <div className="wood-card rounded-2xl py-2">
+      <div className="font-display font-black text-xl text-parchment"><Num>{value}</Num></div>
+      <div className="text-[0.7rem] font-bold text-muted">{label}</div>
     </div>
   );
 }

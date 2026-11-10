@@ -218,87 +218,124 @@ button, a, input, label {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
-/* ============== الهوية البصرية: مكتبة دافئة بالليل ============== */
+/* ============== الهوية البصرية: أركيد ملوّن ============== */
 :root {
-  --ink: #120a05;
-  --parchment: #f5ead8;
-  --gold: #fbbf24;
-  --teal: #2dd4bf;
+  /* ألوان النص على خلفية التدرج */
+  --c-text: 255 255 255;
+  --c-muted: 221 214 254;
+  --c-dim: 196 181 253;
+  --p1: #ffb020;  --p1-deep: #b86b00;  --p1-ink: #4a2400;
+  --p2: #22d3ee;  --p2-deep: #0e7490;  --p2-ink: #083344;
+  --grape: #6d28d9;
+  --lav: #c4b5fd;
+}
+/* داخل البطاقات البيضاء النص يصير بنفسجي غامق */
+.on-light {
+  --c-text: 46 16 101;
+  --c-muted: 109 91 149;
+  --c-dim: 167 139 250;
+  color: rgb(var(--c-text));
 }
 
-/* خلفية الرفوف المضبّبة لكل الشاشات */
-.library-bg {
+html { background: #4f46e5; }
+
+/* خلفية التدرج + أشكال طافية */
+.arcade-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   overflow: hidden;
-  background-color: var(--ink);
+  background: linear-gradient(160deg, #7c3aed 0%, #5b3df0 40%, #4f46e5 60%, #2563eb 100%);
 }
-.library-bg::before {
-  /* صورة القائمة نفسها، مضبّبة كجو عام */
-  content: '';
-  position: absolute;
-  inset: -40px;
-  background: url('/bookshelf-mobile.jpg') center / cover no-repeat;
-  filter: blur(16px) saturate(1.15);
-  opacity: 0.5;
-}
-.library-bg::after {
-  /* تعتيم + إطار داكن + حبيبات ورق خفيفة */
+.arcade-bg::before {
+  /* نقاط خفيفة */
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    radial-gradient(rgba(255,240,210,0.05) 0.5px, transparent 0.6px),
-    radial-gradient(ellipse 90% 70% at 50% 40%, transparent 0%, rgba(8,4,2,0.75) 100%),
-    linear-gradient(180deg, rgba(18,10,5,0.45) 0%, rgba(18,10,5,0.7) 100%);
-  background-size: 3px 3px, auto, auto;
+  background-image: radial-gradient(rgba(255,255,255,0.13) 1.2px, transparent 1.4px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+}
+.arcade-bg::after {
+  /* توهج ناعم */
+  content: '';
+  position: absolute;
+  width: 140vw;
+  height: 70vh;
+  left: -20vw;
+  bottom: -35vh;
+  background: radial-gradient(ellipse at center, rgba(34,211,238,0.35) 0%, transparent 65%);
+}
+/* حروف طافية للزينة */
+.floaty {
+  position: absolute;
+  font-family: 'ThmanyahSerifDisplay', sans-serif;
+  font-weight: 700;
+  color: rgba(255,255,255,0.09);
+  animation: floaty 7s ease-in-out infinite;
+  user-select: none;
+}
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50%      { transform: translateY(-14px) rotate(calc(var(--r, 0deg) + 4deg)); }
 }
 
-/* بطاقة خشب داكن زجاجية */
+/* البطاقة البيضاء البارزة */
 .wood-card {
-  background: linear-gradient(180deg, rgba(48,29,15,0.82) 0%, rgba(26,15,7,0.88) 100%);
-  border: 1px solid rgba(255, 210, 150, 0.14);
-  box-shadow: 0 22px 50px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,240,210,0.06);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  --c-text: 46 16 101;
+  --c-muted: 109 91 149;
+  --c-dim: 167 139 250;
+  color: rgb(var(--c-text));
+  background: #ffffff;
+  border: 3px solid #f1edff;
+  box-shadow: 0 7px 0 var(--lav), 0 18px 30px -16px rgba(30, 10, 80, 0.55);
+}
+/* لوحة زجاجية فوق التدرج */
+.glass {
+  background: rgba(255,255,255,0.14);
+  border: 2px solid rgba(255,255,255,0.18);
 }
 
-/* عنوان بارز مثل عنوان القائمة */
-.title-emboss {
-  text-shadow: 2px 0 0 #3d1a00, -1px 0 0 #3d1a00, 0 2px 0 #3d1a00, 2px 2px 0 #3d1a00, 3px 3px 0 rgba(0,0,0,0.4);
-}
+.title-emboss { text-shadow: none; }
 
 /* الأزرار البارزة */
 .btn-3d {
   transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.08s ease;
 }
-.btn-3d:hover:not(:disabled) { filter: brightness(1.07); }
-.btn-3d:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.5) !important; }
+.btn-3d:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-3d:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.25) !important; }
 .btn-3d:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* خانة اختيار */
+/* خانة اختيار (داخل البطاقات البيضاء) */
 .choice-tile {
-  border: 1.5px solid rgba(255, 210, 150, 0.1);
-  background: rgba(0,0,0,0.22);
-  color: #d9c3a5;
+  background: #f5f3ff;
+  border: 3px solid #ede9fe;
+  color: #4c1d95;
+  box-shadow: 0 4px 0 #e4dcff;
 }
-.choice-tile:hover:not([data-selected]) { border-color: rgba(255, 210, 150, 0.25); }
+.choice-tile:hover:not([data-selected]) { border-color: #ddd6fe; }
+.choice-tile[data-selected] { transform: translateY(-2px); }
 
-/* شارة النهاية */
+/* بلاطة حرف (مثل السكرابل) */
+.letter-tile {
+  background: #fff;
+  color: #3b1d6e;
+  border: 3px solid #ede9fe;
+  box-shadow: 0 6px 0 var(--lav), 0 14px 22px -12px rgba(30,10,80,0.6);
+}
+
+/* دائرة أيقونة */
 .ending-badge {
-  background: linear-gradient(180deg, rgba(251,191,36,0.13), rgba(251,191,36,0.04));
-  border: 1px solid rgba(251,191,36,0.4);
-  box-shadow: 0 0 30px -6px rgba(251,191,36,0.35), inset 0 1px 0 rgba(255,240,200,0.12);
+  background: #fff;
+  border: 3px solid #ede9fe;
+  box-shadow: 0 6px 0 var(--lav);
 }
 
 /* ساعة اللاعب النشط */
-@keyframes clock-breathe {
-  0%, 100% { box-shadow: 0 0 0 1px var(--c), 0 0 34px -10px var(--c); }
-  50%      { box-shadow: 0 0 0 1px var(--c), 0 0 48px -6px var(--c); }
-}
-.clock-active { animation: clock-breathe 2.2s ease-in-out infinite; }
+@keyframes clock-pop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.clock-active { animation: clock-pop 1.6s ease-in-out infinite; }
 
 /* احتفال الفوز */
 @keyframes confetti-fall {
@@ -324,11 +361,26 @@ button, a, input, label {
 
 /* أرقام كود الغرفة */
 .code-digit {
-  background: linear-gradient(180deg, rgba(251,191,36,0.16), rgba(251,191,36,0.05));
-  border: 1px solid rgba(251,191,36,0.4);
-  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 8px 18px -10px rgba(251,191,36,0.6);
+  background: linear-gradient(180deg, #8b5cf6, #6d28d9);
+  color: #fff;
+  border: 3px solid #a78bfa;
+  box-shadow: 0 6px 0 #4c1d95;
+}
+
+/* قائمة معلومات */
+.info-list {
+  --c-text: 46 16 101;
+  --c-muted: 109 91 149;
+  --c-dim: 167 139 250;
+  color: rgb(var(--c-text));
+  background: #f5f3ff;
+  border: 3px solid #ede9fe;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .clock-active, .confetti-piece, .dot-wave span, .float, .bounce-gentle { animation: none !important; }
+  .clock-active, .confetti-piece, .dot-wave span, .float, .bounce-gentle, .floaty { animation: none !important; }
 }
+
+/* قوائم قابلة للتمرير بدون شريط ظاهر */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
