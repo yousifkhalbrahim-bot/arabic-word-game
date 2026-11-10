@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Flag, Trophy, Sparkles, Target } from 'lucide-react';
-import { Card, Label, WordChip, EndingBadge, PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON } from '@/components/ui';
+import { ArcadeBg, Card, Label, WordChip, EndingBadge, LetterTiles, PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON } from '@/components/ui';
 
 export const formatTime = (seconds) => {
   const s = Math.max(0, seconds);
@@ -18,48 +18,88 @@ export const formatTime = (seconds) => {
 
 const wordStr = (w) => (typeof w === 'string' ? w : w?.w ?? '');
 
-// ============== ساعة لاعب ==============
-// النشط: بطاقة ممتلئة بلونه وتنطّ بخفة. غير النشط: زجاجية باهتة.
-export function ChessClock({ name, isMe, player, time, active, words, turnLeft, turnTotal }) {
+// ============== ساعة لاعب (مضغوطة) ==============
+export function ChessClock({ name, isMe, player, time, active, words }) {
   const low = time <= 10;
-  const pct = Math.max(0, Math.min(100, (turnLeft / turnTotal) * 100));
   const bg = PLAYER_COLORS[player], deep = PLAYER_DEEP[player], on = PLAYER_ON[player];
   return (
-    <div className={`relative rounded-3xl px-3 pt-2.5 pb-2 text-center transition-all duration-300 ${active ? 'clock-active' : 'glass'}`}
-      style={active ? { background: low ? '#ff4d6d' : bg, boxShadow: `0 7px 0 ${low ? '#b3123a' : deep}`, border: '2px solid rgba(255,255,255,0.35)' } : undefined}>
-      <div className="flex items-center justify-center gap-1.5 font-display font-black text-[0.95rem] truncate"
-        style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.7)' }}>
+    <div className={`relative rounded-2xl px-2.5 py-1.5 text-center transition-all duration-300 ${active ? '' : 'glass'}`}
+      style={active ? { background: low ? '#ff4d6d' : bg, boxShadow: `0 5px 0 ${low ? '#b3123a' : deep}`, border: '2px solid rgba(255,255,255,0.4)' } : { opacity: 0.75 }}>
+      <div className="flex items-center justify-center gap-1 font-display font-black text-[0.85rem] truncate"
+        style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.85)' }}>
         <span className="truncate">{name}</span>
-        {isMe && <span className="text-[0.7rem] opacity-80 shrink-0">· أنت</span>}
+        {isMe && <span className="text-[0.65rem] opacity-80 shrink-0">· أنت</span>}
       </div>
       <div className={`font-mono-ar font-black ${active && low ? 'animate-pulse' : ''}`}
-        style={{
-          fontSize: 'clamp(2.2rem, 11.5vw, 3.3rem)', lineHeight: 1.1,
-          color: active ? '#fff' : 'rgba(255,255,255,0.42)',
-          textShadow: active ? `0 3px 0 ${low ? '#b3123a' : deep}` : 'none',
-        }}>
+        style={{ fontSize: 'clamp(1.6rem, 8vw, 2.2rem)', lineHeight: 1.1, color: active ? '#fff' : 'rgba(255,255,255,0.6)', textShadow: active ? `0 2px 0 ${low ? '#b3123a' : deep}` : 'none' }}>
         {formatTime(time)}
       </div>
-      <div className="h-2.5 mt-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.15)' }}>
-        {active && <div className="h-full rounded-full bg-white" style={{ width: `${pct}%`, transition: 'width 0.1s linear' }} />}
+      <div className="kb-hide text-[0.65rem] font-display font-bold" style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.65)' }}>
+        <bdi>{words}</bdi> كلمة
       </div>
-      <div className="text-[0.7rem] mt-1 h-4 font-display font-bold" style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.55)' }}>
-        {active ? <>الدور: <bdi className="font-mono-ar">{Math.ceil(turnLeft)}</bdi> ث</> : <><bdi>{words}</bdi> كلمة</>}
+    </div>
+  );
+}
+
+// ============== شريط الدور (دائماً ظاهر) ==============
+function TurnBanner({ state, myRole, activeRole, turnLeft, turnTotal }) {
+  const pending = !!state.pendingWord;
+  const secs = Math.max(0, Math.ceil(turnLeft));
+  const pct = Math.max(0, Math.min(100, (turnLeft / turnTotal) * 100));
+  const urgent = !pending && secs <= 5;
+  const nameOf = (r) => state.players[r]?.name || '';
+
+  let bg, deep, fg, title, sub;
+  if (pending) {
+    const judge = state.pendingWord.by === 1 ? 2 : 1;
+    bg = '#ffffff'; deep = '#c4b5fd'; fg = '#4c1d95';
+    title = '⏸ الوقت متوقف';
+    sub = myRole && judge === myRole ? 'قرّر: تقبل الكلمة؟' : `${nameOf(judge)} يقرر على الكلمة`;
+  } else {
+    const mine = myRole != null && activeRole === myRole;
+    bg = urgent ? '#ff4d6d' : PLAYER_COLORS[activeRole];
+    deep = urgent ? '#b3123a' : PLAYER_DEEP[activeRole];
+    fg = urgent ? '#ffffff' : PLAYER_ON[activeRole];
+    title = mine ? '✍️ دورك! اكتب كلمتك' : myRole == null ? `دور ${nameOf(activeRole)}` : `⏳ دور ${nameOf(activeRole)}`;
+    sub = mine ? (urgent ? 'بسرعة! الوقت يخلص' : 'اكتب وأرسل قبل ما يخلص الوقت')
+      : myRole == null ? 'أعطه الجوال' : 'جهّز كلمتك… تقدر تكتبها الحين';
+  }
+
+  return (
+    <div key={`${activeRole}-${pending}`} className="slide-in rounded-2xl px-3 py-2 flex items-center gap-3"
+      style={{ background: bg, boxShadow: `0 5px 0 ${deep}`, border: '2px solid rgba(255,255,255,0.45)', color: fg }}>
+      <div className="flex-1 min-w-0">
+        <div className="font-display font-black text-[1.15rem] leading-tight truncate">{title}</div>
+        <div className="kb-hide font-display font-bold text-[0.75rem] opacity-85 truncate">{sub}</div>
+        {!pending && (
+          <div className="h-2 mt-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.15)' }}>
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: urgent ? '#fff' : 'rgba(255,255,255,0.95)', transition: 'width 0.1s linear' }} />
+          </div>
+        )}
       </div>
+      {!pending && (
+        <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${urgent ? 'animate-pulse' : ''}`}
+          style={{ background: 'rgba(255,255,255,0.3)' }}>
+          <span className="font-mono-ar font-black text-2xl leading-none"><bdi>{secs}</bdi></span>
+          <span className="text-[0.6rem] font-black opacity-80">ثانية</span>
+        </div>
+      )}
     </div>
   );
 }
 
 // ============== الكلمات المستخدمة ==============
 export function UsedWords({ words }) {
-  if (!words.length) return null;
+  if (!words.length) {
+    return <div className="kb-hide text-center text-white/55 font-display font-bold text-sm pt-3">ما فيه كلمات بعد — أول كلمة عليكم 🏁</div>;
+  }
   return (
-    <div className="pt-1">
+    <div className="kb-hide pt-1">
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="font-display font-bold text-sm text-white/85">الكلمات المستخدمة</span>
         <span className="font-display font-bold text-xs text-white/70 bg-white/15 rounded-full px-2 py-0.5"><bdi>{words.length}</bdi></span>
       </div>
-      <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto no-scrollbar pb-1">
+      <div className="flex flex-wrap gap-2 pb-1">
         {words.map((w, i) => (
           <WordChip key={words.length - i} player={w.player} fresh={i === 0}>{w.word}</WordChip>
         ))}
@@ -68,7 +108,9 @@ export function UsedWords({ words }) {
   );
 }
 
-// ============== طاولة ساعة الشطرنج (أونلاين + جهاز واحد) ==============
+// ============== طاولة ساعة الشطرنج (أونلاين + جهاز واحد + الكمبيوتر) ==============
+// شاشة ثابتة بطول الجوال: شريط الدور + الساعات + النهاية + الإدخال دايماً ظاهرين،
+// والكلمات المستخدمة تتمرر تحت (وتختفي لما الكيبورد مفتوح).
 export function ChessTable({ state, order, myRole, activeRole, displayTimes, turnTimeLeft, turnSkipSecs, wordCounts, topInfo, onResign, children }) {
   const [confirm, setConfirm] = useState(false);
   const timer = useRef(null);
@@ -87,8 +129,10 @@ export function ChessTable({ state, order, myRole, activeRole, displayTimes, tur
   };
 
   return (
-    <div className="space-y-4 pb-4">
-      <div className="flex items-center justify-between gap-2 pt-1">
+    <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
+      <ArcadeBg letters={false} />
+
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 pt-2 pb-2">
         <div className="flex items-center gap-2 text-xs font-display font-bold text-white/90 bg-white/15 rounded-full px-3 py-1.5 min-w-0">{topInfo}</div>
         <button onClick={resign}
           className="btn-3d shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-display font-black text-white"
@@ -97,26 +141,31 @@ export function ChessTable({ state, order, myRole, activeRole, displayTimes, tur
         </button>
       </div>
 
-      <EndingBadge ending={state.settings.ending} />
+      <div className="shrink-0 px-3 space-y-2.5">
+        <TurnBanner state={state} myRole={myRole} activeRole={activeRole ?? state.currentTurn}
+          turnLeft={turnTimeLeft} turnTotal={turnSkipSecs} />
 
-      <div className="grid grid-cols-2 gap-3">
-        {order.map(r => (
-          <ChessClock key={r}
-            name={state.players[r]?.name}
-            isMe={myRole === r}
-            player={r}
-            time={displayTimes[r]}
-            active={activeRole === r}
-            words={wordCounts[r]}
-            turnLeft={turnTimeLeft}
-            turnTotal={turnSkipSecs}
-          />
-        ))}
+        <div className="flex items-center gap-2.5">
+          <div className="flex-1 min-w-0">
+            <ChessClock name={state.players[order[0]]?.name} isMe={myRole === order[0]} player={order[0]}
+              time={displayTimes[order[0]]} active={activeRole === order[0]} words={wordCounts[order[0]]} />
+          </div>
+          <div className="shrink-0 text-center">
+            <div className="kb-hide text-[0.6rem] font-display font-bold text-white/80 mb-0.5">تنتهي بـ</div>
+            <LetterTiles text={state.settings.ending} size={34} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <ChessClock name={state.players[order[1]]?.name} isMe={myRole === order[1]} player={order[1]}
+              time={displayTimes[order[1]]} active={activeRole === order[1]} words={wordCounts[order[1]]} />
+          </div>
+        </div>
+
+        {children}
       </div>
 
-      {children}
-
-      <UsedWords words={state.usedWords || []} />
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-3 pt-3 pb-3">
+        <UsedWords words={state.usedWords || []} />
+      </div>
     </div>
   );
 }

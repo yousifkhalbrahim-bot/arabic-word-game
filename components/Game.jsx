@@ -26,7 +26,7 @@ import {
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
 } from '@/components/ui';
 import { ChessTable, MatchSummary, ResultHeader, Confetti, Thinking } from '@/components/GameParts';
-import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
+import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze, playYourTurn } from '@/lib/sounds';
 
 // ============== الثوابت ==============
 const TIME_CONTROLS = [
@@ -607,7 +607,7 @@ export default function Game() {
   const [selectedMode, setSelectedMode] = useState('chess');
   const [homeTab, setHomeTab] = useState('solo');
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
-  const [selectedTurnSkip, setSelectedTurnSkip] = useState(10);
+  const [selectedTurnSkip, setSelectedTurnSkip] = useState(20);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
   const [selectedGuessLen, setSelectedGuessLen] = useState(4);
   const [selectedEnding, setSelectedEnding] = useState('ام');
@@ -847,6 +847,10 @@ export default function Game() {
       } else if (roomState.currentTurn !== prevTurnRef.current) {
         playSkip();
       }
+      if (roomState.status === 'playing' && !roomState.pendingWord
+          && roomState.currentTurn === myRole && prevTurnRef.current !== myRole) {
+        setTimeout(playYourTurn, 250);
+      }
     }
     if (prevPendingRef.current && !roomState.pendingWord && newLen === prevWordsLenRef.current) {
       playReject();
@@ -860,7 +864,7 @@ export default function Game() {
     prevTurnRef.current = roomState.currentTurn;
     prevStatusRef.current = roomState.status;
     prevPendingRef.current = roomState.pendingWord;
-  }, [roomState]);
+  }, [roomState, myRole]);
 
   const turnSkipSecs = roomState?.settings?.turnSkipSeconds ?? TURN_SKIP_SECONDS;
 
@@ -966,7 +970,12 @@ export default function Game() {
   }, [joinCode, joinName, enterRoom]);
 
   const submitWord = useCallback(async () => {
-    if (!roomState || roomState.currentTurn !== myRole || roomState.pendingWord) return;
+    if (!roomState || roomState.pendingWord) return;
+    if (roomState.currentTurn !== myRole) {
+      setFeedback({ type: 'error', text: 'مو دورك — انتظر شوي' });
+      setTimeout(() => setFeedback(null), 1200);
+      return;
+    }
     const word = currentInput.trim();
     if (!word) return;
 
@@ -1489,7 +1498,7 @@ export default function Game() {
                 <div>
                   <Label>وقت الدور الواحد</Label>
                   <div className="grid grid-cols-3 gap-2.5">
-                    {[10, 20, 30].map(sec => (
+                    {[15, 20, 30].map(sec => (
                       <Choice key={sec} selected={selectedTurnSkip === sec} onClick={() => setSelectedTurnSkip(sec)} className="py-2.5">
                         <span className="font-mono-ar font-bold text-xl">{sec}</span>
                         <span className="text-xs opacity-75 mr-1">ثانية</span>
@@ -1696,7 +1705,6 @@ export default function Game() {
     const tcName = TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name;
 
     return (
-      <Screen center={false} className="pt-2">
         <ChessTable
           state={roomState}
           order={[myRole, oppRole]}
@@ -1713,31 +1721,25 @@ export default function Game() {
             {tcName && <span className="text-white/75">· {tcName}</span>}
           </>}
         >
-          <Card className="p-4 sm:p-5">
-            {roomState.pendingWord ? (
-              pendingByOpp ? (
-                <div className="text-center slide-in">
-                  <div className="text-xs text-muted font-display">{oppName} يقترح كلمة مو موجودة في القاموس</div>
-                  <div className="font-display font-black my-3 text-[#7c3aed]" style={{ fontSize: 'clamp(2.2rem, 11vw, 3rem)', lineHeight: 1.25 }}>
-                    {roomState.pendingWord.word}
-                  </div>
-                  <div className="text-sm text-muted mb-4">تقبلها؟ <span className="text-dim text-xs">(الوقت متوقف)</span></div>
-                  <div className="flex gap-2.5">
-                    <div className="flex-1"><Btn variant="green" size="md" icon={Check} onClick={acceptPending}>أقبلها</Btn></div>
-                    <div className="flex-1"><Btn variant="red" size="md" icon={X} onClick={rejectPending}>أرفضها</Btn></div>
-                  </div>
+          <Card className="p-3">
+            {roomState.pendingWord && pendingByOpp ? (
+              <div className="text-center slide-in">
+                <div className="text-xs text-muted font-display font-bold">{oppName} يقترح كلمة مو موجودة في القاموس</div>
+                <div className="font-display font-black my-1.5 text-[#7c3aed]" style={{ fontSize: 'clamp(2rem, 10vw, 2.6rem)', lineHeight: 1.25 }}>
+                  {roomState.pendingWord.word}
                 </div>
-              ) : (
-                <div className="text-center py-2 slide-in">
-                  <Loader2 className="w-7 h-7 mx-auto mb-2 text-[#7c3aed] animate-spin" />
-                  <div className="font-display text-2xl text-parchment mb-1">{roomState.pendingWord.word}</div>
-                  <div className="text-sm text-muted"><Thinking>بانتظار قرار {oppName}</Thinking></div>
-                  <div className="text-xs text-dim mt-1">الوقت متوقف لكم الاثنين</div>
+                <div className="flex gap-2.5">
+                  <div className="flex-1"><Btn variant="green" size="md" icon={Check} onClick={acceptPending}>أقبلها</Btn></div>
+                  <div className="flex-1"><Btn variant="red" size="md" icon={X} onClick={rejectPending}>أرفضها</Btn></div>
                 </div>
-              )
-            ) : isMyTurn ? (
+              </div>
+            ) : roomState.pendingWord ? (
+              <div className="text-center py-1.5 slide-in">
+                <div className="font-display font-black text-2xl text-[#7c3aed]">{roomState.pendingWord.word}</div>
+                <div className="text-sm text-muted font-bold"><Thinking>بانتظار قرار {oppName}</Thinking></div>
+              </div>
+            ) : (
               <>
-                <div className="text-center text-base mb-3 font-display font-black" style={{ color: PLAYER_INK[myRole] }}>دورك! 🔥</div>
                 <div className="flex gap-2">
                   <input
                     ref={inputRef}
@@ -1745,38 +1747,34 @@ export default function Game() {
                     value={currentInput}
                     onChange={(e) => setCurrentInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitWord()}
-                    placeholder={`كلمة تنتهي بـ ${roomState.settings.ending}`}
+                    placeholder={isMyTurn ? `كلمة تنتهي بـ ${roomState.settings.ending}` : 'جهّز كلمتك هنا…'}
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
+                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${isMyTurn ? '!border-[#22c55e] !bg-white' : ''} ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
                   />
                   <button
                     onClick={submitWord}
-                    disabled={!currentInput.trim()}
+                    disabled={!currentInput.trim() || !isMyTurn}
                     aria-label="إرسال"
                     className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
                     style={{ color: '#fff', background: '#22c55e', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
                     <Check className="w-7 h-7" strokeWidth={3.2} />
                   </button>
                 </div>
-                <div className="h-6 mt-2 text-center text-sm font-display">
-                  {feedback && (
+                <div className="h-5 mt-1.5 text-center text-sm font-display">
+                  {feedback ? (
                     <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
                       {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
                     </span>
-                  )}
+                  ) : !isMyTurn && currentInput.trim() ? (
+                    <span className="text-muted font-bold text-xs">جاهزة ✓ — ترسلها أول ما يجي دورك</span>
+                  ) : null}
                 </div>
               </>
-            ) : (
-              <div className="text-center py-4 text-muted">
-                <div className="text-base"><Thinking>{oppName} يفكّر</Thinking></div>
-                <div className="text-xs text-dim mt-1">جهّز كلمتك الجاية 😉</div>
-              </div>
             )}
           </Card>
         </ChessTable>
-      </Screen>
     );
   }
 
@@ -2079,7 +2077,6 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
   const cur = roomState.currentTurn;
 
   return (
-    <Screen center={false} className="pt-2">
       <ChessTable
         state={roomState}
         order={[1, 2]}
@@ -2096,10 +2093,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
           <span className="text-white/75">· {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
         </>}
       >
-        <Card className="p-4 sm:p-5">
-          <div className="text-center text-base mb-3 font-display font-black" style={{ color: PLAYER_INK[cur] }}>
-            {botTurn ? <Thinking>الكمبيوتر يفكّر</Thinking> : bot ? 'دورك! 🔥' : <>دور {roomState.players[cur].name}</>}
-          </div>
+        <Card className="p-3">
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -2107,8 +2101,8 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { pendingWord ? confirmPending() : submitWord(); } }}
-              disabled={!!pendingWord || botTurn}
-              placeholder={`كلمة تنتهي بـ ${roomState.settings.ending}`}
+              disabled={!!pendingWord}
+              placeholder={botTurn ? 'جهّز كلمتك هنا…' : `كلمة تنتهي بـ ${roomState.settings.ending}`}
               enterKeyHint="send"
               autoComplete="off"
               autoCorrect="off"
@@ -2134,7 +2128,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               </div>
             </div>
           ) : (
-            <div className="h-6 mt-2 text-center text-sm font-display">
+            <div className="h-5 mt-1.5 text-center text-sm font-display">
               {feedback && (
                 <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
                   {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
@@ -2144,6 +2138,5 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
           )}
         </Card>
       </ChessTable>
-    </Screen>
   );
 }
