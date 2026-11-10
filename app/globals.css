@@ -179,3 +179,40 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 input[type="number"] { -moz-appearance: textfield; }
+
+/* ===== الجوال / الآيفون ===== */
+html, body {
+  background: #0c0a09;
+  overscroll-behavior: none;      /* بدون ارتداد الصفحة */
+  -webkit-text-size-adjust: 100%;
+}
+button, a, input, label {
+  touch-action: manipulation;     /* بدون تكبير عند الضغط المزدوج */
+}
+
+/* شاشات اللعب الثابتة: تتبع الجزء الظاهر (فوق الكيبورد) + تحترم النوتش وشريط الهوم */
+.app-fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--vv-top, 0px);
+  height: var(--vv-h, 100dvh);
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.kb-open .app-fixed {
+  padding-bottom: 0;              /* الكيبورد يغطي شريط الهوم أصلاً */
+}
+
+/* وضع مضغوط لما الكيبورد مفتوح */
+.kb-open .kb-hide { display: none !important; }
+.kb-open .race-timer { transform: scale(0.8); margin: -8px 0; }
+
+/* الشاشات العادية القابلة للتمرير */
+.safe-screen {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}

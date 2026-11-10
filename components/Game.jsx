@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase';
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
 import { now, syncClock } from '@/lib/clock';
+import { useVisualViewport } from '@/lib/useViewport';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
@@ -339,7 +340,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
   }, [lastAnswer?.ts]);
 
   return (
-    <div className="flex flex-col" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
+    <div className="app-fixed flex flex-col" style={{ background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
 
       {/* ===== شريط العنوان ===== */}
       <div className="shrink-0 flex items-center justify-between px-4 pt-1 pb-0">
@@ -380,7 +381,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
 
           {/* المؤقت */}
           <div className="shrink-0 flex flex-col items-center gap-1">
-            <div className="relative" style={{ width: 80, height: 80 }}>
+            <div className="race-timer relative" style={{ width: 80, height: 80 }}>
               <svg width="80" height="80" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
                 <circle cx="40" cy="40" r={timerR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
                 <circle cx="40" cy="40" r={timerR} fill="none" stroke={timeColor} strokeWidth="5"
@@ -390,7 +391,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
                 <span className="font-mono-ar font-black" style={{ fontSize: '1.15rem', color: timeColor, lineHeight: 1 }}>{timerDisplay}</span>
               </div>
             </div>
-            <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>الوقت</span>
+            <span className="kb-hide font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>الوقت</span>
           </div>
 
           {/* الخصم — يسار */}
@@ -446,14 +447,15 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           {/* السؤال */}
           <div className="shrink-0 w-full text-center mb-1 rounded-2xl px-3 py-2"
             style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 0 24px rgba(251,191,36,0.1)' }}>
-            <div className="font-display" style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)', marginBottom: 4, letterSpacing: '0.06em' }}>
+            <div className="kb-hide font-display" style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)', marginBottom: 4, letterSpacing: '0.06em' }}>
               السؤال {currentEndingIndex + 1}
             </div>
-            <div className="font-display font-bold" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>اكتب كلمة تنتهي بـ</div>
+            <div className="kb-hide font-display font-bold" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', marginBottom: 0 }}>اكتب كلمة تنتهي بـ</div>
             <div key={`q-${currentEndingIndex}`} className="word-pop font-display font-black"
               style={{
                 fontSize: 'clamp(2.4rem, 12vw, 3.4rem)',
-                lineHeight: 1,
+                lineHeight: 1.3,
+                paddingBottom: 2,
                 color: '#fbbf24',
                 textShadow: '0 0 24px rgba(251,191,36,0.7), 0 0 60px rgba(251,191,36,0.3)',
                 letterSpacing: '0.05em',
@@ -575,7 +577,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
         </div>
 
         <button onClick={handleResign}
-          className="w-full mt-2 font-display flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all active:scale-95"
+          className="kb-hide w-full mt-2 font-display flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all active:scale-95"
           style={{ fontSize: '0.8rem', color: 'rgba(239,68,68,0.45)', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.8)'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
           onMouseLeave={e => { e.currentTarget.style.color = 'rgba(239,68,68,0.45)'; e.currentTarget.style.background = 'rgba(239,68,68,0.05)'; }}>
@@ -673,6 +675,7 @@ function setRoomInUrl(code) {
 }
 
 export default function Game() {
+  useVisualViewport();
   const [screen, setScreen] = useState('menu');
   const [booting, setBooting] = useState(true);
   const [myRole, setMyRoleState] = useState(null);
@@ -1282,6 +1285,8 @@ export default function Game() {
           width: '100vw',
           height: '100dvh',
           backgroundColor: '#2a1206',
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         {/* Mobile background */}
@@ -1437,13 +1442,13 @@ export default function Game() {
   if (screen === 'create-setup') {
     const isLocal = myRole === 'local';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 px-3 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={BG_STYLE} />
         <div className="relative w-full max-w-2xl">
           <button onClick={leaveRoom} className="mb-4 text-stone-400 hover:text-stone-200 text-sm flex items-center gap-1.5 transition-colors">
             <ArrowLeft className="w-4 h-4" /> رجوع
           </button>
-          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-7 fade-in">
+          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 sm:space-y-7 fade-in">
             <div>
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-amber-200 mb-1">
                 {isLocal ? 'لعبة على جهاز واحد' : 'إنشاء غرفة'}
@@ -1605,13 +1610,13 @@ export default function Game() {
   // -------- شاشة الانضمام --------
   if (screen === 'join-setup') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={BG_STYLE} />
         <div className="relative w-full max-w-md">
           <button onClick={leaveRoom} className="mb-4 text-stone-400 hover:text-stone-200 text-sm flex items-center gap-1.5 transition-colors">
             <ArrowLeft className="w-4 h-4" /> رجوع
           </button>
-          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 fade-in">
+          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 fade-in">
             <div>
               <h2 className="font-display text-2xl sm:text-3xl font-bold text-teal-200 mb-1">دخول غرفة</h2>
               <p className="text-stone-400 text-sm">أدخل الكود اللي وصلك</p>
@@ -1627,6 +1632,9 @@ export default function Game() {
                     onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="0000"
                     maxLength={4}
+                    dir="ltr"
+                    autoComplete="one-time-code"
+                    style={{ textIndent: '0.5em' }}
                     className="w-full bg-stone-900/60 border-2 border-white/10 rounded-2xl px-4 py-5 text-stone-100 placeholder-stone-700 focus:outline-none focus:border-teal-400/50 transition-all text-center font-mono-ar text-5xl font-bold tracking-[0.5em]"
                   />
                 </div>
@@ -1726,7 +1734,7 @@ export default function Game() {
   // -------- شاشة الانتظار --------
   if (screen === 'waiting' && roomState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={BG_STYLE} />
         <div className="relative w-full max-w-md text-center fade-in">
           <div className="mb-8">
@@ -1821,7 +1829,7 @@ export default function Game() {
     const pendingByOpp = roomState.pendingWord && !pendingByMe;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={BG_STYLE} />
         <div className="relative max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2 flex-wrap">
@@ -2026,7 +2034,7 @@ export default function Game() {
     const iWon = !isDraw && winner === myRole;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 py-8 flex items-center justify-center relative overflow-x-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 py-8 flex items-center justify-center relative overflow-x-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
           backgroundImage: isDraw
             ? `radial-gradient(circle at 50% 30%, #a8a29e 0%, transparent 60%)`
@@ -2144,7 +2152,7 @@ export default function Game() {
     const winnerCount = roomState.usedWords.filter(w => w.player === winner).length;
     const loserCount = roomState.usedWords.filter(w => w.player !== winner).length;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
           backgroundImage: winner === 1
             ? `radial-gradient(circle at 50% 30%, #fbbf24 0%, transparent 60%)`
@@ -2355,7 +2363,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
   const isP1Active = roomState.currentTurn === 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
+    <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={BG_STYLE} />
       <div className="relative max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">

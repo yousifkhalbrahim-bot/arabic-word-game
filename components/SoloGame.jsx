@@ -136,7 +136,7 @@ export default function SoloGame({ endings, onExit }) {
   }, [phase, timeLeft]);
 
   const shell = (children) => (
-    <div className="flex flex-col" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0c0c1a', color: '#fff' }}>
+    <div className="app-fixed flex flex-col" style={{ background: '#0c0c1a', color: '#fff' }}>
       <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2">
         <button onClick={onExit} className="transition-opacity hover:opacity-70 active:scale-90" aria-label="رجوع">
           <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
@@ -257,11 +257,11 @@ export default function SoloGame({ endings, onExit }) {
       </div>
 
       {/* السؤال */}
-      <div className="shrink-0 text-center rounded-2xl px-3 py-4 mb-3"
+      <div className="shrink-0 text-center rounded-2xl px-3 py-3 mb-3"
         style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.35)' }}>
-        <div className="font-display font-bold text-stone-400 mb-2" style={{ fontSize: '0.85rem' }}>اكتب كلمة تنتهي بـ</div>
+        <div className="kb-hide font-display font-bold text-stone-400 mb-2" style={{ fontSize: '0.85rem' }}>اكتب كلمة تنتهي بـ</div>
         <div key={index} className="word-pop font-display font-black"
-          style={{ fontSize: 'clamp(2.6rem, 14vw, 3.6rem)', lineHeight: 1, color: ACCENT, textShadow: '0 0 24px rgba(251,191,36,0.6)' }}>
+          style={{ fontSize: 'clamp(2.6rem, 14vw, 3.6rem)', lineHeight: 1.3, color: ACCENT, textShadow: '0 0 24px rgba(251,191,36,0.6)' }}>
           {ending}
         </div>
       </div>

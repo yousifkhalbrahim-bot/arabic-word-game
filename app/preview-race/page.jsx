@@ -1,12 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RaceGame } from '@/components/Game';
 
 const MOCK_ENDINGS = ['ام','ان','ار','ال','ير','ون','ين','وم','اب','اح','ام','ان','ار','ال','ير'];
 
-const now = Date.now();
-
-const MOCK_STATE = {
+const makeMockState = (now) => ({
   code: 'DEMO',
   mode: 'race',
   status: 'playing',
@@ -32,10 +30,12 @@ const MOCK_STATE = {
   resigned: null,
   penalties: { 1: 0, 2: 0 },
   frozenUntil: { 1: null, 2: null },
-};
+});
 
 export default function PreviewRacePage() {
-  const [roomState, setRoomState] = useState(MOCK_STATE);
+  const [roomState, setRoomState] = useState(null);
+  useEffect(() => { setRoomState(makeMockState(Date.now())); }, []);
+  if (!roomState) return null;
 
   return (
     <RaceGame
