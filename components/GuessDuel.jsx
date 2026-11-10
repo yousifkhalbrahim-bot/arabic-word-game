@@ -158,7 +158,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       flash(`الكلمة لازم تكون ${len} أحرف`);
       return;
     }
-    if (!KNOWN[len].has(word) && confirmUnknown !== word) {
+    if (!KNOWN[len].has(word) && word !== normalizeGuess(answer) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
       flash('مو في قاموسنا 🤔 — اضغط ✓ مرة ثانية للتأكيد', 2200);
@@ -265,6 +265,18 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
           </div>
         </div>
       </div>
+
+      {/* تلميح اللي اختار الكلمة */}
+      {custom && roomState.clue && (
+        <div className="shrink-0 px-3 pt-3">
+          <div className="slide-in rounded-2xl px-3 py-2 flex items-center gap-2 font-display font-black"
+            style={{ background: '#fde047', color: '#713f12', boxShadow: '0 4px 0 #ca8a04' }}>
+            <span className="text-lg">💡</span>
+            <span className="text-[0.75rem] opacity-80 shrink-0">{iAmSetter ? 'تلميحك:' : `تلميح من ${oppName}:`}</span>
+            <span className="truncate">{roomState.clue}</span>
+          </div>
+        </div>
+      )}
 
       {/* تقدّم الخصم */}
       {!custom && <div className="shrink-0 px-3 pt-3">

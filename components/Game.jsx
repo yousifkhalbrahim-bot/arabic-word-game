@@ -21,7 +21,7 @@ import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/r
 import SoloGame from '@/components/SoloGame';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
 import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
-import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess, KNOWN as GUESS_KNOWN } from '@/lib/guess';
+import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
@@ -86,13 +86,13 @@ const createInitialState = (code, hostName, settings) => {
   };
 };
 
-const createGuessState = (code, hostName, len, customWord = null) => ({
+const createGuessState = (code, hostName, len, customWord = null, clue = '') => ({
   code,
   mode: 'guess',
   status: 'waiting',
   players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
   settings: { len, duration: DUEL_SECONDS[len], ...(customWord ? { custom: true } : {}) },
-  ...(customWord ? { setter: 1 } : {}),
+  ...(customWord ? { setter: 1, clue: (clue || '').trim().slice(0, 40) } : {}),
   answer: customWord || randomAnswer(len),
   guesses_p1: [],
   guesses_p2: [],
@@ -124,6 +124,7 @@ const createRaceState = (code, hostName, settings) => ({
 
 function ChooseWord({ roomState, myRole, onChoose, onExit }) {
   const [word, setWord] = useState('');
+  const [clue, setClue] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const mine = roomState.setter === myRole;
@@ -132,9 +133,8 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
     const w = normalizeGuess(word);
     const l = [...w].length;
     if (!/^[\u0621-\u064A]+$/.test(w) || (l !== 3 && l !== 5)) { setErr('لازم تكون ٣ أو ٥ أحرف عربية'); return; }
-    if (!GUESS_KNOWN[l].has(w)) { setErr('مو في قاموسنا — جرّب كلمة ثانية'); return; }
     setErr(''); setBusy(true);
-    await onChoose(w);
+    await onChoose(w, clue);
     setBusy(false);
   };
   return (
@@ -144,11 +144,14 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
         {mine ? (
           <>
             <div className="text-4xl mb-1">🎯</div>
-            <Title sub="صاحبك بيخمّنها — اختر كلمة تصعّب عليه!">دورك تختار الكلمة</Title>
+            <Title sub="أي كلمة عربية من ٣ أو ٥ أحرف — اختر وحدة تصعّب عليه!">دورك تختار الكلمة</Title>
             <input type="text" value={word} onChange={e => setWord(e.target.value)} autoFocus
               onKeyDown={e => e.key === 'Enter' && submit()}
               placeholder="٣ أو ٥ أحرف" maxLength={8} autoComplete="off" autoCorrect="off"
-              className={`${inputClass} text-center font-display text-3xl mb-3`} />
+              className={`${inputClass} text-center font-display text-3xl mb-2.5`} />
+            <input type="text" value={clue} onChange={e => setClue(e.target.value)}
+              placeholder="💡 تلميح لصاحبك (اختياري)" maxLength={40} autoComplete="off"
+              className={`${inputClass} text-center font-display mb-3`} />
             <ErrorNote>{err}</ErrorNote>
             <div className="mt-3"><Btn icon={Check} busy={busy} onClick={submit}>ابدأ الجولة</Btn></div>
           </>
@@ -658,6 +661,7 @@ export default function Game() {
   const [selectedGuessLen, setSelectedGuessLen] = useState(3);
   const [guessCustom, setGuessCustom] = useState(false);
   const [secretWord, setSecretWord] = useState('');
+  const [secretClue, setSecretClue] = useState('');
   const [selectedEnding, setSelectedEnding] = useState('ام');
   const [customEnding, setCustomEnding] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -955,7 +959,6 @@ export default function Game() {
     if (selectedMode === 'guess' && guessCustom) {
       const sl = [...secret].length;
       if (!/^[\u0621-\u064A]+$/.test(secret) || (sl !== 3 && sl !== 5)) { setGlobalError('الكلمة السرية لازم تكون ٣ أو ٥ أحرف عربية'); return; }
-      if (!GUESS_KNOWN[sl].has(secret)) { setGlobalError('الكلمة مو في قاموسنا — جرّب كلمة ثانية'); return; }
     }
 
     setBusy(true);
@@ -973,7 +976,7 @@ export default function Game() {
       const state = selectedMode === 'race'
         ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
         : selectedMode === 'guess'
-        ? (guessCustom ? createGuessState(code, hostName.trim(), [...secret].length, secret) : createGuessState(code, hostName.trim(), selectedGuessLen))
+        ? (guessCustom ? createGuessState(code, hostName.trim(), [...secret].length, secret, secretClue) : createGuessState(code, hostName.trim(), selectedGuessLen))
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
       await saveRoom(code, state);
@@ -985,7 +988,7 @@ export default function Game() {
     } finally {
       setBusy(false);
     }
-  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, guessCustom, secretWord, enterRoom]);
+  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, guessCustom, secretWord, secretClue, enterRoom]);
 
   const checkJoinCode = useCallback(async () => {
     if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون ٤ أرقام'); return; }
@@ -1124,10 +1127,10 @@ export default function Game() {
   }, [myRole, casRetry]);
 
   // اختيار كلمة الجولة الجديدة
-  const chooseSecret = useCallback((word) => casRetry((base) => {
+  const chooseSecret = useCallback((word, clue = '') => casRetry((base) => {
     if (!base || base.status !== 'choosing' || base.setter !== myRole) return null;
     const len = [...word].length;
-    return { ...base, status: 'playing', answer: word, settings: { ...base.settings, len, duration: DUEL_SECONDS[len] }, turnStartedAt: now() };
+    return { ...base, status: 'playing', answer: word, clue: (clue || '').trim().slice(0, 40), settings: { ...base.settings, len, duration: DUEL_SECONDS[len] }, turnStartedAt: now() };
   }), [casRetry, myRole]);
 
   // انتهى وقت التحدي → يتحسم الفائز
@@ -1184,6 +1187,7 @@ export default function Game() {
         players: cleanPlayers,
         setter: roomState.setter === 1 ? 2 : 1,
         answer: null,
+        clue: '',
         guesses_p1: [],
         guesses_p2: [],
         winner: null,
@@ -1709,7 +1713,16 @@ export default function Game() {
                   autoCorrect="off"
                   className={`${inputClass} text-center font-display text-2xl tracking-wide`}
                 />
-                <p className="text-xs text-dim mt-2">🔒 صاحبك ما يشوفها — أنت تتفرج عليه وهو يخمّن.</p>
+                <input
+                  type="text"
+                  value={secretClue}
+                  onChange={(e) => setSecretClue(e.target.value)}
+                  placeholder="💡 تلميح لصاحبك (اختياري) — مثلاً: حيوان"
+                  maxLength={40}
+                  autoComplete="off"
+                  className={`${inputClass} mt-2.5 text-center font-display`}
+                />
+                <p className="text-xs text-dim mt-2">🔒 صاحبك ما يشوفها — أنت تتفرج عليه وهو يخمّن. أي كلمة عربية تمشي، حتى لو اسم أو عامية.</p>
               </div>
             )}
 
