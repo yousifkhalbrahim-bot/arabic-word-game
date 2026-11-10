@@ -605,6 +605,7 @@ export default function Game() {
   // إعدادات الإنشاء
   const [hostName, setHostName] = useState('');
   const [selectedMode, setSelectedMode] = useState('chess');
+  const [homeTab, setHomeTab] = useState('solo');
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
   const [selectedTurnSkip, setSelectedTurnSkip] = useState(10);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
@@ -1291,7 +1292,6 @@ export default function Game() {
     },
   };
 
-  const openGame = (id) => { setSelectedMode(id); setMyRoleState(null); setGlobalError(null); setScreen('mode'); };
 
   const listRow = ({ key, title, desc, icon, bg, sh, onClick, badge, chips }) => (
     <button key={key} onClick={onClick}
@@ -1326,17 +1326,52 @@ export default function Game() {
       { ch: 'ا', bg: '#22c55e', fg: '#ffffff', sh: '#15803d', r: 7 },
       { ch: 'ت', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -6 },
     ];
+    const gameIcon = (id) => <span style={{ color: GAMES[id].fg }}>{GAMES[id].icon}</span>;
+    const createFor = (id) => () => { setSelectedMode(id); setMyRoleState(null); setGlobalError(null); setScreen('create-setup'); };
+
+    const soloGames = [
+      { key: 'guess', title: 'خمّن الكلمة', desc: 'تحدي اليوم + لعب حر', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد',
+        onClick: () => setScreen('guess') },
+      { key: 'race', title: 'سباق ضد الوقت', desc: 'أكبر عدد كلمات وسجّل رقمك', icon: gameIcon('race'), bg: GAMES.race.bg, sh: GAMES.race.sh,
+        onClick: () => setScreen('solo') },
+      { key: 'chess', title: 'ساعة الشطرنج', desc: 'ضد الكمبيوتر 🤖', icon: gameIcon('chess'), bg: GAMES.chess.bg, sh: GAMES.chess.sh,
+        onClick: () => { setSelectedMode('chess'); setMyRoleState('bot'); setGlobalError(null); setScreen('create-setup'); } },
+    ];
+    const friendGames = [
+      { key: 'chess', title: 'ساعة الشطرنج', desc: GAMES.chess.tagline, icon: gameIcon('chess'), bg: GAMES.chess.bg, sh: GAMES.chess.sh, onClick: createFor('chess') },
+      { key: 'race', title: 'سباق الكلمات', desc: GAMES.race.tagline, icon: gameIcon('race'), bg: GAMES.race.bg, sh: GAMES.race.sh, onClick: createFor('race') },
+      { key: 'guess', title: 'خمّن الكلمة', desc: 'نفس الكلمة، مين يحلها أول؟', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد', onClick: createFor('guess') },
+    ];
+
+    const tab = (id, title, sub, Icon, color, deep, ink) => {
+      const on = homeTab === id;
+      return (
+        <button onClick={() => setHomeTab(id)}
+          className="btn-3d flex-1 rounded-3xl p-3.5 flex flex-col items-center gap-1.5 font-display"
+          style={on
+            ? { background: color, color: ink, boxShadow: `0 6px 0 ${deep}`, border: '3px solid rgba(255,255,255,0.55)' }
+            : { background: 'rgba(255,255,255,0.14)', color: '#fff', boxShadow: '0 6px 0 rgba(30,10,80,0.25)', border: '3px solid rgba(255,255,255,0.12)' }}>
+          <span className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: on ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)' }}>
+            <Icon className="w-7 h-7" strokeWidth={2.6} />
+          </span>
+          <span className="font-black text-[1.1rem] leading-tight">{title}</span>
+          <span className="text-[0.72rem] font-bold opacity-80 leading-tight">{sub}</span>
+        </button>
+      );
+    };
+
     return (
-      <Screen>
-        <div className="fade-in py-3">
+      <Screen center={false} className="pt-4 pb-6">
+        <div className="fade-in">
           {/* الشعار */}
-          <div className="text-center mb-6">
-            <div className="flex justify-center gap-1.5 mb-3" dir="rtl">
+          <div className="text-center mb-5">
+            <div className="flex justify-center gap-1.5 mb-2.5" dir="rtl">
               {logo.map((t, i) => (
                 <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
                   <div className="word-pop rounded-xl flex items-center justify-center font-display font-black"
                     style={{
-                      width: 44, height: 48, fontSize: 26, paddingBottom: 3,
+                      width: 40, height: 44, fontSize: 24, paddingBottom: 3,
                       background: t.bg, color: t.fg, boxShadow: `0 5px 0 ${t.sh}, 0 12px 18px -10px rgba(30,10,80,.6)`,
                       border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
                     }}>
@@ -1346,99 +1381,41 @@ export default function Game() {
               ))}
             </div>
             <h1 className="font-display font-black text-white"
-              style={{ fontSize: 'clamp(2.3rem, 11vw, 3rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
+              style={{ fontSize: 'clamp(2.1rem, 10vw, 2.7rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
               لعبة الكلمات
             </h1>
-            <p className="text-white/85 font-display font-bold text-sm mt-1">مين أسرع واحد يلقى الكلمة؟ ⚡</p>
           </div>
 
-          {/* الألعاب */}
-          <div className="flex items-center gap-2 mb-2.5 px-1">
-            <span className="font-display font-black text-white">اختر اللعبة</span>
-            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
-          </div>
-          <div className="space-y-3 mb-6">
-            {Object.entries(GAMES).map(([id, g]) => listRow({
-              key: id, title: g.title, desc: g.tagline, bg: g.bg, sh: g.sh,
-              icon: <span style={{ color: g.fg }}>{g.icon}</span>,
-              badge: g.isNew ? 'جديد' : null,
-              chips: ['لحالك', 'مع صاحبك'],
-              onClick: () => openGame(id),
-            }))}
+          {/* لحالك / مع صاحبك */}
+          <div className="flex gap-3 mb-5">
+            {tab('solo', 'العب لحالك', 'ضد الكمبيوتر والوقت', User, '#ffffff', '#c4b5fd', '#4c1d95')}
+            {tab('friends', 'مع صاحبك', 'أونلاين بكود', Users, '#ffb020', '#b86b00', '#4a2400')}
           </div>
 
-          {/* عندك كود؟ */}
-          <button onClick={() => { setScreen('join-setup'); setGlobalError(null); }}
-            className="btn-3d w-full rounded-2xl py-3 flex items-center justify-center gap-2 font-display font-black"
-            style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
-            <LogIn className="w-5 h-5" strokeWidth={2.6} />
-            عندك كود غرفة؟ ادخل
-          </button>
-        </div>
-      </Screen>
-    );
-  }
-
-  // -------- اختيار طريقة اللعب --------
-  if (screen === 'mode') {
-    const g = GAMES[selectedMode] || GAMES.chess;
-    return (
-      <Screen>
-        <div className="fade-in py-2">
-          <BackButton onClick={() => setScreen('menu')} />
-
-          <div className="text-center mb-5">
-            <div className="mx-auto mb-3 w-16 h-16 rounded-2xl flex items-center justify-center rotate-[-5deg]"
-              style={{ background: g.bg, color: g.fg, boxShadow: `0 6px 0 ${g.sh}`, border: '3px solid rgba(255,255,255,0.6)' }}>
-              <span className="scale-125">{g.icon}</span>
+          {homeTab === 'solo' ? (
+            <div key="solo" className="space-y-3 slide-in">
+              {soloGames.map(listRow)}
             </div>
-            <h2 className="font-display font-black text-white" style={{ fontSize: 'clamp(1.9rem, 9vw, 2.4rem)', lineHeight: 1.2, textShadow: '0 4px 0 rgba(46,16,101,0.45)' }}>
-              {g.title}
-            </h2>
-            <p className="text-white/85 text-sm font-display font-bold leading-relaxed mt-1 px-2">{g.rules}</p>
-          </div>
-
-          {/* لحالك */}
-          <div className="flex items-center gap-2 mb-2.5 px-1">
-            <User className="w-4 h-4 text-white" strokeWidth={2.8} />
-            <span className="font-display font-black text-white">لحالك</span>
-            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
-          </div>
-          <div className="mb-5">
-            {listRow({ key: 'solo', title: g.solo.title, desc: g.solo.desc, icon: g.solo.icon, bg: '#ff4d6d', sh: '#b3123a', onClick: g.solo.go })}
-          </div>
-
-          {/* مع صاحبك */}
-          <div className="flex items-center gap-2 mb-2.5 px-1">
-            <Users className="w-4 h-4 text-white" strokeWidth={2.8} />
-            <span className="font-display font-black text-white">مع صاحبك</span>
-            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
-          </div>
-          <Card className="p-3.5">
-            <div className="text-xs text-muted font-bold mb-2.5">أونلاين — كل واحد من جواله</div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { setMyRoleState(null); setScreen('create-setup'); setGlobalError(null); }}
-                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
-                style={{ color: '#4a2400', background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid #ffc95c' }}>
-                <UserPlus className="w-6 h-6" strokeWidth={2.6} />
-                <span>إنشاء غرفة</span>
-              </button>
+          ) : (
+            <div key="friends" className="space-y-3 slide-in">
               <button onClick={() => { setScreen('join-setup'); setGlobalError(null); }}
-                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
+                className="btn-3d w-full rounded-2xl py-3 flex items-center justify-center gap-2 font-display font-black"
                 style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
-                <LogIn className="w-6 h-6" strokeWidth={2.6} />
-                <span>دخول بكود</span>
+                <LogIn className="w-5 h-5" strokeWidth={2.6} />
+                صاحبك أرسل لك كود؟ ادخل
+              </button>
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <span className="font-display font-black text-white text-sm">أو أنشئ غرفة وادعه</span>
+                <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+              </div>
+              {friendGames.map(listRow)}
+              <button onClick={() => { setSelectedMode('chess'); setMyRoleState('local'); setGlobalError(null); setScreen('create-setup'); }}
+                className="w-full rounded-2xl py-2.5 flex items-center justify-center gap-2 font-display font-bold text-white/90 bg-white/10 hover:bg-white/15 transition-colors">
+                <Smartphone className="w-4 h-4" strokeWidth={2.6} />
+                أو العبوا على نفس الجوال بالدور
               </button>
             </div>
-            {g.local && (
-              <button onClick={() => { setMyRoleState('local'); setScreen('create-setup'); setGlobalError(null); }}
-                className="btn-3d w-full mt-3 rounded-2xl py-2.5 flex items-center justify-center gap-2 font-display font-black text-[#5b21b6]"
-                style={{ background: '#f5f3ff', boxShadow: '0 4px 0 #ddd6fe', border: '2px solid #ede9fe' }}>
-                <Smartphone className="w-5 h-5" strokeWidth={2.6} />
-                أو على جهاز واحد بالدور
-              </button>
-            )}
-          </Card>
+          )}
         </div>
       </Screen>
     );
@@ -1464,7 +1441,7 @@ export default function Game() {
     const isChess = game === 'chess';
     const gameName = GAMES[game]?.title;
     const example = ENDING_PRESETS.find(p => p.value === selectedEnding)?.example;
-    const backToMode = () => { setMyRoleState(null); setGlobalError(null); setScreen('mode'); };
+    const backToMode = () => { setHomeTab(isLocal && isBot ? 'solo' : 'friends'); setMyRoleState(null); setGlobalError(null); setScreen('menu'); };
 
     return (
       <Screen>
