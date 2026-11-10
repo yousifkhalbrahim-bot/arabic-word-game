@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft,
 } from 'lucide-react';
 import {
   supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole,
@@ -1195,67 +1195,108 @@ export default function Game() {
       { ch: 'ك', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -8 },
       { ch: 'ل', bg: '#ffb020', fg: '#4a2400', sh: '#b86b00', r: 5 },
       { ch: 'م', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -3 },
-      { ch: 'ا', bg: '#22d3ee', fg: '#083344', sh: '#0e7490', r: 7 },
+      { ch: 'ا', bg: '#22c55e', fg: '#ffffff', sh: '#15803d', r: 7 },
       { ch: 'ت', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -6 },
     ];
+    const go = (s, local) => () => {
+      if (local) setMyRoleState('local');
+      setScreen(s);
+      setGlobalError(null);
+    };
+    const solo = [
+      {
+        key: 'guess', title: 'خمّن الكلمة', desc: 'اكتشف الكلمة المخفية بالألوان', isNew: true, onClick: go('guess'),
+        icon: (
+          <span className="grid grid-cols-2 gap-[3px]">
+            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#22c55e]" />
+            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#ffb020]" />
+            <i className="block w-[11px] h-[11px] rounded-[3px] bg-white/40" />
+            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#22c55e]" />
+          </span>
+        ),
+        bg: '#7c3aed', sh: '#4c1d95',
+      },
+      { key: 'solo', title: 'تدريب فردي', desc: 'أكبر عدد كلمات قبل ما يخلص الوقت', onClick: go('solo'),
+        icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />, bg: '#ff4d6d', sh: '#b3123a' },
+      { key: 'local', title: 'جهاز واحد', desc: 'اثنين بالدور على نفس الجوال', onClick: go('create-setup', true),
+        icon: <Smartphone className="w-6 h-6 text-white" strokeWidth={2.6} />, bg: '#0ea5e9', sh: '#0369a1' },
+    ];
+
     return (
       <Screen>
-        <div className="text-center fade-in py-4">
-          <div className="flex justify-center gap-1.5 mb-5" dir="rtl">
-            {logo.map((t, i) => (
-              <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
-              <div className="word-pop rounded-2xl flex items-center justify-center font-display font-black"
-                style={{
-                  width: 54, height: 58, fontSize: 32, paddingBottom: 4,
-                  background: t.bg, color: t.fg, boxShadow: `0 6px 0 ${t.sh}, 0 14px 20px -10px rgba(30,10,80,.6)`,
-                  border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
-                }}>
-                {t.ch}
-              </div>
-              </div>
-            ))}
+        <div className="fade-in py-3">
+          {/* الشعار */}
+          <div className="text-center mb-6">
+            <div className="flex justify-center gap-1.5 mb-3" dir="rtl">
+              {logo.map((t, i) => (
+                <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
+                  <div className="word-pop rounded-xl flex items-center justify-center font-display font-black"
+                    style={{
+                      width: 44, height: 48, fontSize: 26, paddingBottom: 3,
+                      background: t.bg, color: t.fg, boxShadow: `0 5px 0 ${t.sh}, 0 12px 18px -10px rgba(30,10,80,.6)`,
+                      border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
+                    }}>
+                    {t.ch}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <h1 className="font-display font-black text-white"
+              style={{ fontSize: 'clamp(2.3rem, 11vw, 3rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
+              لعبة الكلمات
+            </h1>
+            <p className="text-white/85 font-display font-bold text-sm mt-1">مين أسرع واحد يلقى الكلمة؟ ⚡</p>
           </div>
 
-          <h1 className="font-display font-black text-white"
-            style={{ fontSize: 'clamp(2.7rem, 13vw, 3.5rem)', lineHeight: 1.15, textShadow: '0 5px 0 rgba(46,16,101,0.5)' }}>
-            لعبة الكلمات
-          </h1>
-          <p className="text-white/85 font-display font-bold mt-1 mb-9">مين أسرع واحد يلقى الكلمة؟ ⚡</p>
-
-          <div className="space-y-4">
-            <Btn icon={UserPlus} onClick={() => { setScreen('create-setup'); setGlobalError(null); }}>
-              إنشاء غرفة جديدة
-            </Btn>
-            <Btn variant="teal" icon={LogIn} onClick={() => { setScreen('join-setup'); setGlobalError(null); }}>
-              دخول بكود
-            </Btn>
-
-            <div className="flex items-center gap-3 py-1">
-              <div className="h-[2px] flex-1 rounded-full bg-white/20" />
-              <span className="text-white/70 text-xs font-display font-bold">أو العب لحالك</span>
-              <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+          {/* مع صاحبك */}
+          <Card className="p-4 mb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-[18px] h-[18px] text-[#7c3aed]" strokeWidth={2.6} />
+              <span className="font-display font-black text-[#4c1d95]">العب مع صاحبك</span>
+              <span className="text-xs text-muted font-bold mr-auto">كل واحد من جواله</span>
             </div>
-
-            <button onClick={() => { setScreen('guess'); setGlobalError(null); }}
-              className="btn-3d relative w-full rounded-2xl py-3 px-4 flex items-center justify-center gap-2.5 font-display font-black text-[1.05rem] text-white"
-              style={{ background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' }}>
-              <span className="flex gap-1">
-                <i className="block w-4 h-4 rounded bg-[#22c55e]" style={{ boxShadow: '0 2px 0 #15803d' }} />
-                <i className="block w-4 h-4 rounded bg-[#ffb020]" style={{ boxShadow: '0 2px 0 #b86b00' }} />
-                <i className="block w-4 h-4 rounded bg-white/30" />
-              </span>
-              خمّن الكلمة
-              <span className="absolute -top-2.5 left-3 rounded-full bg-[#ff4d6d] px-2 py-0.5 text-[0.65rem] font-black" style={{ boxShadow: '0 2px 0 #b3123a' }}>جديد</span>
-            </button>
-
             <div className="grid grid-cols-2 gap-3">
-              <Btn variant="wood" size="md" icon={Target} onClick={() => { setScreen('solo'); setGlobalError(null); }}>
-                تدريب فردي
-              </Btn>
-              <Btn variant="wood" size="md" icon={Smartphone} onClick={() => { setMyRoleState('local'); setScreen('create-setup'); setGlobalError(null); }}>
-                جهاز واحد
-              </Btn>
+              <button onClick={go('create-setup')}
+                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
+                style={{ color: '#4a2400', background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid #ffc95c' }}>
+                <UserPlus className="w-6 h-6" strokeWidth={2.6} />
+                <span className="text-[1rem]">إنشاء غرفة</span>
+              </button>
+              <button onClick={go('join-setup')}
+                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
+                style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
+                <LogIn className="w-6 h-6" strokeWidth={2.6} />
+                <span className="text-[1rem]">دخول بكود</span>
+              </button>
             </div>
+          </Card>
+
+          {/* لحالك */}
+          <div className="flex items-center gap-2 mb-2.5 px-1">
+            <span className="font-display font-black text-white">العب لحالك</span>
+            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+          </div>
+          <div className="space-y-3">
+            {solo.map(m => (
+              <button key={m.key} onClick={m.onClick}
+                className="btn-3d relative w-full rounded-2xl bg-white p-2.5 pl-3 flex items-center gap-3 text-right"
+                style={{ boxShadow: '0 5px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+                <span className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ background: m.bg, boxShadow: `0 3px 0 ${m.sh}` }}>
+                  {m.icon}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="flex items-center gap-2">
+                    <span className="font-display font-black text-[1.05rem] text-[#2e1065]">{m.title}</span>
+                    {m.isNew && (
+                      <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.62rem] font-display font-black text-white">جديد</span>
+                    )}
+                  </span>
+                  <span className="block text-[0.78rem] font-bold text-[#6d5b95] truncate">{m.desc}</span>
+                </span>
+                <ChevronLeft className="shrink-0 w-5 h-5 text-[#c4b5fd]" strokeWidth={3} />
+              </button>
+            ))}
           </div>
         </div>
       </Screen>
