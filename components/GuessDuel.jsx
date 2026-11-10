@@ -31,7 +31,19 @@ const bestProgress = (guesses) => (guesses || []).reduce((best, g) => {
 
 // يقرر النتيجة بعد كل تخمين — يرجع الحالة مع status/winner إذا انحسمت
 // timeUp: انتهى الوقت → لازم يتحسم الحين
+// "أنت تختار الكلمة": واحد يكتب الكلمة والثاني يخمّن
+function settleCustom(state, timeUp) {
+  const tries = LENGTHS[state.settings.len].tries;
+  const setter = state.setter;
+  const guesser = setter === 1 ? 2 : 1;
+  const g = state[`guesses_p${guesser}`] || [];
+  if (solvedAt(g)) return { ...state, status: 'finished', winner: guesser };
+  if (g.length >= tries || timeUp) return { ...state, status: 'finished', winner: setter, ...(timeUp ? { timeUp: true } : {}) };
+  return state;
+}
+
 export function settleGuessDuel(state, timeUp = false) {
+  if (state.settings?.custom) return settleCustom(state, timeUp);
   const tries = LENGTHS[state.settings.len].tries;
   const info = (r) => {
     const g = state[`guesses_p${r}`] || [];
@@ -168,7 +180,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [myDone, roomState.status, submit, len, bank]);
 
-  usePhysicalKeys(roomState.status === 'playing', typeKey);
+  usePhysicalKeys(roomState.status === 'playing' && !(roomState.settings?.custom && roomState.setter === myRole), typeKey);
 
   const resign = () => {
     if (!confirmResign) {
@@ -196,7 +208,11 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     onTimeUp();
   }, [timeLeft, roomState.status, onTimeUp]);
 
-  const rows = buildRows(myGuesses, current, tries, !myDone);
+  const custom = !!roomState.settings?.custom;
+  const iAmSetter = custom && roomState.setter === myRole;
+  const rows = iAmSetter
+    ? buildRows(oppGuesses, '', tries, false)
+    : buildRows(myGuesses, current, tries, !myDone);
   const oppStatus = oppSolved ? <>حلّها من <Num>{oppSolved}</Num> ✓</>
     : oppGuesses.length >= tries ? 'خلصت محاولاته'
     : <>يخمّن… <Num>{oppGuesses.length}</Num> من <Num>{tries}</Num></>;
@@ -222,17 +238,19 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       {/* شريط الحالة: الاثنين يلعبون بنفس الوقت + الوقت المتبقي */}
       <div className="shrink-0 px-3 pt-1">
         <div className="slide-in rounded-2xl px-3 py-2 flex items-center gap-3"
-          style={myDone
+          style={iAmSetter ? { background: '#ffffff', color: '#4c1d95', boxShadow: '0 5px 0 #c4b5fd', border: '2px solid rgba(255,255,255,0.6)' } : myDone
             ? { background: '#ffffff', color: '#4c1d95', boxShadow: '0 5px 0 #c4b5fd', border: '2px solid rgba(255,255,255,0.6)' }
             : urgent
               ? { background: '#ff4d6d', color: '#ffffff', boxShadow: '0 5px 0 #b3123a', border: '2px solid rgba(255,255,255,0.45)' }
               : { background: '#22c55e', color: '#ffffff', boxShadow: '0 5px 0 #15803d', border: '2px solid rgba(255,255,255,0.45)' }}>
           <div className="flex-1 min-w-0">
             <div className="font-display font-black text-[1.1rem] leading-tight truncate">
-              {myDone ? (mySolved ? '✅ حليتها!' : '😅 خلصت محاولاتك') : urgent ? '⏰ بسرعة! الوقت يخلص' : oppSolved ? '⚡ خصمك حلّها!' : '🎯 خمّن الكلمة!'}
+              {iAmSetter ? <>🎯 {oppName} يخمّن كلمتك</> : myDone ? (mySolved ? '✅ حليتها!' : '😅 خلصت محاولاتك') : urgent ? '⏰ بسرعة! الوقت يخلص' : custom ? <>🎯 خمّن كلمة {oppName}!</> : oppSolved ? '⚡ خصمك حلّها!' : '🎯 خمّن الكلمة!'}
             </div>
             <div className="font-display font-bold text-[0.75rem] opacity-90 truncate">
-              {myDone ? <>بانتظار {oppName}<span className="dot-wave"><span>.</span><span>.</span><span>.</span></span></>
+              {iAmSetter ? <>كلمتك: <b>{answer}</b> · باقي له <bdi>{Math.max(0, tries - oppGuesses.length)}</bdi> محاولات</>
+                : custom ? 'هو اختار لك الكلمة — حلّها قبل ما يخلص الوقت!'
+                : myDone ? <>بانتظار {oppName}<span className="dot-wave"><span>.</span><span>.</span><span>.</span></span></>
                 : oppSolved ? <>{oppName} حلّها من <bdi>{oppSolved}</bdi> — باقي لك <bdi>{Math.max(0, oppSolved - myGuesses.length)}</bdi> للتعادل!</>
                 : 'الاثنين يلعبون بنفس الوقت — ما فيه أدوار'}
             </div>
@@ -249,7 +267,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       </div>
 
       {/* تقدّم الخصم */}
-      <div className="shrink-0 px-3 pt-3">
+      {!custom && <div className="shrink-0 px-3 pt-3">
         <div className="glass rounded-2xl px-3 py-2 flex items-center gap-3">
           <MiniBoard guesses={oppGuesses} len={len} tries={tries} size={9} />
           <div className="flex-1 min-w-0">
@@ -261,7 +279,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
             <div className="font-display font-black leading-none text-sm"><Num>{myGuesses.length}</Num> من <Num>{tries}</Num></div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* لوحتي */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 relative">
@@ -280,7 +298,13 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         )}
       </div>
 
-      <GuessKeyboard keyStates={keyStates} onKey={typeKey} disabled={myDone} allowed={bank} />
+      {iAmSetter ? (
+        <div className="shrink-0 px-4 pb-4 pt-2 text-center font-display font-bold text-white/85 text-sm">
+          👀 تتفرج على {oppName} وهو يخمّن… تشوف حروفه أول بأول
+        </div>
+      ) : (
+        <GuessKeyboard keyStates={keyStates} onKey={typeKey} disabled={myDone} allowed={bank} />
+      )}
     </div>
   );
 }

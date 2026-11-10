@@ -21,7 +21,7 @@ import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/r
 import SoloGame from '@/components/SoloGame';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
 import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
-import { LENGTHS as GUESS_LENGTHS, randomAnswer } from '@/lib/guess';
+import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess, KNOWN as GUESS_KNOWN } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
@@ -86,13 +86,14 @@ const createInitialState = (code, hostName, settings) => {
   };
 };
 
-const createGuessState = (code, hostName, len) => ({
+const createGuessState = (code, hostName, len, customWord = null) => ({
   code,
   mode: 'guess',
   status: 'waiting',
   players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
-  settings: { len, duration: DUEL_SECONDS[len] },
-  answer: randomAnswer(len),
+  settings: { len, duration: DUEL_SECONDS[len], ...(customWord ? { custom: true } : {}) },
+  ...(customWord ? { setter: 1 } : {}),
+  answer: customWord || randomAnswer(len),
   guesses_p1: [],
   guesses_p2: [],
   winner: null,
@@ -121,11 +122,53 @@ const createRaceState = (code, hostName, settings) => ({
   frozenUntil: { 1: null, 2: null },
 });
 
+function ChooseWord({ roomState, myRole, onChoose, onExit }) {
+  const [word, setWord] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const mine = roomState.setter === myRole;
+  const other = roomState.players[roomState.setter]?.name || 'صاحبك';
+  const submit = async () => {
+    const w = normalizeGuess(word);
+    const l = [...w].length;
+    if (!/^[\u0621-\u064A]+$/.test(w) || (l !== 3 && l !== 5)) { setErr('لازم تكون ٣ أو ٥ أحرف عربية'); return; }
+    if (!GUESS_KNOWN[l].has(w)) { setErr('مو في قاموسنا — جرّب كلمة ثانية'); return; }
+    setErr(''); setBusy(true);
+    await onChoose(w);
+    setBusy(false);
+  };
+  return (
+    <Screen>
+      <BackButton onClick={onExit}>خروج</BackButton>
+      <Card className="p-5 fade-in text-center">
+        {mine ? (
+          <>
+            <div className="text-4xl mb-1">🎯</div>
+            <Title sub="صاحبك بيخمّنها — اختر كلمة تصعّب عليه!">دورك تختار الكلمة</Title>
+            <input type="text" value={word} onChange={e => setWord(e.target.value)} autoFocus
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              placeholder="٣ أو ٥ أحرف" maxLength={8} autoComplete="off" autoCorrect="off"
+              className={`${inputClass} text-center font-display text-3xl mb-3`} />
+            <ErrorNote>{err}</ErrorNote>
+            <div className="mt-3"><Btn icon={Check} busy={busy} onClick={submit}>ابدأ الجولة</Btn></div>
+          </>
+        ) : (
+          <div className="py-6">
+            <div className="text-5xl mb-3">🤫</div>
+            <div className="font-display font-black text-xl text-[#4c1d95]"><Thinking>{other} يختار لك كلمة</Thinking></div>
+            <div className="text-sm text-muted font-bold mt-2">جهّز نفسك!</div>
+          </div>
+        )}
+      </Card>
+    </Screen>
+  );
+}
+
 function RoomInfo({ state }) {
   const isRace = state.mode === 'race';
   const rows = [
     ['المضيف', <span key="h" className="font-black" style={{ color: PLAYER_INK[1] }}>{state.players[1]?.name}</span>],
-    ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : state.mode === 'guess' ? '🟩 خمّن الكلمة' : '⏱ ساعة الشطرنج'],
+    ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : state.mode === 'guess' ? (state.settings?.custom ? '🎯 خمّن كلمة المضيف' : '🟩 خمّن الكلمة') : '⏱ ساعة الشطرنج'],
     ...(state.mode === 'guess'
       ? [['عدد الحروف', <span key="l"><bdi className="font-mono-ar">{state.settings.len}</bdi> أحرف · <bdi className="font-mono-ar">{GUESS_LENGTHS[state.settings.len].tries}</bdi> محاولات</span>]]
       : isRace
@@ -613,6 +656,8 @@ export default function Game() {
   const [selectedTurnSkip, setSelectedTurnSkip] = useState(20);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
   const [selectedGuessLen, setSelectedGuessLen] = useState(3);
+  const [guessCustom, setGuessCustom] = useState(false);
+  const [secretWord, setSecretWord] = useState('');
   const [selectedEnding, setSelectedEnding] = useState('ام');
   const [customEnding, setCustomEnding] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -768,6 +813,8 @@ export default function Game() {
       setScreen('playing');
     } else if (roomState.status === 'finished' && (screen === 'playing' || screen === 'waiting')) {
       setScreen('gameover');
+    } else if (roomState.status === 'choosing' && screen === 'gameover') {
+      setScreen('playing');
     } else if (roomState.status === 'playing' && screen === 'gameover') {
       const opp = myRole === 1 ? 2 : 1;
       if (roomState.players[opp]?.left) return;
@@ -904,6 +951,12 @@ export default function Game() {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
     const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
     if (selectedMode === 'chess' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
+    const secret = normalizeGuess(secretWord);
+    if (selectedMode === 'guess' && guessCustom) {
+      const sl = [...secret].length;
+      if (!/^[\u0621-\u064A]+$/.test(secret) || (sl !== 3 && sl !== 5)) { setGlobalError('الكلمة السرية لازم تكون ٣ أو ٥ أحرف عربية'); return; }
+      if (!GUESS_KNOWN[sl].has(secret)) { setGlobalError('الكلمة مو في قاموسنا — جرّب كلمة ثانية'); return; }
+    }
 
     setBusy(true);
     setGlobalError(null);
@@ -920,7 +973,7 @@ export default function Game() {
       const state = selectedMode === 'race'
         ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
         : selectedMode === 'guess'
-        ? createGuessState(code, hostName.trim(), selectedGuessLen)
+        ? (guessCustom ? createGuessState(code, hostName.trim(), [...secret].length, secret) : createGuessState(code, hostName.trim(), selectedGuessLen))
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
       await saveRoom(code, state);
@@ -932,7 +985,7 @@ export default function Game() {
     } finally {
       setBusy(false);
     }
-  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, enterRoom]);
+  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, guessCustom, secretWord, enterRoom]);
 
   const checkJoinCode = useCallback(async () => {
     if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون ٤ أرقام'); return; }
@@ -1070,6 +1123,13 @@ export default function Game() {
     });
   }, [myRole, casRetry]);
 
+  // اختيار كلمة الجولة الجديدة
+  const chooseSecret = useCallback((word) => casRetry((base) => {
+    if (!base || base.status !== 'choosing' || base.setter !== myRole) return null;
+    const len = [...word].length;
+    return { ...base, status: 'playing', answer: word, settings: { ...base.settings, len, duration: DUEL_SECONDS[len] }, turnStartedAt: now() };
+  }), [casRetry, myRole]);
+
   // انتهى وقت التحدي → يتحسم الفائز
   const guessTimeUp = useCallback(() => casRetry((base) => {
     if (!base || base.status !== 'playing') return null;
@@ -1117,7 +1177,21 @@ export default function Game() {
       2: { ...roomState.players[2], left: false },
     };
     let newState;
-    if (roomState.mode === 'guess') {
+    if (roomState.mode === 'guess' && roomState.settings?.custom) {
+      newState = {
+        ...roomState,
+        status: 'choosing',
+        players: cleanPlayers,
+        setter: roomState.setter === 1 ? 2 : 1,
+        answer: null,
+        guesses_p1: [],
+        guesses_p2: [],
+        winner: null,
+        resigned: null,
+        timeUp: false,
+        gameNumber: newGameNum,
+      };
+    } else if (roomState.mode === 'guess') {
       newState = {
         ...roomState,
         status: 'playing',
@@ -1606,6 +1680,41 @@ export default function Game() {
 
             {isGuess && (
               <div>
+                <Label>نوع التحدي</Label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { id: false, label: 'نفس الكلمة', sub: 'الاثنين يخمّنون كلمة عشوائية', Icon: Users },
+                    { id: true, label: 'أنت تختار', sub: 'اكتب كلمة وصاحبك يخمّنها', Icon: Target },
+                  ].map(({ id, label, sub, Icon }) => (
+                    <Choice key={String(id)} selected={guessCustom === id} onClick={() => setGuessCustom(id)} className="p-3">
+                      <Icon className="w-6 h-6 mx-auto mb-1" style={{ color: guessCustom === id ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
+                      <div className="font-display font-black">{label}</div>
+                      <div className="text-[0.72rem] opacity-75 leading-snug">{sub}</div>
+                    </Choice>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isGuess && guessCustom && (
+              <div>
+                <Label>الكلمة السرية (٣ أو ٥ أحرف)</Label>
+                <input
+                  type="text"
+                  value={secretWord}
+                  onChange={(e) => setSecretWord(e.target.value)}
+                  placeholder="مثلاً: قمر أو مدرسة"
+                  maxLength={8}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className={`${inputClass} text-center font-display text-2xl tracking-wide`}
+                />
+                <p className="text-xs text-dim mt-2">🔒 صاحبك ما يشوفها — أنت تتفرج عليه وهو يخمّن.</p>
+              </div>
+            )}
+
+            {isGuess && !guessCustom && (
+              <div>
                 <Label>عدد الحروف</Label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[3, 5].map(l => (
@@ -1738,6 +1847,10 @@ export default function Game() {
   }
 
   // -------- شاشة اللعب --------
+  if (screen === 'playing' && roomState && myRole && roomState.mode === 'guess' && roomState.status === 'choosing') {
+    return <ChooseWord roomState={roomState} myRole={myRole} onChoose={chooseSecret} onExit={leaveRoom} />;
+  }
+
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'guess') {
     return <GuessDuel key={roomState.gameNumber} roomState={roomState} myRole={myRole} connected={connected}
       onSubmitGuess={submitGuessOnline} onResign={resign} onTimeUp={guessTimeUp} />;
@@ -1840,7 +1953,8 @@ export default function Game() {
       const i = g.findIndex(x => x.result.every(c => c === 'correct'));
       return i < 0 ? 0 : i + 1;
     };
-    const scoreOf = (r) => (isGuess ? (guessSolved(r) || '✗') : isRace ? raceScore(roomState, r) : wordCounts[r]);
+    const isCustom = isGuess && !!roomState.settings?.custom;
+    const scoreOf = (r) => (isCustom && roomState.setter === r ? '🎯' : isGuess ? (guessSolved(r) || '✗') : isRace ? raceScore(roomState, r) : wordCounts[r]);
     const iWon = !isDraw && winner === myRole;
 
     return (
@@ -1851,7 +1965,9 @@ export default function Game() {
             isDraw={isDraw}
             winnerName={!isDraw ? roomState.players[winner].name : ''}
             winnerPlayer={winner}
-            subtitle={isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
+            subtitle={isCustom
+              ? (winner === roomState.setter ? 'الكلمة صعّبت عليه 😏' : 'حلّ الكلمة! 🎉')
+              : isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
             unit={isGuess ? 'محاولات' : isRace ? 'نقطة' : 'كلمة'}
             sides={[myRole, oppRole].map(r => ({
               name: roomState.players[r]?.name, player: r, score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
@@ -1878,7 +1994,7 @@ export default function Game() {
               <div className="text-center text-white/85 text-sm font-display font-bold mb-2">الكلمة كانت</div>
               <LetterTiles text={roomState.answer} size={roomState.settings.len === 3 ? 52 : roomState.settings.len === 4 ? 46 : 40} className="mb-4" />
               <div className="grid grid-cols-2 gap-3">
-                {[myRole, oppRole].map(r => (
+                {[myRole, oppRole].filter(r => !(isCustom && roomState.setter === r)).map(r => (
                   <div key={r} className="glass rounded-2xl p-3 flex flex-col items-center gap-2">
                     <span className="font-display font-black text-sm truncate max-w-full" style={{ color: PLAYER_COLORS[r] }}>{roomState.players[r]?.name}</span>
                     <MiniBoard guesses={roomState[`guesses_p${r}`] || []} len={roomState.settings.len} tries={GUESS_LENGTHS[roomState.settings.len].tries} size={14} />
@@ -1893,7 +2009,7 @@ export default function Game() {
           <div className="flex gap-2.5">
             {!oppLeft && !oppResigned && (
               <div className="flex-[1.5]">
-                <Btn icon={RotateCcw} busy={busy} onClick={rematch}>جولة ثانية</Btn>
+                <Btn icon={RotateCcw} busy={busy} onClick={rematch}>{isCustom ? 'جولة ثانية · بدّلوا' : 'جولة ثانية'}</Btn>
               </div>
             )}
             <div className="flex-1">

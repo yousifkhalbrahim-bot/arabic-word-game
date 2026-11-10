@@ -4,7 +4,7 @@
 // خمّن الكلمة المخفية: كل تخمين يكشف لك أي الحروف صح ومكانها.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Delete, CornerDownLeft, CalendarDays, Shuffle, Share2, RotateCcw, BarChart3, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Delete, CornerDownLeft, CalendarDays, Shuffle, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Timer, Trophy } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import {
@@ -39,6 +39,9 @@ const FLIP_MS = 260;
 
 // -------- التخزين المحلي --------
 const statsKey = (len) => `wg:guess-stats:${len}`;
+const rushKey = (len) => `wg:guess-rush-best:${len}`;
+const RUSH_SECONDS = 120;
+const RUSH_HINT_COST = 10;
 const dailyKey = (len, day) => `wg:guess-daily:${len}:${day}`;
 const emptyStats = (len) => ({ played: 0, wins: 0, streak: 0, best: 0, dist: Array(LENGTHS[len].tries).fill(0) });
 function load(key, fallback) {
@@ -65,6 +68,13 @@ export default function GuessGame({ onExit }) {
   const [showHelp, setShowHelp] = useState(false);
   const [stats, setStats] = useState(() => emptyStats(3));
   const [dailyDone, setDailyDone] = useState({});
+  const [hints, setHints] = useState([]);          // مواضع الحروف المكشوفة
+  const [rushEndsAt, setRushEndsAt] = useState(0);
+  const [rushScore, setRushScore] = useState(0);
+  const [rushOver, setRushOver] = useState(null);
+  const [nowTs, setNowTs] = useState(0);
+  const rushOverRef = useRef(null);
+  rushOverRef.current = rushOver;
   const toastTimer = useRef(null);
   const busy = revealing >= 0;
 
@@ -92,7 +102,7 @@ export default function GuessGame({ onExit }) {
   // -------- بدء لعبة --------
   const start = useCallback((m, l = len) => {
     const word = m === 'daily' ? dailyAnswer(l, day) : randomAnswer(l, answer);
-    let restored = { guesses: [], status: 'playing' };
+    let restored = { guesses: [], status: 'playing', hints: [] };
     if (m === 'daily') restored = load(dailyKey(l, day), restored);
 
     let keys = {};
@@ -109,8 +119,45 @@ export default function GuessGame({ onExit }) {
     setShowResult(restored.status !== 'playing');
     setConfirmUnknown('');
     setStats(load(statsKey(l), emptyStats(l)));
+    setHints(restored.hints || []);
+    setRushOver(null);
+    if (m === 'rush') {
+      const t = Date.now();
+      setNowTs(t);
+      setRushEndsAt(t + RUSH_SECONDS * 1000);
+      setRushScore(0);
+    }
     setPhase('playing');
   }, [len, day, answer]);
+
+  // ضد الساعة: الكلمة الجاية
+  const nextRushWord = useCallback(() => {
+    if (rushOverRef.current) return;
+    setAnswer(a => randomAnswer(len, a));
+    setGuesses([]);
+    setCurrent('');
+    setKeyStates({});
+    setHints([]);
+    setConfirmUnknown('');
+    setStatus('playing');
+  }, [len]);
+
+  // ضد الساعة: المؤقت والنهاية
+  useEffect(() => {
+    if (phase !== 'playing' || mode !== 'rush' || rushOver) return;
+    const iv = setInterval(() => setNowTs(Date.now()), 200);
+    return () => clearInterval(iv);
+  }, [phase, mode, rushOver]);
+  const rushLeft = mode === 'rush' && rushEndsAt ? Math.max(0, (rushEndsAt - nowTs) / 1000) : 0;
+  useEffect(() => {
+    if (mode !== 'rush' || phase !== 'playing' || rushOver || !rushEndsAt || !nowTs || rushLeft > 0) return;
+    playGameOver();
+    const prev = load(rushKey(len), 0);
+    const record = rushScore > prev;
+    if (record) save(rushKey(len), rushScore);
+    setRushOver({ score: rushScore, best: Math.max(prev, rushScore), record, last: answer });
+    setStatus('lost');
+  }, [mode, phase, rushOver, rushEndsAt, nowTs, rushLeft, len, rushScore, answer]);
 
   // -------- إنهاء --------
   const finish = useCallback((won, finalGuesses) => {
@@ -155,13 +202,20 @@ export default function GuessGame({ onExit }) {
     setCurrent('');
     setConfirmUnknown('');
     setRevealing(guesses.length);
-    if (mode === 'daily') save(dailyKey(len, day), { guesses: next, status: newStatus });
+    if (mode === 'daily') save(dailyKey(len, day), { guesses: next, status: newStatus, hints });
 
     // بعد ما تخلص الحركة: لوّن الكيبورد وأعلن النتيجة
     const total = FLIP_MS * len + 250;
     setTimeout(() => {
       setRevealing(-1);
       setKeyStates(k => mergeKeyStates(k, word, result));
+      if (mode === 'rush') {
+        if (rushOverRef.current) return;
+        if (won) { playStreak(); setRushScore(s => s + 1); flash('+١ 🔥', 900); setStatus('won'); setTimeout(nextRushWord, 650); }
+        else if (lost) { playGameOver(); flash(`الكلمة كانت: ${answer}`, 1600); setStatus('lost'); setTimeout(nextRushWord, 1400); }
+        else playAccept();
+        return;
+      }
       if (won) {
         playStreak();
         flash(PRAISE[next.length - 1] || PRAISE[PRAISE.length - 1], 1800);
@@ -176,9 +230,36 @@ export default function GuessGame({ onExit }) {
         setTimeout(() => setShowResult(true), won ? 1300 : 700);
       }
     }, total);
-  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish]);
+  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord]);
 
   const bank = useMemo(() => bankFor(len, answer), [len, answer]);
+
+  // -------- التلميح: يكشف حرف بمكانه --------
+  const maxHints = mode === 'rush' ? len - 1 : (len === 3 ? 1 : 2);
+  const hintsLeft = Math.max(0, maxHints - hints.length);
+  const useHint = useCallback(() => {
+    if (busy || status !== 'playing' || hints.length >= maxHints) return;
+    const letters = [...answer];
+    const known = new Set();
+    guesses.forEach(g => g.result.forEach((r, i) => { if (r === 'correct') known.add(i); }));
+    const cand = letters.map((_, i) => i).filter(i => !known.has(i) && !hints.includes(i));
+    if (!cand.length) { flash('عرفت كل الحروف بمكانها! 😄'); return; }
+    const i = cand[Math.floor(Math.random() * cand.length)];
+    const nh = [...hints, i];
+    setHints(nh);
+    playAccept();
+    if (mode === 'daily') save(dailyKey(len, day), { guesses, status, hints: nh });
+    if (mode === 'rush') { setRushEndsAt(t => t - RUSH_HINT_COST * 1000); flash(`💡 −${RUSH_HINT_COST} ثواني`); }
+  }, [busy, status, hints, maxHints, answer, guesses, mode, len, day, flash]);
+
+  // الكيبورد يلوّن حروف التلميح بالأخضر
+  const shownKeys = useMemo(() => {
+    if (!hints.length) return keyStates;
+    const k = { ...keyStates };
+    const letters = [...answer];
+    for (const i of hints) k[letters[i]] = 'correct';
+    return k;
+  }, [keyStates, hints, answer]);
 
   const typeKey = useCallback((k) => {
     if (busy || status !== 'playing') return;
@@ -192,12 +273,13 @@ export default function GuessGame({ onExit }) {
   usePhysicalKeys(phase === 'playing', typeKey);
 
   const share = useCallback(async () => {
-    const text = shareText({ results: guesses.map(g => g.result), won: status === 'won', tries, len, day: mode === 'daily' ? day : null });
+    const text = shareText({ results: guesses.map(g => g.result), won: status === 'won', tries, len, day: mode === 'daily' ? day : null })
+      + (hints.length ? `\n💡 ${hints.length}` : '');
     const url = publicUrl('/');
     if (await shareContent({ title: 'خمّن الكلمة', text: `${text}\n${url}` })) return;
     try { await navigator.clipboard.writeText(`${text}\n${url}`); flash('تم نسخ النتيجة 📋'); }
     catch { window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener'); }
-  }, [guesses, status, tries, len, mode, day, flash]);
+  }, [guesses, status, tries, len, mode, day, flash, hints]);
 
   // -------- الإطار --------
   const shell = (children, sub) => (
@@ -251,6 +333,10 @@ export default function GuessGame({ onExit }) {
             <Btn icon={CalendarDays} onClick={() => start('daily')}>
               {dailyDone[len] ? (dailyDone[len] === 'won' ? 'تحدي اليوم ✓ (شوف النتيجة)' : 'تحدي اليوم (شوف النتيجة)') : <>تحدي اليوم <span className="opacity-70 text-sm">#<Num>{day}</Num></span></>}
             </Btn>
+            <Btn variant="teal" icon={Timer} onClick={() => start('rush')}>
+              ضد الساعة · دقيقتين
+              {load(rushKey(len), 0) > 0 && <span className="opacity-75 text-sm">🏆 <Num>{load(rushKey(len), 0)}</Num></span>}
+            </Btn>
             <Btn variant="wood" icon={Shuffle} onClick={() => start('free')}>لعب حر</Btn>
           </div>
 
@@ -272,8 +358,40 @@ export default function GuessGame({ onExit }) {
   return shell(
     <>
       {/* الشبكة */}
+      {mode === 'rush' && (
+        <div className="shrink-0 px-4 pt-1 flex items-stretch gap-2.5">
+          <div className="flex-1 rounded-2xl px-3 py-1 text-center" style={{ background: '#ffb020', boxShadow: '0 4px 0 #b86b00', color: '#4a2400' }}>
+            <div className="text-[0.7rem] font-display font-black">حليت</div>
+            <div key={rushScore} className="score-bump font-display font-black text-2xl leading-none text-white" style={{ textShadow: '0 2px 0 #b86b00' }}><Num>{rushScore}</Num></div>
+          </div>
+          <div className={`flex-1 rounded-2xl px-3 py-1 text-center ${rushLeft <= 15 ? 'animate-pulse' : ''}`}
+            style={rushLeft <= 15 ? { background: '#ff4d6d', boxShadow: '0 4px 0 #b3123a', color: '#fff' } : { background: '#fff', boxShadow: '0 4px 0 #c4b5fd', color: '#3b1d6e' }}>
+            <div className="text-[0.7rem] font-display font-black opacity-80">الوقت</div>
+            <div className="font-mono-ar font-black text-2xl leading-none"><bdi>{Math.floor(rushLeft / 60)}:{String(Math.floor(rushLeft % 60)).padStart(2, '0')}</bdi></div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 relative">
-        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} />
+        {status === 'playing' && !rushOver && (
+          <div className="flex items-center gap-2 mb-2.5" dir="rtl">
+            <button onClick={useHint} disabled={!hintsLeft || busy}
+              className="btn-3d inline-flex items-center gap-1 rounded-full px-3 py-1 font-display font-black text-[0.8rem]"
+              style={hintsLeft ? { background: '#fde047', color: '#713f12', boxShadow: '0 3px 0 #ca8a04' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)' }}>
+              <Lightbulb className="w-3.5 h-3.5" strokeWidth={2.6} />
+              {hintsLeft
+                ? <>تلميح {mode === 'rush' ? <span className="opacity-75">(−<Num>{RUSH_HINT_COST}</Num>ث)</span> : <span className="opacity-75">(<Num>{hintsLeft}</Num>)</span>}</>
+                : 'خلصت'}
+            </button>
+            {hints.length > 0 && [...answer].map((ch, i) => (
+              <div key={i} className="w-7 h-7 rounded-lg flex items-center justify-center font-display font-black text-base slide-in"
+                style={hints.includes(i) ? { background: '#22c55e', color: '#fff', boxShadow: '0 2px 0 #15803d' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
+                {hints.includes(i) ? ch : '؟'}
+              </div>
+            ))}
+          </div>
+        )}
+        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush'} />
 
         {toast && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
@@ -282,7 +400,7 @@ export default function GuessGame({ onExit }) {
           </div>
         )}
 
-        {status !== 'playing' && !showResult && !busy && (
+        {mode !== 'rush' && status !== 'playing' && !showResult && !busy && (
           <button onClick={() => setShowResult(true)} className="mt-4 rounded-full bg-white/15 px-4 py-1.5 font-display font-bold text-sm">
             <BarChart3 className="w-4 h-4 inline ml-1" /> النتيجة
           </button>
@@ -290,7 +408,31 @@ export default function GuessGame({ onExit }) {
       </div>
 
       {/* الكيبورد */}
-      <GuessKeyboard keyStates={keyStates} onKey={typeKey} allowed={bank} />
+      <GuessKeyboard keyStates={shownKeys} onKey={typeKey} allowed={bank} disabled={!!rushOver} />
+
+      {/* نتيجة ضد الساعة */}
+      {rushOver && (
+        <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in">
+          {rushOver.record && <Confetti />}
+          <Card className="w-full max-w-sm p-5 slide-in text-center" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="font-display font-black text-xl text-[#4c1d95]">⏰ خلص الوقت!</div>
+            {rushOver.record && (
+              <div className="inline-block mt-1 font-display font-black text-white bg-[#22c55e] rounded-full px-3 py-0.5" style={{ boxShadow: '0 3px 0 #15803d' }}>🎉 رقم قياسي جديد!</div>
+            )}
+            <div className="font-display font-black text-[#2e1065] mt-2" style={{ fontSize: '3.6rem', lineHeight: 1.1 }}><Num>{rushOver.score}</Num></div>
+            <div className="text-muted text-sm font-display font-bold mb-3">كلمة حليتها في دقيقتين</div>
+            <div className="flex items-center justify-center gap-2 mb-4 text-sm font-display font-bold text-[#6d5b95]">
+              <Trophy className="w-4 h-4" /> أفضل نتيجة: <Num>{rushOver.best}</Num>
+            </div>
+            <div className="text-xs text-muted font-bold mb-1">آخر كلمة كانت</div>
+            <LetterTiles text={rushOver.last} size={38} className="mb-4" />
+            <div className="flex gap-2.5">
+              <div className="flex-[1.3]"><Btn size="md" icon={RotateCcw} onClick={() => start('rush')}>مرة ثانية</Btn></div>
+              <div className="flex-1"><Btn variant="wood" size="md" onClick={() => { setRushOver(null); setPhase('setup'); }}>رجوع</Btn></div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* النتيجة */}
       {showResult && (
@@ -332,7 +474,7 @@ export default function GuessGame({ onExit }) {
         </div>
       )}
     </>,
-    mode === 'daily' ? `#${day}` : 'حر'
+    mode === 'daily' ? `#${day}` : mode === 'rush' ? 'ضد الساعة' : 'حر'
   );
 }
 
