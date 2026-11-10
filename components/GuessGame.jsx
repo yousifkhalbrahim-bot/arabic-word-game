@@ -242,7 +242,7 @@ export default function GuessGame({ onExit }) {
               <Choice key={l} selected={len === l} onClick={() => setLen(l)} className="py-2.5">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
-                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'سهل · حروف أقل' : 'صعب · كل الحروف'}</div>
+                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل · ٧ حروف مقفلة' : 'أصعب · كل الحروف'}</div>
               </Choice>
             ))}
           </div>
@@ -468,29 +468,23 @@ export function MiniBoard({ guesses, len, tries, size = 12 }) {
 }
 
 export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null }) {
-  const rows = allowed
-    ? KEY_ROWS.map(row => row.filter(k => k.length > 1 || allowed.has(normalizeGuess(k)))).filter(row => row.length)
-    : KEY_ROWS;
-  const keyMax = allowed ? 64 : 40;
+  const rows = KEY_ROWS;
+  const keyMax = 40;
   return (
     <div className={`shrink-0 px-1.5 pb-2 pt-2 space-y-1.5 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
-      {allowed && (
-        <div className="text-center text-[0.72rem] font-display font-bold text-white/80" dir="rtl">
-          🔤 الكلمة من هالحروف بس
-        </div>
-      )}
       {rows.map((row, ri) => (
-        <div key={ri} className={`flex justify-center ${allowed ? 'gap-[6px]' : 'gap-[4px]'}`}>
+        <div key={ri} className="flex justify-center gap-[4px]">
           {row.map(k => {
             const wide = k === 'ENTER' || k === 'BACK';
             const st = keyStates[normalizeGuess(k)];
+            const off = !!allowed && k.length === 1 && !allowed.has(normalizeGuess(k));
             const style = k === 'ENTER'
               ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
               : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
             return (
-              <button key={k} onClick={() => onKey(k)}
+              <button key={k} onClick={() => onKey(k)} disabled={off}
                 className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : keyMax, fontSize: allowed ? '1.35rem' : '1.05rem', ...style }}
+                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : keyMax, fontSize: '1.05rem', ...style, ...(off ? { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.35)', boxShadow: 'none', opacity: 1 } : {}) }}
                 aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
                 {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
                   : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
