@@ -181,8 +181,9 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] { -moz-appearance: textfield; }
 
 /* ===== الجوال / الآيفون ===== */
-html, body {
-  background: #0c0a09;
+html { background: #120a05; }
+body {
+  background: transparent;
   overscroll-behavior: none;      /* بدون ارتداد الصفحة */
   -webkit-text-size-adjust: 100%;
 }
@@ -215,4 +216,119 @@ button, a, input, label {
 .safe-screen {
   padding-top: max(1rem, env(safe-area-inset-top));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ============== الهوية البصرية: مكتبة دافئة بالليل ============== */
+:root {
+  --ink: #120a05;
+  --parchment: #f5ead8;
+  --gold: #fbbf24;
+  --teal: #2dd4bf;
+}
+
+/* خلفية الرفوف المضبّبة لكل الشاشات */
+.library-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background-color: var(--ink);
+}
+.library-bg::before {
+  /* صورة القائمة نفسها، مضبّبة كجو عام */
+  content: '';
+  position: absolute;
+  inset: -40px;
+  background: url('/bookshelf-mobile.jpg') center / cover no-repeat;
+  filter: blur(16px) saturate(1.15);
+  opacity: 0.5;
+}
+.library-bg::after {
+  /* تعتيم + إطار داكن + حبيبات ورق خفيفة */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(255,240,210,0.05) 0.5px, transparent 0.6px),
+    radial-gradient(ellipse 90% 70% at 50% 40%, transparent 0%, rgba(8,4,2,0.75) 100%),
+    linear-gradient(180deg, rgba(18,10,5,0.45) 0%, rgba(18,10,5,0.7) 100%);
+  background-size: 3px 3px, auto, auto;
+}
+
+/* بطاقة خشب داكن زجاجية */
+.wood-card {
+  background: linear-gradient(180deg, rgba(48,29,15,0.82) 0%, rgba(26,15,7,0.88) 100%);
+  border: 1px solid rgba(255, 210, 150, 0.14);
+  box-shadow: 0 22px 50px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,240,210,0.06);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* عنوان بارز مثل عنوان القائمة */
+.title-emboss {
+  text-shadow: 2px 0 0 #3d1a00, -1px 0 0 #3d1a00, 0 2px 0 #3d1a00, 2px 2px 0 #3d1a00, 3px 3px 0 rgba(0,0,0,0.4);
+}
+
+/* الأزرار البارزة */
+.btn-3d {
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.08s ease;
+}
+.btn-3d:hover:not(:disabled) { filter: brightness(1.07); }
+.btn-3d:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.5) !important; }
+.btn-3d:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* خانة اختيار */
+.choice-tile {
+  border: 1.5px solid rgba(255, 210, 150, 0.1);
+  background: rgba(0,0,0,0.22);
+  color: #d9c3a5;
+}
+.choice-tile:hover:not([data-selected]) { border-color: rgba(255, 210, 150, 0.25); }
+
+/* شارة النهاية */
+.ending-badge {
+  background: linear-gradient(180deg, rgba(251,191,36,0.13), rgba(251,191,36,0.04));
+  border: 1px solid rgba(251,191,36,0.4);
+  box-shadow: 0 0 30px -6px rgba(251,191,36,0.35), inset 0 1px 0 rgba(255,240,200,0.12);
+}
+
+/* ساعة اللاعب النشط */
+@keyframes clock-breathe {
+  0%, 100% { box-shadow: 0 0 0 1px var(--c), 0 0 34px -10px var(--c); }
+  50%      { box-shadow: 0 0 0 1px var(--c), 0 0 48px -6px var(--c); }
+}
+.clock-active { animation: clock-breathe 2.2s ease-in-out infinite; }
+
+/* احتفال الفوز */
+@keyframes confetti-fall {
+  0%   { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--dx), 105vh, 0) rotate(var(--rot)); opacity: 0.9; }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 50;
+  animation: confetti-fall var(--dur) cubic-bezier(.25,.6,.4,1) var(--delay) forwards;
+}
+
+/* نقاط "بانتظار..." */
+@keyframes dot-wave { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
+.dot-wave span { display: inline-block; animation: dot-wave 1.3s infinite; }
+.dot-wave span:nth-child(2) { animation-delay: 0.15s; }
+.dot-wave span:nth-child(3) { animation-delay: 0.3s; }
+
+/* أرقام كود الغرفة */
+.code-digit {
+  background: linear-gradient(180deg, rgba(251,191,36,0.16), rgba(251,191,36,0.05));
+  border: 1px solid rgba(251,191,36,0.4);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 8px 18px -10px rgba(251,191,36,0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-active, .confetti-piece, .dot-wave span, .float, .bounce-gentle { animation: none !important; }
 }

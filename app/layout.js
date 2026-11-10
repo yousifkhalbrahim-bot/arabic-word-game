@@ -16,13 +16,13 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#0c0a09',
+  themeColor: '#120a05',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="font-body bg-stone-950 text-stone-100 antialiased">
+      <body className="font-body text-stone-100 antialiased">
         {children}
       </body>
     </html>

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame } from 'lucide-react';
+import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame, Play } from 'lucide-react';
+import { Card, Choice, Btn, WordChip, Num } from '@/components/ui';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -136,7 +137,8 @@ export default function SoloGame({ endings, onExit }) {
   }, [phase, timeLeft]);
 
   const shell = (children) => (
-    <div className="app-fixed flex flex-col" style={{ background: '#0c0c1a', color: '#fff' }}>
+    <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
+      <div className="library-bg" aria-hidden="true" />
       <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2">
         <button onClick={onExit} className="transition-opacity hover:opacity-70 active:scale-90" aria-label="رجوع">
           <ArrowLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.45)' }} />
@@ -155,28 +157,28 @@ export default function SoloGame({ endings, onExit }) {
   if (phase === 'setup') {
     return shell(
       <div className="flex-1 overflow-y-auto px-4 pb-6 flex items-center justify-center">
-        <div className="w-full max-w-sm space-y-6 fade-in">
-          <p className="text-center text-stone-400 text-sm leading-relaxed">
-            اكتب أكبر عدد من الكلمات قبل ما يخلص الوقت.<br />
-            كل سؤال نهاية مختلفة · التجاوز يكلّفك {SKIP_COST_SECONDS} ثوانٍ
+        <Card className="w-full max-w-sm p-5 fade-in">
+          <div className="ending-badge mx-auto mb-3 w-14 h-14 rounded-full flex items-center justify-center">
+            <Target className="w-7 h-7 text-amber-300" />
+          </div>
+          <h2 className="text-center font-display font-bold title-emboss text-[#f7d060] text-2xl mb-1">تحدَّ نفسك</h2>
+          <p className="text-center text-muted text-sm leading-relaxed mb-5">
+            أكبر عدد من الكلمات قبل ما يخلص الوقت.<br />
+            <span className="text-dim">كل سؤال نهاية مختلفة · التجاوز يكلّفك <Num>{SKIP_COST_SECONDS}</Num> ثوانٍ</span>
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5 mb-5">
             {DURATIONS.map(({ s, label, sub }) => (
-              <button key={s} onClick={() => setDuration(s)}
-                className={`p-3 rounded-xl border-2 transition-all ${duration === s ? 'bg-amber-400/10 border-amber-400/60 text-amber-200' : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'}`}>
-                <div className="font-mono-ar font-bold text-xl">{label}</div>
-                <div className="text-xs text-stone-400 mt-0.5">{sub}</div>
-                <div className="text-[0.7rem] mt-1.5 text-stone-500 flex items-center justify-center gap-1">
-                  <Trophy className="w-3 h-3" /> {bests[s] || 0}
+              <Choice key={s} selected={duration === s} onClick={() => setDuration(s)} className="py-3 px-1">
+                <div className="font-mono-ar font-bold text-2xl leading-tight">{label}</div>
+                <div className="text-xs text-muted">{sub}</div>
+                <div className="text-[0.72rem] mt-2 flex items-center justify-center gap-1 text-amber-300/80">
+                  <Trophy className="w-3 h-3" /> <Num>{bests[s] || 0}</Num>
                 </div>
-              </button>
+              </Choice>
             ))}
           </div>
-          <button onClick={start}
-            className="w-full bg-gradient-to-l from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-stone-950 font-display font-bold text-lg py-4 rounded-xl transition-all shadow-lg shadow-amber-500/20">
-            ابدأ
-          </button>
-        </div>
+          <Btn icon={Play} onClick={start}>ابدأ</Btn>
+        </Card>
       </div>
     );
   }
@@ -202,27 +204,18 @@ export default function SoloGame({ endings, onExit }) {
           </div>
 
           {words.length > 0 && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 mb-6 text-right">
+            <div className="wood-card rounded-2xl p-3 mb-6 text-right">
               <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
                 {words.map((w, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-md font-display text-sm"
-                    style={{ background: `${ACCENT}14`, color: ACCENT, border: `1px solid ${ACCENT}30` }}>
-                    {w.w}
-                  </span>
+                  <WordChip key={i} color={ACCENT}>{w.w}</WordChip>
                 ))}
               </div>
             </div>
           )}
 
           <div className="flex gap-3">
-            <button onClick={start}
-              className="flex-1 bg-gradient-to-l from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-stone-950 font-display font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-              <RotateCcw className="w-5 h-5" /> مرة ثانية
-            </button>
-            <button onClick={() => setPhase('setup')}
-              className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-stone-200 font-display font-bold py-3 rounded-xl transition-colors">
-              تغيير المدة
-            </button>
+            <div className="flex-[1.4]"><Btn icon={RotateCcw} onClick={start}>مرة ثانية</Btn></div>
+            <div className="flex-1"><Btn variant="wood" onClick={() => setPhase('setup')}>تغيير المدة</Btn></div>
           </div>
         </div>
       </div>
@@ -288,7 +281,7 @@ export default function SoloGame({ endings, onExit }) {
           />
           <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS}
             className="shrink-0 flex flex-col items-center justify-center rounded-2xl px-3 py-2 transition-all active:scale-95 disabled:opacity-30"
-            style={{ background: 'rgba(10,14,28,0.7)', border: '1px solid rgba(251,191,36,0.25)' }}>
+            style={{ background: 'rgba(30,18,9,0.8)', border: '1px solid rgba(251,191,36,0.25)' }}>
             <SkipForward className="w-4 h-4 text-amber-300" />
             <span className="text-[0.65rem] text-stone-400 mt-0.5">−{SKIP_COST_SECONDS}ث</span>
           </button>
@@ -312,9 +305,9 @@ export default function SoloGame({ endings, onExit }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl py-2">
-      <div className="font-display font-bold text-lg text-stone-200">{value}</div>
-      <div className="text-[0.7rem] text-stone-500">{label}</div>
+    <div className="wood-card rounded-xl py-2">
+      <div className="font-display font-bold text-lg text-parchment"><Num>{value}</Num></div>
+      <div className="text-[0.7rem] text-muted">{label}</div>
     </div>
   );
 }

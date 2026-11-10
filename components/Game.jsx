@@ -14,8 +14,13 @@ import {
 import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
 import { now, syncClock } from '@/lib/clock';
 import { useVisualViewport } from '@/lib/useViewport';
+import { demoRoom } from '@/lib/demo';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
+import {
+  Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, PLAYER_COLORS,
+} from '@/components/ui';
+import { ChessTable, MatchSummary, ResultHeader, Confetti, Thinking } from '@/components/GameParts';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze } from '@/lib/sounds';
 
 // ============== الثوابت ==============
@@ -48,17 +53,6 @@ const TURN_SKIP_SECONDS = 10;
 const generateRoomCode = () =>
   Math.floor(1000 + Math.random() * 9000).toString();
 
-const formatTime = (seconds) => {
-  const s = Math.max(0, seconds);
-  if (s <= 10) {
-    const secs = Math.floor(s);
-    const tenths = Math.floor((s % 1) * 10);
-    return `${secs}.${tenths}`;
-  }
-  const mins = Math.floor(s / 60);
-  const secs = Math.floor(s % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 
 const createInitialState = (code, hostName, settings) => {
   const seconds = settings.timeControl.minutes * 60;
@@ -108,9 +102,30 @@ const createRaceState = (code, hostName, settings) => ({
   frozenUntil: { 1: null, 2: null },
 });
 
-const BG_STYLE = {
-  backgroundImage: `radial-gradient(circle at 25% 25%, #fbbf24 0%, transparent 50%), radial-gradient(circle at 75% 75%, #2dd4bf 0%, transparent 50%)`,
-};
+function RoomInfo({ state }) {
+  const isRace = state.mode === 'race';
+  const rows = [
+    ['المضيف', <span key="h" className="font-bold text-amber-300">{state.players[1]?.name}</span>],
+    ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : '⏱ ساعة الشطرنج'],
+    ...(isRace
+      ? [['المدة', <span key="d"><bdi className="font-mono-ar">{state.settings.duration}</bdi> ثانية</span>]]
+      : [
+          ['السرعة', TIME_CONTROLS.find(t => t.id === state.settings.timeControlId)?.name],
+          ['وقت الدور', <span key="t"><bdi className="font-mono-ar">{state.settings.turnSkipSeconds ?? 10}</bdi> ثانية</span>],
+          ['النهاية', <span key="e" className="font-black text-2xl leading-none text-amber-300">{state.settings.ending}</span>],
+        ]),
+  ];
+  return (
+    <div className="rounded-2xl bg-black/25 border border-[rgba(255,220,170,0.1)] divide-y divide-[rgba(255,220,170,0.07)] text-right">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-center justify-between px-4 py-2.5 text-sm">
+          <span className="text-muted">{k}</span>
+          <span className="font-display text-parchment">{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ============== مكون سباق الكلمات ==============
 const RACE_REASONS = {
@@ -340,7 +355,8 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
   }, [lastAnswer?.ts]);
 
   return (
-    <div className="app-fixed flex flex-col" style={{ background: '#0c0c1a', color: '#fff', userSelect: 'none' }}>
+    <div className="app-fixed flex flex-col" style={{ color: '#fff', userSelect: 'none' }}>
+      <div className="library-bg" aria-hidden="true" />
 
       {/* ===== شريط العنوان ===== */}
       <div className="shrink-0 flex items-center justify-between px-4 pt-1 pb-0">
@@ -468,7 +484,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           <button onClick={handleFreeze}
             disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
             className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: 'rgba(10,14,28,0.7)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.2)'}` }}>
+            style={{ background: 'rgba(30,18,9,0.8)', border: `1px solid ${isOppFrozen ? 'rgba(56,189,248,0.5)' : 'rgba(56,189,248,0.2)'}` }}>
             <div className="flex items-center gap-1.5">
               <Snowflake className="w-3.5 h-3.5 shrink-0" style={{ color: '#38bdf8', ...(isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : {}) }} />
               <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: isOppFrozen ? '#38bdf8' : 'rgba(255,255,255,0.8)' }}>
@@ -486,7 +502,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           <button onClick={handleSkip}
             disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
             className="shrink-0 w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 mb-1 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: 'rgba(10,14,28,0.7)', border: '1px solid rgba(251,191,36,0.2)' }}>
+            style={{ background: 'rgba(30,18,9,0.8)', border: '1px solid rgba(251,191,36,0.2)' }}>
             <span className="font-display font-bold" style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)' }}>
               تجاوز السؤال
             </span>
@@ -589,77 +605,6 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
   );
 }
 
-// ============== ملخص المباراة (شاشة النهاية) ==============
-function MatchSummary({ roomState, myRole }) {
-  const oppRole = myRole === 1 ? 2 : 1;
-  const isRace = roomState.mode === 'race';
-  const listFor = (r) => isRace
-    ? (roomState[`words_p${r}`] || []).map(wordStr)
-    : (roomState.usedWords || []).filter(w => w.player === r).map(w => w.word).reverse();
-  const colorOf = (r) => (r === 1 ? '#fbbf24' : '#2dd4bf');
-  const nameOf = (r) => roomState.players[r]?.name || '';
-  const lists = { [myRole]: listFor(myRole), [oppRole]: listFor(oppRole) };
-  const all = [...lists[myRole], ...lists[oppRole]];
-  if (!all.length) return null;
-
-  const longest = all.reduce((a, b) => (b.length > a.length ? b : a), '');
-  const longestBy = lists[myRole].includes(longest) ? myRole : oppRole;
-
-  return (
-    <div className="mb-6 space-y-3 text-right slide-in">
-      <div className="flex items-center justify-center gap-2 text-sm bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2">
-        <Target className="w-4 h-4 text-stone-400" />
-        <span className="text-stone-400">أطول كلمة:</span>
-        <span className="font-display font-bold" style={{ color: colorOf(longestBy) }}>{longest}</span>
-        <span className="text-stone-500 text-xs">({nameOf(longestBy)})</span>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {[myRole, oppRole].map(r => {
-          const color = colorOf(r);
-          const list = lists[r];
-          const penalty = isRace ? (roomState.penalties?.[r] ?? 0) : 0;
-          return (
-            <div key={r} className="bg-white/[0.02] border border-white/5 rounded-2xl p-3 min-w-0">
-              <div className="flex items-center justify-between gap-1 text-xs mb-2">
-                <span className="font-display font-bold truncate" style={{ color }}>{nameOf(r)}</span>
-                <span className="text-stone-500 shrink-0">
-                  {list.length} كلمة{penalty > 0 ? ` · −${penalty}` : ''}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                {list.map((w, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-md font-display text-sm"
-                    style={{ background: `${color}14`, color, border: `1px solid ${color}30` }}>
-                    {w}
-                  </span>
-                ))}
-                {!list.length && <span className="text-xs text-stone-600">لا شيء</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TurnCircle({ timeLeft, total }) {
-  const r = 17;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.min(1, Math.max(0, timeLeft / total)));
-  const color = timeLeft <= 3 ? '#f87171' : timeLeft <= 5 ? '#fb923c' : '#57534e';
-  return (
-    <div className="relative flex items-center justify-center w-11 h-11">
-      <svg width="44" height="44" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-        <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="3"
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-      <span className="font-mono-ar text-xs font-bold" style={{ color }}>{Math.ceil(timeLeft)}</span>
-    </div>
-  );
-}
-
 // ============== المكون الرئيسي ==============
 const screenForStatus = (status) =>
   status === 'waiting' ? 'waiting' : status === 'finished' ? 'gameover' : 'playing';
@@ -736,6 +681,19 @@ export default function Game() {
     const savedName = getSavedName();
     if (savedName) { setHostName(savedName); setJoinName(savedName); }
 
+    // وضع المعاينة (للتطوير فقط): ?demo=waiting | chess | pending | over-race ...
+    if (process.env.NODE_ENV !== 'production') {
+      const demo = demoRoom(new URLSearchParams(window.location.search).get('demo'));
+      if (demo) {
+        setRoomCode('DEMO');
+        setMyRoleState(1);
+        setRoomState(demo.state);
+        setScreen(demo.screen);
+        setBooting(false);
+        return;
+      }
+    }
+
     let urlCode = '';
     try { urlCode = (new URLSearchParams(window.location.search).get('room') || '').replace(/\D/g, '').slice(0, 4); } catch {}
     const code = urlCode || getCurrentRoom();
@@ -773,7 +731,7 @@ export default function Game() {
 
   // ============== الاشتراك بـ Realtime ==============
   useEffect(() => {
-    if (!roomCode || roomCode === 'local') return;
+    if (!roomCode || roomCode === 'local' || roomCode === 'DEMO') return;
 
     let active = true;
 
@@ -864,6 +822,7 @@ export default function Game() {
   // ============== كشف انتهاء الوقت ==============
   useEffect(() => {
     if (screen !== 'playing' || !roomState || roomState.mode === 'race' || roomState.status !== 'playing') return;
+    if (roomCode === 'DEMO') return;
     if (roomState.pendingWord || roomState.winner || winSubmittedRef.current) return;
     // اللاعب الحالي يكتب أولاً؛ إذا جواله نايم، الخصم يتولى بعد ثانيتين.
     // الكتابة المشروطة تمنع أي تكرار لو كتب الاثنان.
@@ -890,7 +849,7 @@ export default function Game() {
         turnStartedAt: now(),
       }, 'turnStartedAt');
     }
-  }, [displayNow, roomState, screen, myRole, commitChess]);
+  }, [displayNow, roomState, screen, myRole, commitChess, roomCode]);
 
   // إعادة تعيين عند تغيير الدور
   useEffect(() => {
@@ -1271,9 +1230,9 @@ export default function Game() {
   // -------- شاشة القائمة --------
   if (booting) {
     return (
-      <div className="flex items-center justify-center bg-stone-950" style={{ width: '100vw', height: '100dvh' }}>
-        <Loader2 className="w-8 h-8 animate-spin text-amber-400/70" />
-      </div>
+      <Screen>
+        <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400/70" /></div>
+      </Screen>
     );
   }
 
@@ -1291,7 +1250,7 @@ export default function Game() {
       >
         {/* Mobile background */}
         <img
-          src="/bookshelf-mobile.png.png"
+          src="/bookshelf-mobile.jpg"
           alt=""
           aria-hidden="true"
           className="sm:hidden"
@@ -1441,379 +1400,243 @@ export default function Game() {
   // -------- شاشة إعداد الإنشاء --------
   if (screen === 'create-setup') {
     const isLocal = myRole === 'local';
+    const isRace = !isLocal && selectedMode === 'race';
+    const example = ENDING_PRESETS.find(p => p.value === selectedEnding)?.example;
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 px-3 sm:p-6 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={BG_STYLE} />
-        <div className="relative w-full max-w-2xl">
-          <button onClick={leaveRoom} className="mb-4 text-stone-400 hover:text-stone-200 text-sm flex items-center gap-1.5 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> رجوع
-          </button>
-          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 sm:space-y-7 fade-in">
-            <div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-amber-200 mb-1">
-                {isLocal ? 'لعبة على جهاز واحد' : 'إنشاء غرفة'}
-              </h2>
-              <p className="text-stone-400 text-sm">
-                {isLocal ? 'العبوا بالتناوب على نفس الجهاز' : 'بعد الإنشاء، شارك الكود مع شريكك'}
-              </p>
-            </div>
+      <Screen glow="#fbbf24">
+        <BackButton onClick={leaveRoom} />
+        <Card className="p-5 sm:p-7 fade-in">
+          <Title sub={isLocal ? 'العبوا بالتناوب على نفس الجهاز' : 'بعد الإنشاء، أرسل الدعوة لصاحبك'}>
+            {isLocal ? 'لعبة على جهاز واحد' : 'غرفة جديدة'}
+          </Title>
 
-            <div className="space-y-3">
-              <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">اسمك</label>
-              <div className="relative">
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-amber-400" />
-                <input
-                  type="text"
-                  value={hostName}
-                  onChange={(e) => setHostName(e.target.value)}
-                  placeholder="اكتب اسمك"
-                  maxLength={20}
-                  className="w-full bg-stone-900/60 border border-white/10 rounded-xl px-4 pr-8 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 focus:bg-stone-900 transition-all"
-                />
-              </div>
+          <div className="space-y-5">
+            <div>
+              <Label>{isLocal ? 'اسم اللاعب الأول' : 'اسمك'}</Label>
+              <input
+                type="text"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                placeholder="اكتب اسمك"
+                maxLength={20}
+                autoComplete="nickname"
+                enterKeyHint="done"
+                className={inputClass}
+              />
             </div>
 
             {!isLocal && (
-              <div className="space-y-3">
-                <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">نوع اللعبة</label>
-                <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>نوع اللعبة</Label>
+                <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { id: 'chess', label: 'ساعة الشطرنج', sub: 'بالأدوار', Icon: Hourglass },
-                    { id: 'race',  label: 'سباق الكلمات', sub: 'الكل يكتب في نفس الوقت', Icon: Zap },
+                    { id: 'chess', label: 'ساعة الشطرنج', sub: 'بالأدوار، ولكل لاعب ساعته', Icon: Hourglass },
+                    { id: 'race',  label: 'سباق الكلمات', sub: 'الاثنين يكتبون بنفس الوقت', Icon: Zap },
                   ].map(({ id, label, sub, Icon }) => (
-                    <button key={id} onClick={() => setSelectedMode(id)}
-                      className={`p-4 rounded-xl border-2 text-center transition-all ${
-                        selectedMode === id ? 'bg-amber-400/10 border-amber-400/60 text-amber-200' : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'
-                      }`}>
-                      <Icon className={`w-5 h-5 mx-auto mb-1.5 ${selectedMode === id ? 'text-amber-400' : 'text-stone-400'}`} />
-                      <div className="font-display font-semibold text-sm">{label}</div>
-                      <div className="text-xs text-stone-500 mt-0.5">{sub}</div>
-                    </button>
+                    <Choice key={id} selected={selectedMode === id} onClick={() => setSelectedMode(id)} className="p-3.5">
+                      <Icon className="w-6 h-6 mx-auto mb-1.5" style={{ color: selectedMode === id ? '#fbbf24' : '#9a7d5c' }} />
+                      <div className="font-display font-bold">{label}</div>
+                      <div className="text-[0.72rem] text-muted mt-0.5 leading-snug">{sub}</div>
+                    </Choice>
                   ))}
                 </div>
               </div>
             )}
 
-            {(isLocal || selectedMode === 'chess') && (
+            {!isRace && (
               <>
-                <div className="space-y-3">
-                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">سرعة اللعبة</label>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div>
+                  <Label>وقت كل لاعب</Label>
+                  <div className="grid grid-cols-3 gap-2.5">
                     {TIME_CONTROLS.map(tc => {
                       const Icon = tc.icon;
-                      const isSel = selectedTime.id === tc.id;
+                      const sel = selectedTime.id === tc.id;
                       return (
-                        <button key={tc.id} onClick={() => setSelectedTime(tc)}
-                          className={`p-4 rounded-xl border-2 transition-all ${isSel ? 'bg-amber-400/10 border-amber-400/60 text-amber-200' : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'}`}>
-                          <Icon className={`w-6 h-6 mx-auto mb-2 ${isSel ? 'text-amber-400' : 'text-stone-400'}`} />
-                          <div className="font-display font-semibold text-base sm:text-lg">{tc.name}</div>
-                          <div className="text-xs text-stone-400 mt-0.5">{tc.desc}</div>
-                        </button>
+                        <Choice key={tc.id} selected={sel} onClick={() => setSelectedTime(tc)} className="py-3 px-1">
+                          <Icon className="w-5 h-5 mx-auto mb-1" style={{ color: sel ? '#fbbf24' : '#9a7d5c' }} />
+                          <div className="font-display font-bold">{tc.name}</div>
+                          <div className="text-[0.72rem] text-muted">{tc.desc}</div>
+                        </Choice>
                       );
                     })}
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">وقت الدور</label>
-                  <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label>وقت الدور الواحد</Label>
+                  <div className="grid grid-cols-3 gap-2.5">
                     {[10, 20, 30].map(sec => (
-                      <button key={sec} onClick={() => setSelectedTurnSkip(sec)}
-                        className={`p-3 rounded-xl border-2 transition-all ${selectedTurnSkip === sec ? 'bg-amber-400/10 border-amber-400/60 text-amber-200' : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'}`}>
-                        <div className="font-mono-ar font-bold text-xl">{sec}</div>
-                        <div className="text-xs text-stone-400 mt-0.5">ثانية</div>
-                      </button>
+                      <Choice key={sec} selected={selectedTurnSkip === sec} onClick={() => setSelectedTurnSkip(sec)} className="py-2.5">
+                        <span className="font-mono-ar font-bold text-xl">{sec}</span>
+                        <span className="text-xs text-muted mr-1">ثانية</span>
+                      </Choice>
                     ))}
                   </div>
                 </div>
               </>
             )}
 
-            {!isLocal && selectedMode === 'race' && (
-              <div className="space-y-3">
-                <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">مدة السباق</label>
-                <div className="grid grid-cols-3 gap-2">
+            {isRace && (
+              <div>
+                <Label>مدة السباق</Label>
+                <div className="grid grid-cols-3 gap-2.5">
                   {[{ s: 30, label: '٣٠', sub: 'ثانية' }, { s: 60, label: '١', sub: 'دقيقة' }, { s: 90, label: '١.٥', sub: 'دقيقة' }].map(({ s, label, sub }) => (
-                    <button key={s} onClick={() => setSelectedRaceDuration(s)}
-                      className={`p-3 rounded-xl border-2 transition-all ${selectedRaceDuration === s ? 'bg-amber-400/10 border-amber-400/60 text-amber-200' : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'}`}>
-                      <div className="font-mono-ar font-bold text-xl">{label}</div>
-                      <div className="text-xs text-stone-400 mt-0.5">{sub}</div>
-                    </button>
+                    <Choice key={s} selected={selectedRaceDuration === s} onClick={() => setSelectedRaceDuration(s)} className="py-2.5">
+                      <span className="font-mono-ar font-bold text-xl">{label}</span>
+                      <span className="text-xs text-muted mr-1">{sub}</span>
+                    </Choice>
                   ))}
                 </div>
+                <p className="text-xs text-dim mt-2.5 leading-relaxed">
+                  كل سؤال نهاية مختلفة، وأول من يجاوب ياخذ النقطة. تقدر تجمّد خصمك أو تتجاوز السؤال مقابل نقاط.
+                </p>
               </div>
             )}
 
-            {(isLocal || selectedMode !== 'race') && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">نهاية الكلمات</label>
-                  <button
-                    onClick={() => setUseCustom(!useCustom)}
-                    className="text-xs text-amber-400/80 hover:text-amber-300 transition-colors flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" />
-                    {useCustom ? 'الجاهزة' : 'مخصصة'}
+            {!isRace && (
+              <div>
+                <Label aside={
+                  <button onClick={() => setUseCustom(!useCustom)}
+                    className="text-xs text-amber-300/90 hover:text-amber-200 transition-colors inline-flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {useCustom ? 'النهايات الجاهزة' : 'نهاية مخصصة'}
                   </button>
-                </div>
+                }>نهاية الكلمات</Label>
                 {!useCustom ? (
-                  <div className="grid grid-cols-5 gap-2">
-                    {ENDING_PRESETS.map(p => {
-                      const isSel = selectedEnding === p.value;
-                      return (
-                        <button
-                          key={p.value}
-                          onClick={() => setSelectedEnding(p.value)}
-                          title={p.example}
-                          className={`py-3 rounded-xl font-display text-2xl font-semibold border-2 transition-all ${
-                            isSel ? 'bg-amber-400/15 border-amber-400/60 text-amber-200 scale-105'
-                                  : 'bg-stone-900/40 border-white/5 hover:border-white/20 text-stone-300'
-                          }`}
-                        >
+                  <>
+                    <div className="grid grid-cols-5 gap-2">
+                      {ENDING_PRESETS.map(p => (
+                        <Choice key={p.value} selected={selectedEnding === p.value} onClick={() => setSelectedEnding(p.value)}
+                          className="font-display font-bold text-[1.35rem] leading-none py-2.5">
                           {p.value}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </Choice>
+                      ))}
+                    </div>
+                    {example && <p className="text-xs text-dim mt-2.5 text-center">مثل: <span className="text-muted">{example}</span></p>}
+                  </>
                 ) : (
                   <input
                     type="text"
                     value={customEnding}
                     onChange={(e) => setCustomEnding(e.target.value)}
-                    placeholder="مثلا: وب، اف"
+                    placeholder="مثلاً: وب، اف"
                     maxLength={4}
-                    className="w-full bg-stone-900/60 border border-white/10 rounded-xl px-4 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-400/50 transition-all text-center font-display text-xl"
+                    className={`${inputClass} text-center font-display text-2xl`}
                   />
                 )}
               </div>
             )}
 
-            {globalError && (
-              <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm rounded-xl p-3 text-center slide-in">
-                {globalError}
-              </div>
-            )}
+            <ErrorNote>{globalError}</ErrorNote>
 
-            <button
-              onClick={isLocal ? startLocal : createRoom}
-              disabled={busy}
-              className="w-full bg-gradient-to-l from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 disabled:from-stone-700 disabled:to-stone-700 disabled:cursor-not-allowed text-stone-950 font-display font-bold text-lg py-4 rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
-            >
-              {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+            <Btn onClick={isLocal ? startLocal : createRoom} busy={busy} icon={Play}>
               {isLocal ? 'ابدأ اللعبة' : 'إنشاء الغرفة'}
-            </button>
+            </Btn>
           </div>
-        </div>
-      </div>
+        </Card>
+      </Screen>
     );
   }
 
   // -------- شاشة الانضمام --------
   if (screen === 'join-setup') {
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={BG_STYLE} />
-        <div className="relative w-full max-w-md">
-          <button onClick={leaveRoom} className="mb-4 text-stone-400 hover:text-stone-200 text-sm flex items-center gap-1.5 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> رجوع
-          </button>
-          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 fade-in">
-            <div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-teal-200 mb-1">دخول غرفة</h2>
-              <p className="text-stone-400 text-sm">أدخل الكود اللي وصلك</p>
+      <Screen glow="#2dd4bf">
+        <BackButton onClick={leaveRoom} />
+        <Card className="p-5 sm:p-7 fade-in">
+          <Title color="#7ef5e0" sub={joinPreview ? 'تأكد من التفاصيل واكتب اسمك' : 'اكتب الكود اللي وصلك'}>دخول غرفة</Title>
+          {!joinPreview ? (
+            <div className="space-y-4">
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 4 && checkJoinCode()}
+                placeholder="0000"
+                maxLength={4}
+                dir="ltr"
+                autoComplete="one-time-code"
+                style={{ textIndent: '0.5em' }}
+                className="w-full rounded-2xl py-4 bg-black/30 border-2 border-[rgba(255,220,170,0.14)] focus:border-teal-400/60 focus:outline-none transition-all text-center font-mono-ar text-5xl font-bold tracking-[0.5em] text-parchment placeholder:text-[#3d2c1d]"
+              />
+              <ErrorNote>{globalError}</ErrorNote>
+              <Btn variant="teal" icon={LogIn} busy={busy} disabled={joinCode.length !== 4} onClick={checkJoinCode}>
+                بحث عن الغرفة
+              </Btn>
             </div>
-            {!joinPreview ? (
-              <>
-                <div className="space-y-3">
-                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">كود الغرفة</label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="0000"
-                    maxLength={4}
-                    dir="ltr"
-                    autoComplete="one-time-code"
-                    style={{ textIndent: '0.5em' }}
-                    className="w-full bg-stone-900/60 border-2 border-white/10 rounded-2xl px-4 py-5 text-stone-100 placeholder-stone-700 focus:outline-none focus:border-teal-400/50 transition-all text-center font-mono-ar text-5xl font-bold tracking-[0.5em]"
-                  />
+          ) : (
+            <div className="space-y-4">
+              <RoomInfo state={joinPreview} />
+              <div>
+                <Label>اسمك</Label>
+                <input
+                  type="text"
+                  value={joinName}
+                  onChange={(e) => setJoinName(e.target.value)}
+                  placeholder="اكتب اسمك"
+                  maxLength={20}
+                  autoFocus
+                  autoComplete="nickname"
+                  enterKeyHint="go"
+                  onKeyDown={(e) => e.key === 'Enter' && confirmJoin()}
+                  className={`${inputClass} focus:border-teal-400/60`}
+                />
+              </div>
+              <ErrorNote>{globalError}</ErrorNote>
+              <div className="flex gap-2.5">
+                <div className="flex-1">
+                  <Btn variant="wood" size="md" onClick={() => { setJoinPreview(null); setGlobalError(null); }}>تغيير الكود</Btn>
                 </div>
-                {globalError && (
-                  <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm rounded-xl p-3 text-center slide-in">{globalError}</div>
-                )}
-                <button
-                  onClick={checkJoinCode}
-                  disabled={busy || joinCode.length !== 4}
-                  className="w-full bg-gradient-to-l from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 disabled:from-stone-700 disabled:to-stone-700 text-stone-950 font-display font-bold text-lg py-4 rounded-xl transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2"
-                >
-                  {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
-                  بحث
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="bg-stone-900/60 border border-white/10 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-400">المضيف</span>
-                    <span className="font-display font-bold text-amber-300">{joinPreview.players[1].name}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-400">نوع اللعبة</span>
-                    <span className="font-display text-amber-300">{joinPreview.mode === 'race' ? '⚡ سباق الكلمات' : '⏱ ساعة الشطرنج'}</span>
-                  </div>
-                  {joinPreview.mode === 'race' ? (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-stone-400">المدة</span>
-                      <span className="font-mono-ar font-bold text-amber-300">{joinPreview.settings.duration}ث</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-400">السرعة</span>
-                        <span className="font-display">
-                          {TIME_CONTROLS.find(t => t.id === joinPreview.settings.timeControlId)?.name}
-                          <span className="text-stone-500 text-sm mr-2">({joinPreview.settings.initialSeconds / 60} د)</span>
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-400">وقت الدور</span>
-                        <span className="font-mono-ar font-bold text-amber-300">{joinPreview.settings.turnSkipSeconds ?? 10}ث</span>
-                      </div>
-                    </>
-                  )}
-                  {joinPreview.mode !== 'race' && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-stone-400">نهاية الكلمات</span>
-                      <span className="font-display text-2xl font-bold text-teal-300">{joinPreview.settings.ending}</span>
-                    </div>
-                  )}
+                <div className="flex-[1.5]">
+                  <Btn variant="teal" size="md" icon={Check} busy={busy} disabled={!joinName.trim()} onClick={confirmJoin}>يلا ندخل</Btn>
                 </div>
-                <div className="space-y-3">
-                  <label className="text-xs uppercase tracking-widest text-stone-400 font-semibold">اسمك</label>
-                  <div className="relative">
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-400" />
-                    <input
-                      type="text"
-                      value={joinName}
-                      onChange={(e) => setJoinName(e.target.value)}
-                      placeholder="اكتب اسمك"
-                      maxLength={20}
-                      autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && confirmJoin()}
-                      className="w-full bg-stone-900/60 border border-white/10 rounded-xl px-4 pr-8 py-3 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-teal-400/50 transition-all"
-                    />
-                  </div>
-                </div>
-                {globalError && (
-                  <div className="bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm rounded-xl p-3 text-center slide-in">{globalError}</div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setJoinPreview(null); setGlobalError(null); }}
-                    className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-stone-200 font-display py-3 rounded-xl transition-colors"
-                  >
-                    تغيير الكود
-                  </button>
-                  <button
-                    onClick={confirmJoin}
-                    disabled={busy || !joinName.trim()}
-                    className="flex-1 bg-gradient-to-l from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 disabled:from-stone-700 disabled:to-stone-700 text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2"
-                  >
-                    {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                    دخول
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      </Screen>
     );
   }
 
   // -------- شاشة الانتظار --------
   if (screen === 'waiting' && roomState) {
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={BG_STYLE} />
-        <div className="relative w-full max-w-md text-center fade-in">
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-400/10 border-2 border-amber-400/30 mb-4">
-              <Users className="w-10 h-10 text-amber-400 spin-slow" />
-            </div>
-            <h2 className="font-display text-3xl font-bold text-stone-100 mb-2">بانتظار اللاعب الثاني</h2>
-            <p className="text-stone-400 text-sm">شارك هذا الكود</p>
+      <Screen glow="#fbbf24">
+        <div className="text-center fade-in">
+          <div className="ending-badge mx-auto mb-3 w-16 h-16 rounded-full flex items-center justify-center">
+            <Users className="w-8 h-8 text-amber-300 float" />
           </div>
-          <div className="bg-white/[0.03] border-2 border-amber-400/30 rounded-3xl p-8 mb-6">
-            <div className="text-xs uppercase tracking-widest text-amber-400/80 font-semibold mb-3">كود الغرفة</div>
-            <div className="font-mono-ar text-7xl font-bold text-amber-200 mb-4 tracking-[0.3em]">
-              {roomCode}
-            </div>
-            <button
-              onClick={shareInvite}
-              className="w-full mb-3 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-display font-bold text-stone-950 bg-gradient-to-l from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              <Share2 className="w-5 h-5" />
-              أرسل الدعوة
-            </button>
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={copyLink}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-stone-300 transition-colors"
-              >
-                <Link2 className="w-4 h-4" />
-                نسخ الرابط
-              </button>
-              <button
-                onClick={copyCode}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-stone-300 transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-                نسخ الكود
-              </button>
-            </div>
-            {feedback?.type === 'success' && (
-              <div className="text-emerald-300 text-xs mt-2 slide-in">{feedback.text}</div>
-            )}
-          </div>
-          <div className="bg-stone-900/40 border border-white/5 rounded-2xl p-4 mb-6 text-right space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-stone-400">المضيف</span>
-              <span className="font-display text-amber-300">{roomState.players[1].name}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-stone-400">نوع اللعبة</span>
-              <span className="font-display text-amber-300">{roomState.mode === 'race' ? '⚡ سباق الكلمات' : '⏱ ساعة الشطرنج'}</span>
-            </div>
-            {roomState.mode === 'race' ? (
-              <div className="flex items-center justify-between">
-                <span className="text-stone-400">المدة</span>
-                <span className="font-mono-ar font-bold text-amber-300">{roomState.settings.duration}ث</span>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-400">السرعة</span>
-                  <span className="font-display">{TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
+          <h2 className="font-display font-bold title-emboss text-[#f7d060]" style={{ fontSize: 'clamp(1.6rem, 7vw, 2rem)' }}>
+            <Thinking>بانتظار صاحبك</Thinking>
+          </h2>
+          <p className="text-muted text-sm mt-1 mb-5">أرسل له الدعوة، واللعبة تبدأ أول ما يدخل</p>
+
+          <Card className="p-5 mb-4" accent="#fbbf24">
+            <div className="text-xs text-muted font-display font-bold mb-3">كود الغرفة</div>
+            <div dir="ltr" className="flex justify-center gap-2.5 mb-5">
+              {roomCode.split('').map((d, i) => (
+                <div key={i} className="code-digit w-14 h-16 rounded-xl flex items-center justify-center font-mono-ar text-4xl font-bold text-amber-200 word-pop"
+                  style={{ animationDelay: `${i * 70}ms` }}>
+                  {d}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-stone-400">وقت الدور</span>
-                  <span className="font-mono-ar font-bold text-amber-300">{roomState.settings.turnSkipSeconds ?? 10}ث</span>
-                </div>
-              </>
-            )}
-            {roomState.mode !== 'race' && (
-              <div className="flex items-center justify-between">
-                <span className="text-stone-400">نهاية الكلمات</span>
-                <span className="font-display text-xl font-bold text-amber-300">{roomState.settings.ending}</span>
-              </div>
-            )}
-          </div>
-          <button onClick={leaveRoom} className="text-stone-400 hover:text-stone-200 text-sm transition-colors">
+              ))}
+            </div>
+            <Btn variant="green" icon={Share2} onClick={shareInvite}>أرسل الدعوة</Btn>
+            <div className="flex justify-center gap-2 mt-3">
+              <GhostBtn onClick={copyLink}><Link2 className="w-4 h-4" /> نسخ الرابط</GhostBtn>
+              <GhostBtn onClick={copyCode}><Copy className="w-4 h-4" /> نسخ الكود</GhostBtn>
+            </div>
+            <div className="h-5 mt-2 text-emerald-300 text-xs">
+              {feedback?.type === 'success' && <span className="slide-in inline-block">{feedback.text}</span>}
+            </div>
+          </Card>
+
+          <RoomInfo state={roomState} />
+
+          <button onClick={leaveRoom} className="mt-5 text-sm text-dim hover:text-muted transition-colors py-2">
             إلغاء الغرفة
           </button>
         </div>
-      </div>
+      </Screen>
     );
   }
 
@@ -1823,191 +1646,96 @@ export default function Game() {
   }
 
   if (screen === 'playing' && roomState && myRole) {
-    const isP1Active = roomState.currentTurn === 1 && !roomState.pendingWord;
-    const isP2Active = roomState.currentTurn === 2 && !roomState.pendingWord;
     const pendingByMe = roomState.pendingWord?.by === myRole;
     const pendingByOpp = roomState.pendingWord && !pendingByMe;
+    const myColor = PLAYER_COLORS[myRole];
+    const tcName = TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name;
 
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={BG_STYLE} />
-        <div className="relative max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-stone-300">
-                نهاية: <span className="font-display font-bold text-amber-300 mx-1">{roomState.settings.ending}</span>
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-stone-300">
-                {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}
-              </div>
-              <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-stone-400 font-mono-ar">
-                #{roomCode}
-              </div>
-              <div className={`flex items-center gap-1 text-xs ${connected ? 'text-emerald-400/70' : 'text-rose-400/70'}`}>
-                {connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              </div>
-            </div>
-            <button
-              onClick={resign}
-              className="px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-            >
-              <Flag className="w-3 h-3" />
-              استسلام
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-6">
-            <div className={`relative rounded-3xl p-4 sm:p-8 border-2 transition-all duration-500 ${
-              isP1Active ? 'border-amber-400/60 bg-amber-500/5 pulse-amber' : 'border-white/5 bg-stone-900/40 opacity-60'
-            }`}>
-              <div className="flex items-center justify-between mb-3 gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${isP1Active ? 'bg-amber-400 animate-pulse' : 'bg-stone-600'}`} />
-                  <span className="font-display text-sm sm:text-lg font-semibold truncate">
-                    {roomState.players[1].name}
-                    {myRole === 1 && <span className="text-amber-400/70 text-xs mr-1">(أنت)</span>}
-                  </span>
-                </div>
-                <span className="text-xs text-stone-400 shrink-0">{wordCounts[1]}</span>
-              </div>
-              <div className={`font-mono-ar text-4xl sm:text-7xl font-bold text-center py-2 transition-colors ${
-                isP1Active ? (displayTimes[1] <= 10 ? 'text-rose-300' : 'text-amber-200') : 'text-stone-500'
-              }`}>
-                {formatTime(displayTimes[1])}
-              </div>
-              {isP1Active && (
-                <div className="mt-2 flex justify-center">
-                  <TurnCircle timeLeft={turnTimeLeft} total={turnSkipSecs} />
-                </div>
-              )}
-            </div>
-            <div className={`relative rounded-3xl p-4 sm:p-8 border-2 transition-all duration-500 ${
-              isP2Active ? 'border-teal-400/60 bg-teal-500/5 pulse-teal' : 'border-white/5 bg-stone-900/40 opacity-60'
-            }`}>
-              <div className="flex items-center justify-between mb-3 gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${isP2Active ? 'bg-teal-400 animate-pulse' : 'bg-stone-600'}`} />
-                  <span className="font-display text-sm sm:text-lg font-semibold truncate">
-                    {roomState.players[2].name}
-                    {myRole === 2 && <span className="text-teal-400/70 text-xs mr-1">(أنت)</span>}
-                  </span>
-                </div>
-                <span className="text-xs text-stone-400 shrink-0">{wordCounts[2]}</span>
-              </div>
-              <div className={`font-mono-ar text-4xl sm:text-7xl font-bold text-center py-2 transition-colors ${
-                isP2Active ? (displayTimes[2] <= 10 ? 'text-rose-300' : 'text-teal-200') : 'text-stone-500'
-              }`}>
-                {formatTime(displayTimes[2])}
-              </div>
-              {isP2Active && (
-                <div className="mt-2 flex justify-center">
-                  <TurnCircle timeLeft={turnTimeLeft} total={turnSkipSecs} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={`bg-white/[0.03] border-2 rounded-3xl p-5 sm:p-6 mb-6 transition-colors ${
-            myRole === 1 ? 'border-amber-400/30' : 'border-teal-400/30'
-          }`}>
+      <Screen center={false} className="pt-2">
+        <ChessTable
+          state={roomState}
+          order={[myRole, oppRole]}
+          myRole={myRole}
+          activeRole={roomState.pendingWord ? null : roomState.currentTurn}
+          displayTimes={displayTimes}
+          turnTimeLeft={turnTimeLeft}
+          turnSkipSecs={turnSkipSecs}
+          wordCounts={wordCounts}
+          onResign={resign}
+          topInfo={<>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-emerald-400' : 'bg-rose-400 animate-pulse'}`} title={connected ? 'متصل' : 'غير متصل'} />
+            <bdi className="font-mono-ar">#{roomCode}</bdi>
+            {tcName && <span className="text-dim">· {tcName}</span>}
+          </>}
+        >
+          <Card className="p-4 sm:p-5" accent={isMyTurn ? myColor : undefined}>
             {roomState.pendingWord ? (
               pendingByOpp ? (
-                <div className="space-y-4 slide-in">
-                  <div className="text-center">
-                    <div className="text-xs text-stone-400 mb-2 font-display">{oppName} يقترح كلمة غير موجودة في القاموس</div>
-                    <div className="font-display text-4xl sm:text-5xl font-bold text-amber-200 my-4">
-                      &quot;{roomState.pendingWord.word}&quot;
-                    </div>
-                    <div className="text-sm text-stone-400">هل تقبلها؟</div>
+                <div className="text-center slide-in">
+                  <div className="text-xs text-muted font-display">{oppName} يقترح كلمة مو موجودة في القاموس</div>
+                  <div className="font-display font-black my-3" style={{ fontSize: 'clamp(2.2rem, 11vw, 3rem)', color: '#fcd34d', lineHeight: 1.25 }}>
+                    {roomState.pendingWord.word}
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={acceptPending} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 rounded-xl py-3 text-sm font-display font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                      <Check className="w-4 h-4" /> نعم، أقبلها
-                    </button>
-                    <button onClick={rejectPending} className="flex-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 rounded-xl py-3 text-sm font-display font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                      <X className="w-4 h-4" /> لا، أرفضها
-                    </button>
+                  <div className="text-sm text-muted mb-4">تقبلها؟ <span className="text-dim text-xs">(الوقت متوقف)</span></div>
+                  <div className="flex gap-2.5">
+                    <div className="flex-1"><Btn variant="green" size="md" icon={Check} onClick={acceptPending}>أقبلها</Btn></div>
+                    <div className="flex-1"><Btn variant="red" size="md" icon={X} onClick={rejectPending}>أرفضها</Btn></div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-4 slide-in">
-                  <Loader2 className="w-8 h-8 mx-auto mb-3 text-amber-400/70 animate-spin" />
-                  <div className="font-display text-xl text-stone-200 mb-2">&quot;{roomState.pendingWord.word}&quot;</div>
-                  <div className="text-sm text-stone-400">في انتظار قرار {oppName}...</div>
-                  <div className="text-xs text-stone-500 mt-1">الوقت متوقف لكليكما</div>
+                <div className="text-center py-2 slide-in">
+                  <Loader2 className="w-7 h-7 mx-auto mb-2 text-amber-300/70 animate-spin" />
+                  <div className="font-display text-2xl text-parchment mb-1">{roomState.pendingWord.word}</div>
+                  <div className="text-sm text-muted"><Thinking>بانتظار قرار {oppName}</Thinking></div>
+                  <div className="text-xs text-dim mt-1">الوقت متوقف لكم الاثنين</div>
                 </div>
               )
             ) : isMyTurn ? (
               <>
-                <div className="text-center text-xs text-stone-400 mb-3 font-display">
-                  دورك <span className={`font-bold ${myRole === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{myName}</span>
-                </div>
-                <div className="flex gap-2 sm:gap-3">
+                <div className="text-center text-sm mb-3 font-display font-bold" style={{ color: myColor }}>دورك! ✍️</div>
+                <div className="flex gap-2">
                   <input
                     ref={inputRef}
                     type="text"
                     value={currentInput}
                     onChange={(e) => setCurrentInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitWord()}
-                    placeholder={`كلمة تنتهي بـ "${roomState.settings.ending}"`}
-                    className={`flex-1 bg-stone-900/80 border-2 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-stone-100 placeholder-stone-500 focus:outline-none transition-all font-display text-xl sm:text-2xl text-center ${
-                      myRole === 1 ? 'border-amber-400/30 focus:border-amber-400/70 glow-amber' : 'border-teal-400/30 focus:border-teal-400/70 glow-teal'
-                    } ${feedback?.type === 'error' ? 'shake border-rose-400/70' : ''}`}
+                    placeholder={`كلمة تنتهي بـ ${roomState.settings.ending}`}
+                    enterKeyHint="send"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${feedback?.type === 'error' ? 'shake !border-rose-400/70' : ''}`}
+                    style={{ borderColor: `${myColor}55` }}
                   />
                   <button
                     onClick={submitWord}
                     disabled={!currentInput.trim()}
-                    className={`px-4 sm:px-6 rounded-2xl font-display font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                      myRole === 1
-                        ? 'bg-amber-400/20 hover:bg-amber-400/30 border-2 border-amber-400/40 text-amber-200'
-                        : 'bg-teal-400/20 hover:bg-teal-400/30 border-2 border-teal-400/40 text-teal-200'
-                    }`}
-                  >
-                    <Check className="w-5 h-5 sm:w-6 sm:h-6" />
+                    aria-label="إرسال"
+                    className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
+                    style={myRole === 1
+                      ? { color: '#1a0800', background: 'linear-gradient(180deg, #ffd060, #e8940a 55%, #c87000)', boxShadow: '0 4px 0 #7a4000', border: '1px solid #b06000' }
+                      : { color: '#001a18', background: 'linear-gradient(180deg, #5ef0d8, #0fb89a 55%, #0a9078)', boxShadow: '0 4px 0 #065040', border: '1px solid #0a8068' }}>
+                    <Check className="w-6 h-6" />
                   </button>
                 </div>
-                {feedback && (
-                  <div className={`mt-3 text-center text-sm font-display slide-in ${
-                    feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'
-                  }`}>
-                    {feedback.type === 'success' ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4" /> {feedback.text}
-                      </span>
-                    ) : feedback.text}
-                  </div>
-                )}
+                <div className="h-6 mt-2 text-center text-sm font-display">
+                  {feedback && (
+                    <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
+                    </span>
+                  )}
+                </div>
               </>
             ) : (
-              <div className="text-center py-6">
-                <div className="inline-flex items-center gap-2 text-stone-400 font-display text-base sm:text-lg">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  دور {oppName}...
-                </div>
-                <div className="text-xs text-stone-500 mt-2">{oppName} يفكر في كلمة</div>
+              <div className="text-center py-4 text-muted">
+                <div className="text-base"><Thinking>{oppName} يفكّر</Thinking></div>
+                <div className="text-xs text-dim mt-1">جهّز كلمتك الجاية 😉</div>
               </div>
             )}
-          </div>
-
-          {roomState.usedWords.length > 0 && (
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs uppercase tracking-widest text-stone-400 font-semibold">الكلمات المستخدمة</span>
-                <span className="text-xs text-stone-500">{roomState.usedWords.length}</span>
-              </div>
-              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {roomState.usedWords.map((w, i) => (
-                  <span key={i} className={`px-3 py-1 rounded-lg font-display text-sm border ${
-                    w.player === 1 ? 'bg-amber-500/10 border-amber-400/20 text-amber-200' : 'bg-teal-500/10 border-teal-400/20 text-teal-200'
-                  }`}>
-                    {w.word}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+          </Card>
+        </ChessTable>
+      </Screen>
     );
   }
 
@@ -2015,124 +1743,50 @@ export default function Game() {
   if (screen === 'gameover' && roomState && roomState.winner != null) {
     const winner = roomState.winner;
     const isDraw = winner === 0;
-    const oppRole = myRole === 1 ? 2 : 1;
+    const isRace = roomState.mode === 'race';
     const oppLeft = roomState.players[oppRole]?.left === true;
     const oppResigned = roomState.resigned === oppRole;
     const iResigned = roomState.resigned === myRole;
-    const oppName = roomState.players[oppRole]?.name || 'الخصم';
-
-    const p1Count = roomState.mode === 'race' ? raceScore(roomState, 1) : wordCounts[1];
-    const p2Count = roomState.mode === 'race' ? raceScore(roomState, 2) : wordCounts[2];
-
-    const myName = roomState.players[myRole]?.name || '';
-    const myColor  = myRole === 1 ? '#fbbf24' : '#2dd4bf';
-    const oppColor = myRole === 1 ? '#2dd4bf' : '#fbbf24';
-    const myCount  = myRole === 1 ? p1Count : p2Count;
-    const oppCount = myRole === 1 ? p2Count : p1Count;
-
-    const winnerName = !isDraw ? roomState.players[winner].name : '';
+    const scoreOf = (r) => (isRace ? raceScore(roomState, r) : wordCounts[r]);
     const iWon = !isDraw && winner === myRole;
 
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 py-8 flex items-center justify-center relative overflow-x-hidden">
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-          backgroundImage: isDraw
-            ? `radial-gradient(circle at 50% 30%, #a8a29e 0%, transparent 60%)`
-            : winner === 1
-              ? `radial-gradient(circle at 50% 30%, #fbbf24 0%, transparent 60%)`
-              : `radial-gradient(circle at 50% 30%, #2dd4bf 0%, transparent 60%)`
-        }} />
-        <div className="relative w-full max-w-xl text-center fade-in">
+      <Screen glow={isDraw ? '#a8a29e' : PLAYER_COLORS[winner]} className="py-2">
+        {iWon && <Confetti />}
+        <div className="fade-in">
+          <ResultHeader
+            isDraw={isDraw}
+            winnerName={!isDraw ? roomState.players[winner].name : ''}
+            winnerColor={PLAYER_COLORS[winner]}
+            subtitle={isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
+            unit={isRace ? 'نقطة' : 'كلمة'}
+            sides={[myRole, oppRole].map(r => ({
+              name: roomState.players[r]?.name, color: PLAYER_COLORS[r], score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
+            }))}
+          />
 
-          {isDraw ? (
-            <>
-              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 bg-stone-700/50 text-stone-300">
-                <Sparkles className="w-12 h-12 bounce-gentle" />
-              </div>
-              <p className="text-stone-400 text-sm mb-2 font-display">النتيجة</p>
-              <h1 className="font-display text-5xl sm:text-6xl font-bold mb-3 text-stone-200">تعادل</h1>
-              <p className="text-stone-400 mb-8">كلاكم على نفس المستوى! 🤝</p>
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">أنا</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
-                  <div className="font-display text-3xl font-bold text-stone-300">{myCount}</div>
-                </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">الخصم</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
-                  <div className="font-display text-3xl font-bold text-stone-300">{oppCount}</div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
-                winner === 1 ? 'bg-amber-400/20 text-amber-300' : 'bg-teal-400/20 text-teal-300'
-              }`}>
-                <Trophy className="w-12 h-12 bounce-gentle" />
-              </div>
-              <p className="text-stone-400 text-sm mb-2 font-display">الفائز</p>
-              <h1 className={`font-display text-5xl sm:text-6xl font-bold mb-3 ${
-                winner === 1
-                  ? 'bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent'
-                  : 'bg-gradient-to-b from-teal-200 to-teal-500 bg-clip-text text-transparent'
-              }`}>{winnerName}</h1>
-              <p className="text-stone-400 mb-8">{iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة القادمة'}</p>
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'الفائز' : 'الخاسر'}</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: myColor }}>{myName}</div>
-                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? myColor : '#78716c' }}>{myCount}</div>
-                </div>
-                <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-                  <div className="text-xs text-stone-400 mb-0.5">{iWon ? 'الخاسر' : 'الفائز'}</div>
-                  <div className="font-display font-semibold truncate mb-1" style={{ fontSize: '0.7rem', color: oppColor }}>{oppName}</div>
-                  <div className="font-display text-3xl font-bold" style={{ color: iWon ? '#78716c' : oppColor }}>{oppCount}</div>
-                </div>
-              </div>
-            </>
+          {(oppResigned || iResigned || oppLeft) && (
+            <div className="rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display slide-in bg-black/25 border border-[rgba(255,220,170,0.12)] text-muted">
+              {oppResigned ? <>🏳️ استسلم <span className="text-parchment font-bold">{oppName}</span></>
+                : iResigned ? 'استسلمت في هذه الجولة'
+                : <>غادر <span className="text-parchment font-bold">{oppName}</span> الغرفة</>}
+            </div>
           )}
 
           <MatchSummary roomState={roomState} myRole={myRole} />
 
-          {oppResigned && (
-            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-rose-300 slide-in font-display">
-              🏳️ استسلم <span className="font-bold text-rose-200">{oppName}</span>
-            </div>
-          )}
-          {iResigned && (
-            <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in font-display">
-              لقد استسلمت في هذه الجولة
-            </div>
-          )}
-          {oppLeft && !oppResigned && (
-            <div className="bg-stone-800/60 border border-white/10 rounded-xl px-4 py-3 mb-5 text-sm text-stone-400 slide-in">
-              غادر <span className="text-stone-200 font-semibold">{oppName}</span> الغرفة
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-2.5">
             {!oppLeft && !oppResigned && (
-              <button
-                onClick={rematch}
-                disabled={busy}
-                className={`flex-1 disabled:opacity-60 bg-gradient-to-l ${
-                  isDraw
-                    ? 'from-stone-500 to-stone-400 hover:from-stone-400 hover:to-stone-300 shadow-stone-500/20'
-                    : winner === 1
-                      ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
-                      : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
-                } text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2`}
-              >
-                <RotateCcw className="w-5 h-5" /> جولة ثانية
-              </button>
+              <div className="flex-[1.5]">
+                <Btn icon={RotateCcw} busy={busy} onClick={rematch}>جولة ثانية</Btn>
+              </div>
             )}
-            <button onClick={leaveRoom} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-stone-200 font-display font-bold py-3 rounded-xl transition-colors">
-              خروج
-            </button>
+            <div className="flex-1">
+              <Btn variant="wood" onClick={leaveRoom}>خروج</Btn>
+            </div>
           </div>
         </div>
-      </div>
+      </Screen>
     );
   }
 
@@ -2148,42 +1802,23 @@ export default function Game() {
 
   if (screen === 'local-gameover' && roomState) {
     const winner = roomState.winner;
-    const winnerName = roomState.players[winner].name;
-    const winnerCount = roomState.usedWords.filter(w => w.player === winner).length;
-    const loserCount = roomState.usedWords.filter(w => w.player !== winner).length;
+    const countOf = (r) => roomState.usedWords.filter(w => w.player === r).length;
     return (
-      <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-          backgroundImage: winner === 1
-            ? `radial-gradient(circle at 50% 30%, #fbbf24 0%, transparent 60%)`
-            : `radial-gradient(circle at 50% 30%, #2dd4bf 0%, transparent 60%)`
-        }} />
-        <div className="relative w-full max-w-xl text-center fade-in">
-          <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
-            winner === 1 ? 'bg-amber-400/20 text-amber-300' : 'bg-teal-400/20 text-teal-300'
-          }`}>
-            <Trophy className="w-12 h-12 bounce-gentle" />
-          </div>
-          <p className="text-stone-400 text-sm mb-2 font-display">الفائز</p>
-          <h1 className={`font-display text-5xl sm:text-6xl font-bold mb-3 ${
-            winner === 1
-              ? 'bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-transparent'
-              : 'bg-gradient-to-b from-teal-200 to-teal-500 bg-clip-text text-transparent'
-          }`}>{winnerName}</h1>
-          <p className="text-stone-400 mb-10">مبروك! 🎉</p>
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-              <div className="text-xs text-stone-400 mb-1">كلمات الفائز</div>
-              <div className={`font-display text-3xl font-bold ${winner === 1 ? 'text-amber-300' : 'text-teal-300'}`}>{winnerCount}</div>
-            </div>
-            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4">
-              <div className="text-xs text-stone-400 mb-1">كلمات الخاسر</div>
-              <div className="font-display text-3xl font-bold text-stone-400">{loserCount}</div>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => {
+      <Screen glow={PLAYER_COLORS[winner]} className="py-2">
+        <Confetti />
+        <div className="fade-in">
+          <ResultHeader
+            isDraw={false}
+            winnerName={roomState.players[winner].name}
+            winnerColor={PLAYER_COLORS[winner]}
+            subtitle="مبروك! 🎉"
+            unit="كلمة"
+            sides={[1, 2].map(r => ({ name: roomState.players[r].name, color: PLAYER_COLORS[r], score: countOf(r) }))}
+          />
+          <MatchSummary roomState={roomState} myRole={1} />
+          <div className="flex gap-2.5">
+            <div className="flex-[1.5]">
+              <Btn icon={RotateCcw} onClick={() => {
                 const seconds = roomState.settings.initialSeconds;
                 setRoomState({
                   ...roomState, status: 'playing',
@@ -2192,21 +1827,12 @@ export default function Game() {
                   pendingWord: null, usedWords: [], winner: null,
                 });
                 setScreen('local-playing');
-              }}
-              className={`flex-1 bg-gradient-to-l ${
-                winner === 1
-                  ? 'from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-amber-500/30'
-                  : 'from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 shadow-teal-500/30'
-              } text-stone-950 font-display font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2`}
-            >
-              <RotateCcw className="w-5 h-5" /> جولة ثانية
-            </button>
-            <button onClick={leaveRoom} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-stone-200 font-display font-bold py-3 rounded-xl transition-colors">
-              خروج
-            </button>
+              }}>جولة ثانية</Btn>
+            </div>
+            <div className="flex-1"><Btn variant="wood" onClick={leaveRoom}>خروج</Btn></div>
           </div>
         </div>
-      </div>
+      </Screen>
     );
   }
 
@@ -2360,131 +1986,78 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
     1: roomState.usedWords.filter(w => w.player === 1).length,
     2: roomState.usedWords.filter(w => w.player === 2).length,
   };
-  const isP1Active = roomState.currentTurn === 1;
+  const cur = roomState.currentTurn;
+  const curColor = PLAYER_COLORS[cur];
 
   return (
-    <div className="min-h-dvh safe-screen bg-gradient-to-br from-stone-950 via-slate-950 to-stone-950 text-stone-100 p-3 sm:p-6 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={BG_STYLE} />
-      <div className="relative max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-stone-300">
-              نهاية: <span className="font-display font-bold text-amber-300 mx-1">{roomState.settings.ending}</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-stone-300">
-              {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}
-            </div>
+    <Screen center={false} className="pt-2">
+      <ChessTable
+        state={roomState}
+        order={[1, 2]}
+        myRole={null}
+        activeRole={pendingWord ? null : cur}
+        displayTimes={displayTimes}
+        turnTimeLeft={turnTimeLeft}
+        turnSkipSecs={turnSkipSecs}
+        wordCounts={wordCounts}
+        onResign={resign}
+        topInfo={<>
+          <Smartphone className="w-3.5 h-3.5" />
+          <span>جهاز واحد</span>
+          <span className="text-dim">· {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
+        </>}
+      >
+        <Card className="p-4 sm:p-5" accent={pendingWord ? undefined : curColor}>
+          <div className="text-center text-sm mb-3 font-display font-bold" style={{ color: curColor }}>
+            دور {roomState.players[cur].name}
           </div>
-          <button onClick={resign} className="px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5">
-            <Flag className="w-3 h-3" /> استسلام
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-6">
-          <div className={`rounded-3xl p-4 sm:p-8 border-2 transition-all ${isP1Active && !pendingWord ? 'border-amber-400/60 bg-amber-500/5 pulse-amber' : 'border-white/5 bg-stone-900/40 opacity-60'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${isP1Active && !pendingWord ? 'bg-amber-400 animate-pulse' : 'bg-stone-600'}`} />
-                <span className="font-display text-sm sm:text-lg font-semibold truncate">{roomState.players[1].name}</span>
-              </div>
-              <span className="text-xs text-stone-400">{wordCounts[1]}</span>
-            </div>
-            <div className={`font-mono-ar text-4xl sm:text-7xl font-bold text-center py-2 ${isP1Active && !pendingWord ? (displayTimes[1] <= 10 ? 'text-rose-300' : 'text-amber-200') : 'text-stone-500'}`}>
-              {formatTime(displayTimes[1])}
-            </div>
-            {isP1Active && !pendingWord && (
-              <div className="mt-2 flex justify-center">
-                <TurnCircle timeLeft={turnTimeLeft} total={turnSkipSecs} />
-              </div>
-            )}
-          </div>
-          <div className={`rounded-3xl p-4 sm:p-8 border-2 transition-all ${!isP1Active && !pendingWord ? 'border-teal-400/60 bg-teal-500/5 pulse-teal' : 'border-white/5 bg-stone-900/40 opacity-60'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${!isP1Active && !pendingWord ? 'bg-teal-400 animate-pulse' : 'bg-stone-600'}`} />
-                <span className="font-display text-sm sm:text-lg font-semibold truncate">{roomState.players[2].name}</span>
-              </div>
-              <span className="text-xs text-stone-400">{wordCounts[2]}</span>
-            </div>
-            <div className={`font-mono-ar text-4xl sm:text-7xl font-bold text-center py-2 ${!isP1Active && !pendingWord ? (displayTimes[2] <= 10 ? 'text-rose-300' : 'text-teal-200') : 'text-stone-500'}`}>
-              {formatTime(displayTimes[2])}
-            </div>
-            {!isP1Active && !pendingWord && (
-              <div className="mt-2 flex justify-center">
-                <TurnCircle timeLeft={turnTimeLeft} total={turnSkipSecs} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className={`bg-white/[0.03] border-2 rounded-3xl p-5 sm:p-6 mb-6 ${isP1Active ? 'border-amber-400/30' : 'border-teal-400/30'}`}>
-          <div className="text-center text-xs text-stone-400 mb-3 font-display">
-            دور <span className={`font-bold ${isP1Active ? 'text-amber-300' : 'text-teal-300'}`}>
-              {isP1Active ? roomState.players[1].name : roomState.players[2].name}
-            </span>
-          </div>
-          <div className="flex gap-2 sm:gap-3">
+          <div className="flex gap-2">
             <input
               ref={inputRef}
               type="text"
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { pendingWord ? confirmPending() : submitWord(); }}}
+              onKeyDown={(e) => { if (e.key === 'Enter') { pendingWord ? confirmPending() : submitWord(); } }}
               disabled={!!pendingWord}
-              placeholder={`كلمة تنتهي بـ "${roomState.settings.ending}"`}
-              className={`flex-1 bg-stone-900/80 border-2 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-stone-100 placeholder-stone-500 focus:outline-none transition-all font-display text-xl sm:text-2xl text-center disabled:opacity-50 ${
-                isP1Active ? 'border-amber-400/30 focus:border-amber-400/70' : 'border-teal-400/30 focus:border-teal-400/70'
-              } ${feedback?.type === 'error' ? 'shake border-rose-400/70' : ''}`}
+              placeholder={`كلمة تنتهي بـ ${roomState.settings.ending}`}
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
+              className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center disabled:opacity-50 ${feedback?.type === 'error' ? 'shake !border-rose-400/70' : ''}`}
+              style={{ borderColor: `${curColor}55` }}
             />
             <button
               onClick={submitWord}
               disabled={!currentInput.trim() || !!pendingWord}
-              className={`px-4 sm:px-6 rounded-2xl font-display font-bold disabled:opacity-30 disabled:cursor-not-allowed ${
-                isP1Active ? 'bg-amber-400/20 border-2 border-amber-400/40 text-amber-200' : 'bg-teal-400/20 border-2 border-teal-400/40 text-teal-200'
-              }`}
-            >
-              <Check className="w-5 h-5 sm:w-6 sm:h-6" />
+              aria-label="إرسال"
+              className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
+              style={cur === 1
+                ? { color: '#1a0800', background: 'linear-gradient(180deg, #ffd060, #e8940a 55%, #c87000)', boxShadow: '0 4px 0 #7a4000', border: '1px solid #b06000' }
+                : { color: '#001a18', background: 'linear-gradient(180deg, #5ef0d8, #0fb89a 55%, #0a9078)', boxShadow: '0 4px 0 #065040', border: '1px solid #0a8068' }}>
+              <Check className="w-6 h-6" />
             </button>
           </div>
-          {pendingWord && (
-            <div className="mt-4 bg-amber-500/10 border border-amber-400/30 rounded-2xl p-4 slide-in">
-              <p className="text-sm text-amber-200 mb-3 text-center">
-                <span className="font-display font-bold text-lg">&quot;{pendingWord}&quot;</span> غير موجودة في القاموس
-              </p>
-              <p className="text-xs text-stone-400 text-center mb-3">هل تتفقان على قبولها؟</p>
-              <div className="flex gap-2">
-                <button onClick={confirmPending} className="flex-1 bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 rounded-xl py-2 text-sm font-display font-semibold flex items-center justify-center gap-1.5">
-                  <Check className="w-4 h-4" /> نقبلها
-                </button>
-                <button onClick={rejectPending} className="flex-1 bg-rose-500/20 border border-rose-400/40 text-rose-200 rounded-xl py-2 text-sm font-display font-semibold flex items-center justify-center gap-1.5">
-                  <X className="w-4 h-4" /> نرفضها
-                </button>
+
+          {pendingWord ? (
+            <div className="mt-4 rounded-2xl p-4 slide-in bg-amber-500/10 border border-amber-400/30 text-center">
+              <div className="font-display font-black text-3xl text-amber-200 mb-1">{pendingWord}</div>
+              <p className="text-sm text-muted mb-3">مو موجودة في القاموس — تتفقون عليها؟</p>
+              <div className="flex gap-2.5">
+                <div className="flex-1"><Btn variant="green" size="md" icon={Check} onClick={confirmPending}>نقبلها</Btn></div>
+                <div className="flex-1"><Btn variant="red" size="md" icon={X} onClick={rejectPending}>نرفضها</Btn></div>
               </div>
             </div>
-          )}
-          {feedback && !pendingWord && (
-            <div className={`mt-3 text-center text-sm font-display slide-in ${feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
-              {feedback.type === 'success' ? <span className="inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" />{feedback.text}</span> : feedback.text}
+          ) : (
+            <div className="h-6 mt-2 text-center text-sm font-display">
+              {feedback && (
+                <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
+                </span>
+              )}
             </div>
           )}
-        </div>
-
-        {roomState.usedWords.length > 0 && (
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs uppercase tracking-widest text-stone-400 font-semibold">الكلمات المستخدمة</span>
-              <span className="text-xs text-stone-500">{roomState.usedWords.length}</span>
-            </div>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-              {roomState.usedWords.map((w, i) => (
-                <span key={i} className={`px-3 py-1 rounded-lg font-display text-sm border ${
-                  w.player === 1 ? 'bg-amber-500/10 border-amber-400/20 text-amber-200' : 'bg-teal-500/10 border-teal-400/20 text-teal-200'
-                }`}>{w.word}</span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+        </Card>
+      </ChessTable>
+    </Screen>
   );
 }
