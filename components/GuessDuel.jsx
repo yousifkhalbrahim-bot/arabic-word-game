@@ -7,9 +7,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ArrowLeft, Flag } from 'lucide-react';
 import { ArcadeBg, Num, PLAYER_COLORS, PLAYER_ON, PLAYER_DEEP } from '@/components/ui';
-import { GuessBoard, GuessKeyboard, MiniBoard, buildRows, usePhysicalKeys, LETTER_SET, FLIP_MS, PRAISE } from '@/components/GuessGame';
+import { GuessBoard, GuessKeyboard, MiniBoard, buildRows, usePhysicalKeys, LETTER_SET, FLIP_MS, PRAISE, WinBurst } from '@/components/GuessGame';
 import { LENGTHS, bankFor, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN } from '@/lib/guess';
-import { playAccept, playReject, playStreak } from '@/lib/sounds';
+import { playAccept, playReject, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { now } from '@/lib/clock';
 
 const solvedAt = (guesses) => {
@@ -82,6 +82,8 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
 
   const [current, setCurrent] = useState('');
   const [revealing, setRevealing] = useState(-1);
+  const [winRow, setWinRow] = useState(-1);
+  const [burst, setBurst] = useState(null);
   const [shakeRow, setShakeRow] = useState(false);
   const [toast, setToast] = useState(null);
   const [confirmUnknown, setConfirmUnknown] = useState('');
@@ -126,11 +128,15 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     if (n > prevLen.current) {
       const idx = n - 1;
       setRevealing(idx);
+      if (guessesRef.current[idx]) playReveal(guessesRef.current[idx].result, FLIP_MS);
       clearTimeout(revealTimer.current);
       revealTimer.current = setTimeout(() => {
         setRevealing(-1);
         const g = guessesRef.current[idx];
-        if (g && g.result.every(r => r === 'correct')) { playStreak(); flash(PRAISE[idx] || 'حليتها!', 1800); }
+        if (g && g.result.every(r => r === 'correct')) {
+          playWin(); setWinRow(idx); setBurst(PRAISE[idx] || 'حليتها!');
+          setTimeout(() => setBurst(null), 1900);
+        } else if (g && idx + 1 >= tries) playLose();
         else playAccept();
       }, FLIP_MS * len + 250);
     } else if (n < prevLen.current) {
@@ -138,7 +144,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       setRevealing(-1);
     }
     prevLen.current = n;
-  }, [myGuesses.length, len, flash]);
+  }, [myGuesses.length, len, flash, tries]);
   useEffect(() => () => clearTimeout(revealTimer.current), []);
 
   // تنبيه لما الخصم يحلها
@@ -177,6 +183,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
     if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
+    playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [myDone, roomState.status, submit, len, bank]);
 
@@ -295,7 +302,8 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
 
       {/* لوحتي */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 relative">
-        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact />
+        <GuessBoard rows={rows} len={len} revealing={iAmSetter ? -1 : revealing} shakeRow={shakeRow} compact winRow={iAmSetter ? -1 : winRow} />
+        {burst && <WinBurst text={burst} />}
         {toast && (
           <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
             style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>

@@ -11,7 +11,7 @@ import {
   LENGTHS, PLAYABLE_LENGTHS, bankFor, normalizeGuess, evaluateGuess, mergeKeyStates, KNOWN,
   dayNumber, dailyAnswer, randomAnswer, shareText,
 } from '@/lib/guess';
-import { playAccept, playReject, playGameOver, playStreak } from '@/lib/sounds';
+import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
@@ -69,6 +69,8 @@ export default function GuessGame({ onExit }) {
   const [stats, setStats] = useState(() => emptyStats(3));
   const [dailyDone, setDailyDone] = useState({});
   const [hints, setHints] = useState([]);          // مواضع الحروف المكشوفة
+  const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
+  const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
   const [rushEndsAt, setRushEndsAt] = useState(0);
   const [rushScore, setRushScore] = useState(0);
   const [rushOver, setRushOver] = useState(null);
@@ -202,6 +204,7 @@ export default function GuessGame({ onExit }) {
     setCurrent('');
     setConfirmUnknown('');
     setRevealing(guesses.length);
+    playReveal(result, FLIP_MS);
     if (mode === 'daily') save(dailyKey(len, day), { guesses: next, status: newStatus, hints });
 
     // بعد ما تخلص الحركة: لوّن الكيبورد وأعلن النتيجة
@@ -211,23 +214,25 @@ export default function GuessGame({ onExit }) {
       setKeyStates(k => mergeKeyStates(k, word, result));
       if (mode === 'rush') {
         if (rushOverRef.current) return;
-        if (won) { playStreak(); setRushScore(s => s + 1); flash('+١ 🔥', 900); setStatus('won'); setTimeout(nextRushWord, 650); }
-        else if (lost) { playGameOver(); flash(`الكلمة كانت: ${answer}`, 1600); setStatus('lost'); setTimeout(nextRushWord, 1400); }
+        if (won) { playStreak(); setWinRow(next.length - 1); setRushScore(s => s + 1); flash('+١ 🔥', 900); setStatus('won'); setTimeout(() => { setWinRow(-1); nextRushWord(); }, 900); }
+        else if (lost) { playLose(); flash(`الكلمة كانت: ${answer}`, 1600); setStatus('lost'); setTimeout(nextRushWord, 1400); }
         else playAccept();
         return;
       }
       if (won) {
-        playStreak();
-        flash(PRAISE[next.length - 1] || PRAISE[PRAISE.length - 1], 1800);
+        playWin();
+        setWinRow(next.length - 1);
+        setBurst(PRAISE[next.length - 1] || PRAISE[PRAISE.length - 1]);
+        setTimeout(() => setBurst(null), 1900);
       } else if (lost) {
-        playGameOver();
+        playLose();
       } else {
         playAccept();
       }
       if (newStatus !== 'playing') {
         setStatus(newStatus);
         finish(won, next);
-        setTimeout(() => setShowResult(true), won ? 1300 : 700);
+        setTimeout(() => setShowResult(true), won ? 2000 : 900);
       }
     }, total);
   }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord]);
@@ -267,6 +272,7 @@ export default function GuessGame({ onExit }) {
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
     if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
+    playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [busy, status, submit, len, bank]);
 
@@ -391,7 +397,7 @@ export default function GuessGame({ onExit }) {
             ))}
           </div>
         )}
-        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush' || len === 5} />
+        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush' || len === 5} winRow={winRow} />
         {mode !== 'rush' && (
           <div className="mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
             <div className="flex items-center gap-1.5">
@@ -421,6 +427,8 @@ export default function GuessGame({ onExit }) {
           </button>
         )}
       </div>
+
+      {burst && <WinBurst text={burst} />}
 
       {/* الكيبورد */}
       <GuessKeyboard keyStates={shownKeys} onKey={typeKey} allowed={bank} disabled={!!rushOver} />
@@ -572,7 +580,7 @@ export function buildRows(guesses, current, tries, active) {
   });
 }
 
-export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false }) {
+export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false, winRow = -1 }) {
   // حجم المربع: يتسع حسب العرض والارتفاع
   const tileSize = compact
     ? (len === 3 ? 'min(16vw, 4.6vh, 56px)' : len === 4 ? 'min(14vw, 4.6vh, 54px)' : 'min(12.5vw, 4.2vh, 50px)')
@@ -592,15 +600,31 @@ export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compac
                 ? { background: '#fff', color: '#3b1d6e', borderColor: '#ede9fe', boxShadow: '0 4px 0 #c4b5fd' }
                 : { background: 'rgba(255,255,255,0.1)', borderColor: row.active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)' };
             return (
-              <div key={i}
-                className={`rounded-xl border-2 flex items-center justify-center font-display font-black ${filled ? 'tile-pop' : ''}`}
-                style={{ width: tileSize, height: tileSize, fontSize: `calc(${tileSize} * 0.52)`, lineHeight: 1, paddingBottom: 3, ...style }}>
+              <div key={r === winRow ? `w${i}` : i}
+                className={`rounded-xl border-2 flex items-center justify-center font-display font-black ${filled ? 'tile-pop' : ''} ${r === winRow ? 'tile-win' : ''}`}
+                style={{ width: tileSize, height: tileSize, fontSize: `calc(${tileSize} * 0.52)`, lineHeight: 1, paddingBottom: 3, ...style, ...(r === winRow ? { animationDelay: `${i * 100}ms` } : {}) }}>
                 {ch}
               </div>
             );
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+// احتفال الفوز: توهج + أشعة + كلمة كبيرة + قصاصات
+export function WinBurst({ text }) {
+  return (
+    <div className="win-burst absolute inset-0 z-30 pointer-events-none flex items-center justify-center overflow-hidden">
+      <Confetti count={90} />
+      <div className="win-rays absolute w-[160vmax] h-[160vmax]"
+        style={{ background: 'repeating-conic-gradient(rgba(255,255,255,0.13) 0deg 10deg, transparent 10deg 20deg)', maskImage: 'radial-gradient(circle, #000 0%, transparent 55%)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, transparent 55%)' }} />
+      <div className="win-glow absolute w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,224,71,0.85) 0%, rgba(34,197,94,0.35) 45%, transparent 70%)' }} />
+      <div className="win-text relative font-display font-black text-white text-center px-6"
+        style={{ fontSize: 'clamp(2.6rem, 14vw, 4rem)', lineHeight: 1.15, textShadow: '0 5px 0 #15803d, 0 10px 30px rgba(20,5,60,0.6)' }}>
+        {text}
+      </div>
     </div>
   );
 }
