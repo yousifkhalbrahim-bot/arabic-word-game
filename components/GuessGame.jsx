@@ -186,18 +186,7 @@ export default function GuessGame({ onExit }) {
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [busy, status, submit, len]);
 
-  // كيبورد الكمبيوتر
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    const onKey = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === 'Enter') { e.preventDefault(); typeKey('ENTER'); }
-      else if (e.key === 'Backspace') { e.preventDefault(); typeKey('BACK'); }
-      else if (e.key.length === 1) typeKey(e.key);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [phase, typeKey]);
+  usePhysicalKeys(phase === 'playing', typeKey);
 
   const share = useCallback(async () => {
     const text = shareText({ results: guesses.map(g => g.result), won: status === 'won', tries, len, day: mode === 'daily' ? day : null });
@@ -276,42 +265,13 @@ export default function GuessGame({ onExit }) {
   }
 
   // -------- اللعب --------
-  const rows = Array.from({ length: tries }, (_, r) => {
-    if (r < guesses.length) return { letters: [...guesses[r].word], result: guesses[r].result };
-    if (r === guesses.length && status === 'playing') return { letters: [...current], result: null, active: true };
-    return { letters: [], result: null };
-  });
-  // حجم المربع: يتسع حسب العرض والارتفاع
-  const tileSize = len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)';
+  const rows = buildRows(guesses, current, tries, status === 'playing');
 
   return shell(
     <>
       {/* الشبكة */}
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 relative">
-        <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">
-          {rows.map((row, r) => (
-            <div key={r} className={`flex gap-[min(1.4vw,7px)] ${row.active && shakeRow ? 'shake' : ''}`}>
-              {Array.from({ length: len }, (_, i) => {
-                const ch = row.letters[i] || '';
-                const res = row.result?.[i];
-                const flipping = r === revealing;
-                const filled = !!ch && !res;
-                const style = res
-                  ? { ...TILE[res], ...(flipping ? { animation: `tile-flip ${FLIP_MS * 2}ms ease ${i * FLIP_MS}ms both`, transition: `background-color 0s ${i * FLIP_MS + FLIP_MS}ms, color 0s ${i * FLIP_MS + FLIP_MS}ms, box-shadow 0s ${i * FLIP_MS + FLIP_MS}ms` } : {}) }
-                  : filled
-                    ? { background: '#fff', color: '#3b1d6e', borderColor: '#ede9fe', boxShadow: '0 4px 0 #c4b5fd' }
-                    : { background: 'rgba(255,255,255,0.1)', borderColor: row.active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)' };
-                return (
-                  <div key={i}
-                    className={`rounded-xl border-2 flex items-center justify-center font-display font-black ${filled ? 'tile-pop' : ''}`}
-                    style={{ width: tileSize, height: tileSize, fontSize: `calc(${tileSize} * 0.52)`, lineHeight: 1, paddingBottom: 3, ...style }}>
-                    {ch}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+        <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} />
 
         {toast && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
@@ -328,29 +288,7 @@ export default function GuessGame({ onExit }) {
       </div>
 
       {/* الكيبورد */}
-      <div className="shrink-0 px-1.5 pb-2 pt-2 space-y-1.5" dir="ltr">
-        {KEY_ROWS.map((row, ri) => (
-          <div key={ri} className="flex justify-center gap-[4px]">
-            {row.map(k => {
-              const wide = k === 'ENTER' || k === 'BACK';
-              const st = keyStates[normalizeGuess(k)];
-              const style = k === 'ENTER'
-                ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
-                : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
-              return (
-                <button key={k} onClick={() => typeKey(k)}
-                  className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
-                  style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : 40, fontSize: '1.05rem', ...style }}
-                  aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
-                  {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
-                    : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
-                    : k}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <GuessKeyboard keyStates={keyStates} onKey={typeKey} />
 
       {/* النتيجة */}
       {showResult && (
@@ -462,4 +400,112 @@ function HelpSheet({ onClose }) {
       </Card>
     </div>
   );
+}
+
+// ============== أجزاء مشتركة (اللعب لحالك + التحدي أونلاين) ==============
+export { TILE, FLIP_MS, KEY_ROWS, LETTER_SET, PRAISE };
+
+export function buildRows(guesses, current, tries, active) {
+  return Array.from({ length: tries }, (_, r) => {
+    if (r < guesses.length) return { letters: [...guesses[r].word], result: guesses[r].result };
+    if (r === guesses.length && active) return { letters: [...current], result: null, active: true };
+    return { letters: [], result: null };
+  });
+}
+
+export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false }) {
+  // حجم المربع: يتسع حسب العرض والارتفاع
+  const tileSize = compact
+    ? (len === 4 ? 'min(14vw, 5.6vh, 54px)' : 'min(12.5vw, 5vh, 50px)')
+    : (len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)');
+  return (
+    <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">
+      {rows.map((row, r) => (
+        <div key={r} className={`flex gap-[min(1.4vw,7px)] ${row.active && shakeRow ? 'shake' : ''}`}>
+          {Array.from({ length: len }, (_, i) => {
+            const ch = row.letters[i] || '';
+            const res = row.result?.[i];
+            const flipping = r === revealing;
+            const filled = !!ch && !res;
+            const style = res
+              ? { ...TILE[res], ...(flipping ? { animation: `tile-flip ${FLIP_MS * 2}ms ease ${i * FLIP_MS}ms both`, transition: `background-color 0s ${i * FLIP_MS + FLIP_MS}ms, color 0s ${i * FLIP_MS + FLIP_MS}ms, box-shadow 0s ${i * FLIP_MS + FLIP_MS}ms` } : {}) }
+              : filled
+                ? { background: '#fff', color: '#3b1d6e', borderColor: '#ede9fe', boxShadow: '0 4px 0 #c4b5fd' }
+                : { background: 'rgba(255,255,255,0.1)', borderColor: row.active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)' };
+            return (
+              <div key={i}
+                className={`rounded-xl border-2 flex items-center justify-center font-display font-black ${filled ? 'tile-pop' : ''}`}
+                style={{ width: tileSize, height: tileSize, fontSize: `calc(${tileSize} * 0.52)`, lineHeight: 1, paddingBottom: 3, ...style }}>
+                {ch}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// لوحة صغيرة بالألوان فقط (تقدّم الخصم بدون ما تكشف حروفه)
+export function MiniBoard({ guesses, len, tries, size = 12 }) {
+  return (
+    <div className="flex flex-col gap-[3px]" dir="rtl">
+      {Array.from({ length: tries }, (_, r) => (
+        <div key={r} className="flex gap-[3px]">
+          {Array.from({ length: len }, (_, i) => {
+            const res = guesses[r]?.result?.[i];
+            return (
+              <div key={i} className="rounded-[3px]"
+                style={{ width: size, height: size, background: res ? TILE[res].background : 'rgba(255,255,255,0.18)' }} />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function GuessKeyboard({ keyStates, onKey, disabled = false }) {
+  return (
+    <div className={`shrink-0 px-1.5 pb-2 pt-2 space-y-1.5 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
+      {KEY_ROWS.map((row, ri) => (
+        <div key={ri} className="flex justify-center gap-[4px]">
+          {row.map(k => {
+            const wide = k === 'ENTER' || k === 'BACK';
+            const st = keyStates[normalizeGuess(k)];
+            const style = k === 'ENTER'
+              ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' }
+              : st ? KEY[st] : { background: 'rgba(255,255,255,0.92)', color: '#3b1d6e', boxShadow: '0 3px 0 #c4b5fd' };
+            return (
+              <button key={k} onClick={() => onKey(k)}
+                className="btn-3d rounded-lg flex items-center justify-center font-display font-black"
+                style={{ height: k === 'ENTER' ? 'min(11vw, 44px)' : 'min(13vw, 52px)', flex: k === 'ENTER' ? '1 1 100%' : wide ? '1.6 1 0' : '1 1 0', maxWidth: k === 'ENTER' ? 420 : wide ? 62 : 40, fontSize: '1.05rem', ...style }}
+                aria-label={k === 'ENTER' ? 'إدخال' : k === 'BACK' ? 'حذف' : k}>
+                {k === 'ENTER' ? <span className="flex items-center gap-2">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
+                  : k === 'BACK' ? <Delete className="w-5 h-5" strokeWidth={2.6} />
+                  : k}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// كيبورد الكمبيوتر
+export function usePhysicalKeys(active, onKey) {
+  useEffect(() => {
+    if (!active) return;
+    const handler = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      if (e.key === 'Enter') { e.preventDefault(); onKey('ENTER'); }
+      else if (e.key === 'Backspace') { e.preventDefault(); onKey('BACK'); }
+      else if (e.key.length === 1) onKey(e.key);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [active, onKey]);
 }

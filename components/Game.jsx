@@ -4,20 +4,22 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User,
 } from 'lucide-react';
 import {
   supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole,
   roomJoin, roomLeave, roomCas, roomRematch, raceSubmit, raceSkip, raceFreeze, raceFinish, raceResign,
   isNewerState, getCurrentRoom, setCurrentRoom, getSavedName, saveName,
 } from '@/lib/supabase';
-import { NORMALIZED_DICT, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
+import { NORMALIZED_DICT, ARABIC_DICTIONARY, normalize, normalizeStrict, lookupWord } from '@/lib/dictionary';
 import { now, syncClock } from '@/lib/clock';
 import { useVisualViewport } from '@/lib/useViewport';
 import { demoRoom } from '@/lib/demo';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
-import GuessGame from '@/components/GuessGame';
+import GuessGame, { MiniBoard } from '@/components/GuessGame';
+import GuessDuel, { settleGuessDuel } from '@/components/GuessDuel';
+import { LENGTHS as GUESS_LENGTHS, randomAnswer } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
@@ -82,6 +84,19 @@ const createInitialState = (code, hostName, settings) => {
   };
 };
 
+const createGuessState = (code, hostName, len) => ({
+  code,
+  mode: 'guess',
+  status: 'waiting',
+  players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
+  settings: { len },
+  answer: randomAnswer(len),
+  guesses_p1: [],
+  guesses_p2: [],
+  winner: null,
+  gameNumber: 1,
+});
+
 const generateEndingQueue = () => shuffledEndingQueue(ENDING_PRESETS.map(p => p.value));
 
 const wordStr = (w) => (typeof w === 'string' ? w : w?.w ?? '');
@@ -108,8 +123,10 @@ function RoomInfo({ state }) {
   const isRace = state.mode === 'race';
   const rows = [
     ['المضيف', <span key="h" className="font-black" style={{ color: PLAYER_INK[1] }}>{state.players[1]?.name}</span>],
-    ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : '⏱ ساعة الشطرنج'],
-    ...(isRace
+    ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : state.mode === 'guess' ? '🟩 خمّن الكلمة' : '⏱ ساعة الشطرنج'],
+    ...(state.mode === 'guess'
+      ? [['عدد الحروف', <span key="l"><bdi className="font-mono-ar">{state.settings.len}</bdi> أحرف · <bdi className="font-mono-ar">{GUESS_LENGTHS[state.settings.len].tries}</bdi> محاولات</span>]]
+      : isRace
       ? [['المدة', <span key="d"><bdi className="font-mono-ar">{state.settings.duration}</bdi> ثانية</span>]]
       : [
           ['السرعة', TIME_CONTROLS.find(t => t.id === state.settings.timeControlId)?.name],
@@ -590,6 +607,7 @@ export default function Game() {
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
   const [selectedTurnSkip, setSelectedTurnSkip] = useState(10);
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
+  const [selectedGuessLen, setSelectedGuessLen] = useState(4);
   const [selectedEnding, setSelectedEnding] = useState('ام');
   const [customEnding, setCustomEnding] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -611,6 +629,9 @@ export default function Game() {
   const prevStatusRef = useRef(null);
   const prevPendingRef = useRef(null);
   const lastTickRef = useRef(null);
+
+  const roomStateRef = useRef(null);
+  useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
 
   // يطبّق حالة من السيرفر فقط إذا كانت أحدث من الموجودة (يتجاهل التحديثات المتأخرة)
   const applyServerState = useCallback((next) => {
@@ -775,7 +796,7 @@ export default function Game() {
 
   // ============== كشف انتهاء الوقت ==============
   useEffect(() => {
-    if (screen !== 'playing' || !roomState || roomState.mode === 'race' || roomState.status !== 'playing') return;
+    if (screen !== 'playing' || !roomState || roomState.mode || roomState.status !== 'playing') return;
     if (roomCode === 'DEMO') return;
     if (roomState.pendingWord || roomState.winner || winSubmittedRef.current) return;
     // اللاعب الحالي يكتب أولاً؛ إذا جواله نايم، الخصم يتولى بعد ثانيتين.
@@ -813,7 +834,7 @@ export default function Game() {
   // ============== الأصوات ==============
   useEffect(() => {
     if (!roomState) return;
-    if (roomState.mode === 'race') return;
+    if (roomState.mode) return;
     const newLen = (roomState.usedWords || []).length;
     const prevTs = prevTurnStartedRef.current;
 
@@ -841,14 +862,14 @@ export default function Game() {
   const turnSkipSecs = roomState?.settings?.turnSkipSeconds ?? TURN_SKIP_SECONDS;
 
   const turnTimeLeft = useMemo(() => {
-    if (!roomState || roomState.mode === 'race' || roomState.status !== 'playing' || roomState.pendingWord) return turnSkipSecs;
+    if (!roomState || roomState.mode || roomState.status !== 'playing' || roomState.pendingWord) return turnSkipSecs;
     const elapsed = (displayNow - roomState.turnStartedAt) / 1000;
     return Math.max(0, turnSkipSecs - elapsed);
   }, [roomState, displayNow, turnSkipSecs]);
 
   // نقرات العد التنازلي
   useEffect(() => {
-    if (!roomState || roomState.mode === 'race' || roomState.status !== 'playing' || roomState.pendingWord) {
+    if (!roomState || roomState.mode || roomState.status !== 'playing' || roomState.pendingWord) {
       lastTickRef.current = null;
       return;
     }
@@ -871,7 +892,7 @@ export default function Game() {
   const createRoom = useCallback(async () => {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
     const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
-    if (selectedMode !== 'race' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
+    if (selectedMode === 'chess' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
 
     setBusy(true);
     setGlobalError(null);
@@ -887,6 +908,8 @@ export default function Game() {
 
       const state = selectedMode === 'race'
         ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
+        : selectedMode === 'guess'
+        ? createGuessState(code, hostName.trim(), selectedGuessLen)
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
       await saveRoom(code, state);
@@ -898,7 +921,7 @@ export default function Game() {
     } finally {
       setBusy(false);
     }
-  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, enterRoom]);
+  }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, enterRoom]);
 
   const checkJoinCode = useCallback(async () => {
     if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون ٤ أرقام'); return; }
@@ -997,6 +1020,36 @@ export default function Game() {
     }
   }, [roomState, myRole, currentInput, commitChess]);
 
+  // كل لاعب يضيف تخمينه فقط؛ لو تعارض مع تخمين الخصم بنفس اللحظة نعيد المحاولة على أحدث نسخة
+  const submitGuessOnline = useCallback(async (word, result) => {
+    const key = `guesses_p${myRole}`;
+    const tries = GUESS_LENGTHS[roomStateRef.current?.settings?.len || 4].tries;
+    const build = (base) => {
+      if (!base || base.status !== 'playing') return null;
+      const mine = base[key] || [];
+      if (mine.length >= tries || mine.some(g => g.result.every(r => r === 'correct'))) return null;
+      return settleGuessDuel({ ...base, [key]: [...mine, { word, result, ts: now() }] });
+    };
+    let base = roomStateRef.current;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const next = build(base);
+      if (!next) return;
+      setRoomState(next);
+      if (roomCode === 'DEMO') return; // وضع المعاينة
+      try {
+        const r = await roomCas(roomCode, base.version ?? 0, next);
+        if (r?.state) applyServerState(r.state);
+        if (r?.ok || !r?.state) return;
+        base = r.state;
+      } catch (e) {
+        console.error('[guess]', e);
+        setConnected(false);
+        try { const fresh = await getRoom(roomCode); if (fresh) applyServerState(fresh); } catch {}
+        return;
+      }
+    }
+  }, [myRole, roomCode, applyServerState]);
+
   const acceptPending = useCallback(() => {
     if (!roomState?.pendingWord) return;
     const { word, by } = roomState.pendingWord;
@@ -1038,7 +1091,19 @@ export default function Game() {
       2: { ...roomState.players[2], left: false },
     };
     let newState;
-    if (roomState.mode === 'race') {
+    if (roomState.mode === 'guess') {
+      newState = {
+        ...roomState,
+        status: 'playing',
+        players: cleanPlayers,
+        answer: randomAnswer(roomState.settings.len),
+        guesses_p1: [],
+        guesses_p2: [],
+        winner: null,
+        resigned: null,
+        gameNumber: newGameNum,
+      };
+    } else if (roomState.mode === 'race') {
       newState = {
         ...roomState,
         status: 'playing',
@@ -1132,7 +1197,7 @@ export default function Game() {
     window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${inviteUrl}`)}`, '_blank', 'noopener');
   }, [inviteUrl, roomCode]);
 
-  const startLocal = useCallback(() => {
+  const startLocal = useCallback((vsBot = false) => {
     const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
     if (!hostName.trim() || !finalEnding) {
       setGlobalError('أكمل البيانات أولاً');
@@ -1142,7 +1207,8 @@ export default function Game() {
     const state = createInitialState('local', hostName.trim(), {
       timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip,
     });
-    state.players[2] = { name: 'اللاعب الثاني', joined: true };
+    state.players[2] = vsBot ? { name: 'الكمبيوتر 🤖', joined: true } : { name: 'اللاعب الثاني', joined: true };
+    state.vsBot = vsBot;
     state.status = 'playing';
     state.turnStartedAt = Date.now();
     setRoomCode('local');
@@ -1154,7 +1220,7 @@ export default function Game() {
 
   // ============== المعطيات المحسوبة ==============
   const displayTimes = useMemo(() => {
-    if (!roomState || roomState.mode === 'race') return { 1: 0, 2: 0 };
+    if (!roomState || roomState.mode) return { 1: 0, 2: 0 };
     const t1 = roomState.timeRemaining[1];
     const t2 = roomState.timeRemaining[2];
     if (roomState.status !== 'playing' || roomState.pendingWord) return { 1: t1, 2: t2 };
@@ -1190,6 +1256,69 @@ export default function Game() {
     );
   }
 
+  // ============== الألعاب: كل لعبة فيها "لحالك" و "مع صاحبك" ==============
+  const GAMES = {
+    chess: {
+      title: 'ساعة الشطرنج', tagline: 'بالدور، ولكل لاعب ساعته',
+      rules: 'نهاية وحدة للجولة كلها. كل واحد يكتب كلمة بدوره قبل ما يخلص وقته — اللي يخلص وقته أول يخسر.',
+      bg: '#ffb020', sh: '#b86b00', fg: '#4a2400',
+      icon: <Hourglass className="w-6 h-6" strokeWidth={2.6} />,
+      solo: { title: 'ضد الكمبيوتر', desc: 'تحدّى الكمبيوتر بالدور', icon: <Bot className="w-6 h-6 text-white" strokeWidth={2.6} />,
+        go: () => { setMyRoleState('bot'); setScreen('create-setup'); } },
+      local: true,
+    },
+    race: {
+      title: 'سباق الكلمات', tagline: 'الأسرع ياخذ النقطة',
+      rules: 'كل سؤال نهاية مختلفة، وأول واحد يكتب كلمة صح ياخذ النقطة. فيه تجميد للخصم وتجاوز للسؤال!',
+      bg: '#22d3ee', sh: '#0e7490', fg: '#083344',
+      icon: <Zap className="w-6 h-6" strokeWidth={2.6} />,
+      solo: { title: 'تدريب ضد الوقت', desc: 'أكبر عدد كلمات، وسجّل رقمك القياسي', icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />,
+        go: () => setScreen('solo') },
+    },
+    guess: {
+      title: 'خمّن الكلمة', tagline: 'اكتشف الكلمة المخفية بالألوان', isNew: true,
+      rules: 'خمّن الكلمة المخفية. الأخضر حرف صح بمكانه، والبرتقالي حرف موجود بمكان ثاني.',
+      bg: '#22c55e', sh: '#15803d', fg: '#ffffff',
+      icon: (
+        <span className="grid grid-cols-2 gap-[3px]">
+          <i className="block w-[10px] h-[10px] rounded-[3px] bg-white" />
+          <i className="block w-[10px] h-[10px] rounded-[3px] bg-[#ffb020]" />
+          <i className="block w-[10px] h-[10px] rounded-[3px] bg-white/45" />
+          <i className="block w-[10px] h-[10px] rounded-[3px] bg-white" />
+        </span>
+      ),
+      solo: { title: 'تحدي اليوم + لعب حر', desc: 'كلمة جديدة كل يوم، وإحصائياتك', icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />,
+        go: () => setScreen('guess') },
+    },
+  };
+
+  const openGame = (id) => { setSelectedMode(id); setMyRoleState(null); setGlobalError(null); setScreen('mode'); };
+
+  const listRow = ({ key, title, desc, icon, bg, sh, onClick, badge, chips }) => (
+    <button key={key} onClick={onClick}
+      className="btn-3d relative w-full rounded-2xl bg-white p-2.5 pl-3 flex items-center gap-3 text-right"
+      style={{ boxShadow: '0 5px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+      <span className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: bg, boxShadow: `0 3px 0 ${sh}` }}>
+        {icon}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="flex items-center gap-2">
+          <span className="font-display font-black text-[1.05rem] text-[#2e1065]">{title}</span>
+          {badge && <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.62rem] font-display font-black text-white">{badge}</span>}
+        </span>
+        <span className="block text-[0.78rem] font-bold text-[#6d5b95] truncate">{desc}</span>
+        {chips && (
+          <span className="flex gap-1.5 mt-1">
+            {chips.map(c => (
+              <span key={c} className="rounded-full bg-[#f5f3ff] border border-[#ede9fe] px-2 py-[1px] text-[0.62rem] font-display font-bold text-[#6d28d9]">{c}</span>
+            ))}
+          </span>
+        )}
+      </span>
+      <ChevronLeft className="shrink-0 w-5 h-5 text-[#c4b5fd]" strokeWidth={3} />
+    </button>
+  );
+
   if (screen === 'menu') {
     const logo = [
       { ch: 'ك', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -8 },
@@ -1198,30 +1327,6 @@ export default function Game() {
       { ch: 'ا', bg: '#22c55e', fg: '#ffffff', sh: '#15803d', r: 7 },
       { ch: 'ت', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -6 },
     ];
-    const go = (s, local) => () => {
-      if (local) setMyRoleState('local');
-      setScreen(s);
-      setGlobalError(null);
-    };
-    const solo = [
-      {
-        key: 'guess', title: 'خمّن الكلمة', desc: 'اكتشف الكلمة المخفية بالألوان', isNew: true, onClick: go('guess'),
-        icon: (
-          <span className="grid grid-cols-2 gap-[3px]">
-            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#22c55e]" />
-            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#ffb020]" />
-            <i className="block w-[11px] h-[11px] rounded-[3px] bg-white/40" />
-            <i className="block w-[11px] h-[11px] rounded-[3px] bg-[#22c55e]" />
-          </span>
-        ),
-        bg: '#7c3aed', sh: '#4c1d95',
-      },
-      { key: 'solo', title: 'تدريب فردي', desc: 'أكبر عدد كلمات قبل ما يخلص الوقت', onClick: go('solo'),
-        icon: <Target className="w-6 h-6 text-white" strokeWidth={2.6} />, bg: '#ff4d6d', sh: '#b3123a' },
-      { key: 'local', title: 'جهاز واحد', desc: 'اثنين بالدور على نفس الجوال', onClick: go('create-setup', true),
-        icon: <Smartphone className="w-6 h-6 text-white" strokeWidth={2.6} />, bg: '#0ea5e9', sh: '#0369a1' },
-    ];
-
     return (
       <Screen>
         <div className="fade-in py-3">
@@ -1248,56 +1353,93 @@ export default function Game() {
             <p className="text-white/85 font-display font-bold text-sm mt-1">مين أسرع واحد يلقى الكلمة؟ ⚡</p>
           </div>
 
-          {/* مع صاحبك */}
-          <Card className="p-4 mb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="w-[18px] h-[18px] text-[#7c3aed]" strokeWidth={2.6} />
-              <span className="font-display font-black text-[#4c1d95]">العب مع صاحبك</span>
-              <span className="text-xs text-muted font-bold mr-auto">كل واحد من جواله</span>
+          {/* الألعاب */}
+          <div className="flex items-center gap-2 mb-2.5 px-1">
+            <span className="font-display font-black text-white">اختر اللعبة</span>
+            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+          </div>
+          <div className="space-y-3 mb-6">
+            {Object.entries(GAMES).map(([id, g]) => listRow({
+              key: id, title: g.title, desc: g.tagline, bg: g.bg, sh: g.sh,
+              icon: <span style={{ color: g.fg }}>{g.icon}</span>,
+              badge: g.isNew ? 'جديد' : null,
+              chips: ['لحالك', 'مع صاحبك'],
+              onClick: () => openGame(id),
+            }))}
+          </div>
+
+          {/* عندك كود؟ */}
+          <button onClick={() => { setScreen('join-setup'); setGlobalError(null); }}
+            className="btn-3d w-full rounded-2xl py-3 flex items-center justify-center gap-2 font-display font-black"
+            style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
+            <LogIn className="w-5 h-5" strokeWidth={2.6} />
+            عندك كود غرفة؟ ادخل
+          </button>
+        </div>
+      </Screen>
+    );
+  }
+
+  // -------- اختيار طريقة اللعب --------
+  if (screen === 'mode') {
+    const g = GAMES[selectedMode] || GAMES.chess;
+    return (
+      <Screen>
+        <div className="fade-in py-2">
+          <BackButton onClick={() => setScreen('menu')} />
+
+          <div className="text-center mb-5">
+            <div className="mx-auto mb-3 w-16 h-16 rounded-2xl flex items-center justify-center rotate-[-5deg]"
+              style={{ background: g.bg, color: g.fg, boxShadow: `0 6px 0 ${g.sh}`, border: '3px solid rgba(255,255,255,0.6)' }}>
+              <span className="scale-125">{g.icon}</span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={go('create-setup')}
-                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
-                style={{ color: '#4a2400', background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid #ffc95c' }}>
-                <UserPlus className="w-6 h-6" strokeWidth={2.6} />
-                <span className="text-[1rem]">إنشاء غرفة</span>
-              </button>
-              <button onClick={go('join-setup')}
-                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
-                style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
-                <LogIn className="w-6 h-6" strokeWidth={2.6} />
-                <span className="text-[1rem]">دخول بكود</span>
-              </button>
-            </div>
-          </Card>
+            <h2 className="font-display font-black text-white" style={{ fontSize: 'clamp(1.9rem, 9vw, 2.4rem)', lineHeight: 1.2, textShadow: '0 4px 0 rgba(46,16,101,0.45)' }}>
+              {g.title}
+            </h2>
+            <p className="text-white/85 text-sm font-display font-bold leading-relaxed mt-1 px-2">{g.rules}</p>
+          </div>
 
           {/* لحالك */}
           <div className="flex items-center gap-2 mb-2.5 px-1">
-            <span className="font-display font-black text-white">العب لحالك</span>
+            <User className="w-4 h-4 text-white" strokeWidth={2.8} />
+            <span className="font-display font-black text-white">لحالك</span>
             <div className="h-[2px] flex-1 rounded-full bg-white/20" />
           </div>
-          <div className="space-y-3">
-            {solo.map(m => (
-              <button key={m.key} onClick={m.onClick}
-                className="btn-3d relative w-full rounded-2xl bg-white p-2.5 pl-3 flex items-center gap-3 text-right"
-                style={{ boxShadow: '0 5px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
-                <span className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ background: m.bg, boxShadow: `0 3px 0 ${m.sh}` }}>
-                  {m.icon}
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="font-display font-black text-[1.05rem] text-[#2e1065]">{m.title}</span>
-                    {m.isNew && (
-                      <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.62rem] font-display font-black text-white">جديد</span>
-                    )}
-                  </span>
-                  <span className="block text-[0.78rem] font-bold text-[#6d5b95] truncate">{m.desc}</span>
-                </span>
-                <ChevronLeft className="shrink-0 w-5 h-5 text-[#c4b5fd]" strokeWidth={3} />
-              </button>
-            ))}
+          <div className="mb-5">
+            {listRow({ key: 'solo', title: g.solo.title, desc: g.solo.desc, icon: g.solo.icon, bg: '#ff4d6d', sh: '#b3123a', onClick: g.solo.go })}
           </div>
+
+          {/* مع صاحبك */}
+          <div className="flex items-center gap-2 mb-2.5 px-1">
+            <Users className="w-4 h-4 text-white" strokeWidth={2.8} />
+            <span className="font-display font-black text-white">مع صاحبك</span>
+            <div className="h-[2px] flex-1 rounded-full bg-white/20" />
+          </div>
+          <Card className="p-3.5">
+            <div className="text-xs text-muted font-bold mb-2.5">أونلاين — كل واحد من جواله</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => { setMyRoleState(null); setScreen('create-setup'); setGlobalError(null); }}
+                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
+                style={{ color: '#4a2400', background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid #ffc95c' }}>
+                <UserPlus className="w-6 h-6" strokeWidth={2.6} />
+                <span>إنشاء غرفة</span>
+              </button>
+              <button onClick={() => { setScreen('join-setup'); setGlobalError(null); }}
+                className="btn-3d rounded-2xl py-3 flex flex-col items-center gap-1 font-display font-black"
+                style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
+                <LogIn className="w-6 h-6" strokeWidth={2.6} />
+                <span>دخول بكود</span>
+              </button>
+            </div>
+            {g.local && (
+              <button onClick={() => { setMyRoleState('local'); setScreen('create-setup'); setGlobalError(null); }}
+                className="btn-3d w-full mt-3 rounded-2xl py-2.5 flex items-center justify-center gap-2 font-display font-black text-[#5b21b6]"
+                style={{ background: '#f5f3ff', boxShadow: '0 4px 0 #ddd6fe', border: '2px solid #ede9fe' }}>
+                <Smartphone className="w-5 h-5" strokeWidth={2.6} />
+                أو على جهاز واحد بالدور
+              </button>
+            )}
+          </Card>
         </div>
       </Screen>
     );
@@ -1315,20 +1457,29 @@ export default function Game() {
 
   // -------- شاشة إعداد الإنشاء --------
   if (screen === 'create-setup') {
-    const isLocal = myRole === 'local';
-    const isRace = !isLocal && selectedMode === 'race';
+    const isBot = myRole === 'bot';
+    const isLocal = myRole === 'local' || isBot;
+    const game = isLocal ? 'chess' : selectedMode;
+    const isRace = game === 'race';
+    const isGuess = game === 'guess';
+    const isChess = game === 'chess';
+    const gameName = GAMES[game]?.title;
     const example = ENDING_PRESETS.find(p => p.value === selectedEnding)?.example;
+    const backToMode = () => { setMyRoleState(null); setGlobalError(null); setScreen('mode'); };
+
     return (
-      <Screen glow="#fbbf24">
-        <BackButton onClick={leaveRoom} />
+      <Screen>
+        <BackButton onClick={backToMode} />
         <Card className="p-5 sm:p-7 fade-in">
-          <Title sub={isLocal ? 'العبوا بالتناوب على نفس الجهاز' : 'بعد الإنشاء، أرسل الدعوة لصاحبك'}>
-            {isLocal ? 'لعبة على جهاز واحد' : 'غرفة جديدة'}
+          <Title sub={isBot ? `${gameName} · أنت ضد الكمبيوتر بالدور`
+            : isLocal ? `${gameName} · بالتناوب على نفس الجوال`
+            : `${gameName} · بعد الإنشاء أرسل الدعوة لصاحبك`}>
+            {isBot ? 'ضد الكمبيوتر 🤖' : isLocal ? 'جهاز واحد' : 'غرفة جديدة'}
           </Title>
 
           <div className="space-y-5">
             <div>
-              <Label>{isLocal ? 'اسم اللاعب الأول' : 'اسمك'}</Label>
+              <Label>{isLocal && !isBot ? 'اسم اللاعب الأول' : 'اسمك'}</Label>
               <input
                 type="text"
                 value={hostName}
@@ -1341,25 +1492,7 @@ export default function Game() {
               />
             </div>
 
-            {!isLocal && (
-              <div>
-                <Label>نوع اللعبة</Label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[
-                    { id: 'chess', label: 'ساعة الشطرنج', sub: 'بالأدوار، ولكل لاعب ساعته', Icon: Hourglass },
-                    { id: 'race',  label: 'سباق الكلمات', sub: 'الاثنين يكتبون بنفس الوقت', Icon: Zap },
-                  ].map(({ id, label, sub, Icon }) => (
-                    <Choice key={id} selected={selectedMode === id} onClick={() => setSelectedMode(id)} className="p-3.5">
-                      <Icon className="w-6 h-6 mx-auto mb-1.5" style={{ color: selectedMode === id ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
-                      <div className="font-display font-bold">{label}</div>
-                      <div className="text-[0.72rem] opacity-75 mt-0.5 leading-snug">{sub}</div>
-                    </Choice>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!isRace && (
+            {isChess && (
               <>
                 <div>
                   <Label>وقت كل لاعب</Label>
@@ -1388,6 +1521,37 @@ export default function Game() {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <Label aside={
+                    <button onClick={() => setUseCustom(!useCustom)}
+                      className="text-xs font-display font-bold text-[#7c3aed] hover:text-[#5b21b6] transition-colors inline-flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> {useCustom ? 'النهايات الجاهزة' : 'نهاية مخصصة'}
+                    </button>
+                  }>نهاية الكلمات</Label>
+                  {!useCustom ? (
+                    <>
+                      <div className="grid grid-cols-5 gap-2">
+                        {ENDING_PRESETS.map(p => (
+                          <Choice key={p.value} selected={selectedEnding === p.value} onClick={() => setSelectedEnding(p.value)}
+                            className="font-display font-bold text-[1.35rem] leading-none py-2.5">
+                            {p.value}
+                          </Choice>
+                        ))}
+                      </div>
+                      {example && <p className="text-xs text-dim mt-2.5 text-center">مثل: <span className="text-muted">{example}</span></p>}
+                    </>
+                  ) : (
+                    <input
+                      type="text"
+                      value={customEnding}
+                      onChange={(e) => setCustomEnding(e.target.value)}
+                      placeholder="مثلاً: وب، اف"
+                      maxLength={4}
+                      className={`${inputClass} text-center font-display text-2xl`}
+                    />
+                  )}
+                  {isBot && useCustom && <p className="text-xs text-dim mt-2">الكمبيوتر يعرف كلمات القاموس بس، فالنهايات المخصصة أصعب عليه 😉</p>}
+                </div>
               </>
             )}
 
@@ -1408,42 +1572,26 @@ export default function Game() {
               </div>
             )}
 
-            {!isRace && (
+            {isGuess && (
               <div>
-                <Label aside={
-                  <button onClick={() => setUseCustom(!useCustom)}
-                    className="text-xs font-display font-bold text-[#7c3aed] hover:text-[#5b21b6] transition-colors inline-flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {useCustom ? 'النهايات الجاهزة' : 'نهاية مخصصة'}
-                  </button>
-                }>نهاية الكلمات</Label>
-                {!useCustom ? (
-                  <>
-                    <div className="grid grid-cols-5 gap-2">
-                      {ENDING_PRESETS.map(p => (
-                        <Choice key={p.value} selected={selectedEnding === p.value} onClick={() => setSelectedEnding(p.value)}
-                          className="font-display font-bold text-[1.35rem] leading-none py-2.5">
-                          {p.value}
-                        </Choice>
-                      ))}
-                    </div>
-                    {example && <p className="text-xs text-dim mt-2.5 text-center">مثل: <span className="text-muted">{example}</span></p>}
-                  </>
-                ) : (
-                  <input
-                    type="text"
-                    value={customEnding}
-                    onChange={(e) => setCustomEnding(e.target.value)}
-                    placeholder="مثلاً: وب، اف"
-                    maxLength={4}
-                    className={`${inputClass} text-center font-display text-2xl`}
-                  />
-                )}
+                <Label>عدد الحروف</Label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[4, 5].map(l => (
+                    <Choice key={l} selected={selectedGuessLen === l} onClick={() => setSelectedGuessLen(l)} className="py-2.5">
+                      <div className="font-display font-black text-xl leading-tight"><bdi className="font-mono-ar">{l}</bdi> أحرف</div>
+                      <div className="text-xs opacity-75"><bdi className="font-mono-ar">{GUESS_LENGTHS[l].tries}</bdi> محاولات</div>
+                    </Choice>
+                  ))}
+                </div>
+                <p className="text-xs text-dim mt-2.5 leading-relaxed">
+                  الاثنين يخمّنون نفس الكلمة. تشوف تقدّم صاحبك بالألوان، واللي يحلها بمحاولات أقل يفوز.
+                </p>
               </div>
             )}
 
             <ErrorNote>{globalError}</ErrorNote>
 
-            <Btn onClick={isLocal ? startLocal : createRoom} busy={busy} icon={Play}>
+            <Btn onClick={isLocal ? () => startLocal(isBot) : createRoom} busy={busy} icon={Play}>
               {isLocal ? 'ابدأ اللعبة' : 'إنشاء الغرفة'}
             </Btn>
           </div>
@@ -1557,6 +1705,11 @@ export default function Game() {
   }
 
   // -------- شاشة اللعب --------
+  if (screen === 'playing' && roomState && myRole && roomState.mode === 'guess') {
+    return <GuessDuel key={roomState.gameNumber} roomState={roomState} myRole={myRole} connected={connected}
+      onSubmitGuess={submitGuessOnline} onResign={resign} />;
+  }
+
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
     return <RaceGame key={roomState.gameNumber} roomState={roomState} setRoomState={setRoomState} applyServerState={applyServerState} myRole={myRole} roomCode={roomCode} />;
   }
@@ -1659,7 +1812,13 @@ export default function Game() {
     const oppLeft = roomState.players[oppRole]?.left === true;
     const oppResigned = roomState.resigned === oppRole;
     const iResigned = roomState.resigned === myRole;
-    const scoreOf = (r) => (isRace ? raceScore(roomState, r) : wordCounts[r]);
+    const isGuess = roomState.mode === 'guess';
+    const guessSolved = (r) => {
+      const g = roomState[`guesses_p${r}`] || [];
+      const i = g.findIndex(x => x.result.every(c => c === 'correct'));
+      return i < 0 ? 0 : i + 1;
+    };
+    const scoreOf = (r) => (isGuess ? (guessSolved(r) || '✗') : isRace ? raceScore(roomState, r) : wordCounts[r]);
     const iWon = !isDraw && winner === myRole;
 
     return (
@@ -1671,9 +1830,10 @@ export default function Game() {
             winnerName={!isDraw ? roomState.players[winner].name : ''}
             winnerPlayer={winner}
             subtitle={isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
-            unit={isRace ? 'نقطة' : 'كلمة'}
+            unit={isGuess ? 'محاولات' : isRace ? 'نقطة' : 'كلمة'}
             sides={[myRole, oppRole].map(r => ({
               name: roomState.players[r]?.name, player: r, score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
+              ...(isGuess ? { dim: !isDraw && winner !== r } : {}),
             }))}
           />
 
@@ -1685,7 +1845,22 @@ export default function Game() {
             </div>
           )}
 
-          <MatchSummary roomState={roomState} myRole={myRole} />
+          {isGuess ? (
+            <div className="mb-5 slide-in">
+              <div className="text-center text-white/85 text-sm font-display font-bold mb-2">الكلمة كانت</div>
+              <LetterTiles text={roomState.answer} size={roomState.settings.len === 4 ? 46 : 40} className="mb-4" />
+              <div className="grid grid-cols-2 gap-3">
+                {[myRole, oppRole].map(r => (
+                  <div key={r} className="glass rounded-2xl p-3 flex flex-col items-center gap-2">
+                    <span className="font-display font-black text-sm truncate max-w-full" style={{ color: PLAYER_COLORS[r] }}>{roomState.players[r]?.name}</span>
+                    <MiniBoard guesses={roomState[`guesses_p${r}`] || []} len={roomState.settings.len} tries={GUESS_LENGTHS[roomState.settings.len].tries} size={14} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <MatchSummary roomState={roomState} myRole={myRole} />
+          )}
 
           <div className="flex gap-2.5">
             {!oppLeft && !oppResigned && (
@@ -1715,15 +1890,16 @@ export default function Game() {
   if (screen === 'local-gameover' && roomState) {
     const winner = roomState.winner;
     const countOf = (r) => roomState.usedWords.filter(w => w.player === r).length;
+    const botWon = roomState.vsBot && winner === 2;
     return (
       <Screen glow={PLAYER_COLORS[winner]} className="py-2">
-        <Confetti />
+        {!botWon && <Confetti />}
         <div className="fade-in">
           <ResultHeader
             isDraw={false}
             winnerName={roomState.players[winner].name}
             winnerPlayer={winner}
-            subtitle="مبروك! 🎉"
+            subtitle={botWon ? 'الكمبيوتر فاز هالمرة… خذ ثأرك! 🤖' : 'مبروك! 🎉'}
             unit="كلمة"
             sides={[1, 2].map(r => ({ name: roomState.players[r].name, player: r, score: countOf(r) }))}
           />
@@ -1814,7 +1990,32 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
 
   useEffect(() => { inputRef.current?.focus(); }, [roomState.currentTurn]);
 
+  // -------- الكمبيوتر يلعب دوره --------
+  const bot = !!roomState.vsBot;
+  const botTurn = bot && roomState.currentTurn === 2;
+  useEffect(() => {
+    if (!botTurn || gameOverRef.current) return;
+    const ending = normalize(roomState.settings.ending);
+    const used = new Set(roomState.usedWords.map(w => normalizeStrict(w.word)));
+    const options = ARABIC_DICTIONARY.filter(w => {
+      const n = normalize(w);
+      return n.endsWith(ending) && n.length > ending.length && !used.has(normalizeStrict(w));
+    });
+    // أحياناً "ينقفل" ويخلّي وقته يروح — وكل ما قلّت الكلمات يصير أصعب عليه
+    const blankChance = 0.08 + Math.max(0, 0.25 - options.length / 200);
+    if (!options.length || Math.random() < blankChance) return;
+    const skipMs = (roomState.settings?.turnSkipSeconds ?? TURN_SKIP_SECONDS) * 1000;
+    const delay = Math.min(skipMs - 900, 1400 + Math.random() * Math.min(5200, skipMs * 0.55));
+    const t = setTimeout(() => {
+      if (gameOverRef.current) return;
+      acceptWord(options[Math.floor(Math.random() * options.length)]);
+    }, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botTurn, roomState.turnStartedAt]);
+
   const submitWord = () => {
+    if (botTurn) return;
     const word = currentInput.trim();
     if (!word) return;
     const normalized = normalize(word);
@@ -1846,6 +2047,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
       if (lu.valid) { canonicalLocal = lu.canonical; inDict = true; }
     }
     if (inDict) acceptWord(canonicalLocal);
+    else if (bot) { playReject(); setFeedback({ type: 'error', text: 'مو موجودة في القاموس' }); }
     else { setPendingWord(word); setFeedback(null); }
   };
 
@@ -1881,7 +2083,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
   const resign = () => {
     gameOverRef.current = true;
     playGameOver();
-    setRoomState({ ...roomState, status: 'finished', winner: roomState.currentTurn === 1 ? 2 : 1 });
+    setRoomState({ ...roomState, status: 'finished', winner: bot ? 2 : (roomState.currentTurn === 1 ? 2 : 1) });
     onGameOver();
   };
 
@@ -1913,14 +2115,14 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
         wordCounts={wordCounts}
         onResign={resign}
         topInfo={<>
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>جهاز واحد</span>
+          {bot ? <Bot className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+          <span>{bot ? 'ضد الكمبيوتر' : 'جهاز واحد'}</span>
           <span className="text-white/75">· {TIME_CONTROLS.find(t => t.id === roomState.settings.timeControlId)?.name}</span>
         </>}
       >
         <Card className="p-4 sm:p-5">
           <div className="text-center text-base mb-3 font-display font-black" style={{ color: PLAYER_INK[cur] }}>
-            دور {roomState.players[cur].name}
+            {botTurn ? <Thinking>الكمبيوتر يفكّر</Thinking> : bot ? 'دورك! 🔥' : <>دور {roomState.players[cur].name}</>}
           </div>
           <div className="flex gap-2">
             <input
@@ -1929,7 +2131,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { pendingWord ? confirmPending() : submitWord(); } }}
-              disabled={!!pendingWord}
+              disabled={!!pendingWord || botTurn}
               placeholder={`كلمة تنتهي بـ ${roomState.settings.ending}`}
               enterKeyHint="send"
               autoComplete="off"
@@ -1938,7 +2140,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
             />
             <button
               onClick={submitWord}
-              disabled={!currentInput.trim() || !!pendingWord}
+              disabled={!currentInput.trim() || !!pendingWord || botTurn}
               aria-label="إرسال"
               className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
               style={{ color: '#fff', background: '#22c55e', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>

@@ -158,7 +158,7 @@ export function Confetti({ count = 70 }) {
 // ============== رأس شاشة النتيجة + لوحة النقاط ==============
 // sides: [{ name, player, score, tag }] — الأول يظهر يمين
 export function ResultHeader({ isDraw, winnerName, winnerPlayer, subtitle, sides, unit }) {
-  const best = Math.max(...sides.map(s => s.score));
+  const best = Math.max(...sides.map(s => (typeof s.score === 'number' ? s.score : -Infinity)));
   const wColor = isDraw ? '#ffffff' : PLAYER_COLORS[winnerPlayer];
   return (
     <div className="text-center">
@@ -177,7 +177,7 @@ export function ResultHeader({ isDraw, winnerName, winnerPlayer, subtitle, sides
       <Card className="px-4 py-3 mb-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           {sides.map((s, i) => {
-            const lost = !isDraw && s.score < best;
+            const lost = s.dim ?? (!isDraw && s.score < best);
             return (
               <React.Fragment key={i}>
                 {i === 1 && <span className="font-display font-black text-[#c4b5fd] text-xl px-1">VS</span>}
