@@ -479,3 +479,9 @@ html { background: #4f46e5; }
 @media (prefers-reduced-motion: reduce) {
   .tile-win, .win-burst .win-text, .win-burst .win-glow, .win-burst .win-rays { animation: none !important; }
 }
+
+.kb-off { pointer-events: auto; }
+@media (max-height: 600px) { .streak-bar { display: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

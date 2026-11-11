@@ -4,7 +4,7 @@
 // خلفية تدرج بنفسجي/أزرق، بطاقات بيضاء بارزة، بلاطات حروف، وأزرار ممتلئة ثلاثية الأبعاد.
 
 import React from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 
 // ألوان اللاعبين: فاتح (للخلفيات)، غامق (للظل)، وحبر (للنص على الأبيض)
 export const PLAYER_COLORS = { 1: '#ffb020', 2: '#22d3ee' };
@@ -45,8 +45,8 @@ export function Screen({ children, className = '', center = true, wide = false, 
 export function BackButton({ onClick, children = 'رجوع' }) {
   return (
     <button onClick={onClick}
-      className="mb-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-display font-bold text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all">
-      <ArrowLeft className="w-4 h-4" /> {children}
+      className="mb-4 inline-flex items-center gap-1.5 rounded-full px-4 min-h-[40px] text-sm font-display font-bold text-white bg-white/15 hover:bg-white/25 active:scale-95 transition-all">
+      <ArrowRight className="w-4 h-4" /> {children}
     </button>
   );
 }
@@ -84,7 +84,7 @@ export function Label({ children, aside }) {
 const BTN = {
   gold:  { color: '#4a2400', background: '#ffb020', boxShadow: '0 6px 0 #b86b00', border: '2px solid #ffc95c' },
   teal:  { color: '#083344', background: '#22d3ee', boxShadow: '0 6px 0 #0e7490', border: '2px solid #67e8f9' },
-  green: { color: '#ffffff', background: '#22c55e', boxShadow: '0 6px 0 #15803d', border: '2px solid #4ade80' },
+  green: { color: '#ffffff', background: '#16a34a', boxShadow: '0 6px 0 #166534', border: '2px solid #4ade80' },
   red:   { color: '#ffffff', background: '#ff4d6d', boxShadow: '0 6px 0 #b3123a', border: '2px solid #ff7d93' },
   grape: { color: '#ffffff', background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' },
   wood:  { color: '#5b21b6', background: '#ffffff', boxShadow: '0 6px 0 #c4b5fd', border: '2px solid #ede9fe' },

@@ -167,7 +167,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     if (!KNOWN[len].has(word) && word !== normalizeGuess(answer) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash('مو في قاموسنا 🤔 — اضغط ✓ مرة ثانية للتأكيد', 2200);
+      flash('مو في قاموسنا 🤔 — اضغط تأكيد مرة ثانية', 2200);
       return;
     }
     setCurrent('');
@@ -182,7 +182,8 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     if (k === 'ENTER') return submit();
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
-    if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
+    if (!LETTER_SET.has(ch)) return;
+    if (bank && !bank.has(ch)) { flash('🔒 هذا الحرف مو في الكلمة'); return; }
     playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [myDone, roomState.status, submit, len, bank]);
@@ -231,9 +232,9 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       {/* العنوان */}
       <div className="shrink-0 flex items-center justify-between px-3 pt-2 pb-1">
         <button onClick={resign} aria-label="استسلام"
-          className="h-8 rounded-full flex items-center justify-center gap-1 px-2.5 font-display font-black text-xs transition-all active:scale-90"
+          className="h-10 rounded-full flex items-center justify-center gap-1 px-3 font-display font-black text-xs transition-all active:scale-90"
           style={{ background: confirmResign ? '#ff4d6d' : 'rgba(255,255,255,0.16)' }}>
-          {confirmResign ? <><Flag className="w-3.5 h-3.5" /> متأكد؟</> : <ArrowLeft className="w-4 h-4" strokeWidth={2.8} />}
+          <Flag className="w-3.5 h-3.5" /> {confirmResign ? 'متأكد؟' : 'استسلام'}
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.85rem' }}>
           <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#4ade80]' : 'bg-[#ff4d6d] animate-pulse'}`} />
@@ -305,7 +306,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         <GuessBoard rows={rows} len={len} revealing={iAmSetter ? -1 : revealing} shakeRow={shakeRow} compact winRow={iAmSetter ? -1 : winRow} />
         {burst && <WinBurst text={burst} />}
         {toast && (
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white max-w-[calc(100%-24px)] text-center z-10"
             style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>
             {toast}
           </div>

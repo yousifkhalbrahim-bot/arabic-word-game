@@ -7,7 +7,7 @@ import {
   Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User, Star, Pencil,
 } from 'lucide-react';
 import {
-  supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole,
+  supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole, roomCreate, roomCancel,
   roomJoin, roomLeave, roomCas, roomRematch, raceSubmit, raceSkip, raceFreeze, raceFinish, raceResign,
   isNewerState, getCurrentRoom, setCurrentRoom, getSavedName, saveName,
 } from '@/lib/supabase';
@@ -131,6 +131,18 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
   const [busy, setBusy] = useState(false);
   const mine = roomState.setter === myRole;
   const other = roomState.players[roomState.setter]?.name || 'صاحبك';
+  const otherRole = myRole === 1 ? 2 : 1;
+  if (roomState.players[otherRole]?.left) {
+    return (
+      <Screen>
+        <Card className="p-5 fade-in text-center">
+          <div className="text-4xl mb-2">👋</div>
+          <Title sub="الجولة انتهت">غادر {roomState.players[otherRole]?.name || 'صاحبك'} الغرفة</Title>
+          <Btn variant="wood" onClick={onExit}>خروج</Btn>
+        </Card>
+      </Screen>
+    );
+  }
   const submit = async () => {
     const w = normalizeGuess(word);
     const l = [...w].length;
@@ -482,9 +494,9 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
       {/* ===== شريط العنوان ===== */}
       <div className="shrink-0 flex items-center justify-between px-3 pt-1.5 pb-1">
         <button onClick={handleResign} aria-label="استسلام"
-          className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90"
+          className="h-10 rounded-full px-3 flex items-center justify-center gap-1 font-display font-black text-xs text-white transition-all active:scale-90"
           style={{ background: confirmResign ? '#ff4d6d' : 'rgba(255,255,255,0.16)' }}>
-          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
+          <Flag className="w-3.5 h-3.5" strokeWidth={2.8} /> {confirmResign ? 'متأكد؟' : 'استسلام'}
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.85rem' }}>
           <Zap className="w-4 h-4 text-[#ffb020]" fill="#ffb020" />
@@ -529,10 +541,11 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
             <LetterTiles key={`q-${currentEndingIndex}`} text={currentEnding} size={42} />
           </div>
 
+          <div className="shrink-0 w-full grid grid-cols-2 gap-2">
           {/* تجميد الخصم */}
-          <button onClick={handleFreeze}
+          <button onClick={handleFreeze} onPointerDown={e => e.preventDefault()}
             disabled={myDisplayScore < 3 || isOppFrozen || isFrozen || timeLeft <= 0}
-            className="btn-3d shrink-0 w-full flex items-center justify-between gap-1 rounded-xl px-2.5 py-1.5 font-display font-black"
+            className="btn-3d min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 font-display font-black"
             style={{ background: '#38bdf8', color: '#fff', boxShadow: '0 4px 0 #0369a1', border: '2px solid #7dd3fc', fontSize: '0.75rem' }}>
             <span className="flex items-center gap-1.5">
               <Snowflake className="w-3.5 h-3.5 shrink-0" strokeWidth={3} style={isOppFrozen ? { animation: 'spin-slow 3s linear infinite' } : undefined} />
@@ -540,17 +553,18 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
                 ? <>مجمّد <bdi>{Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}</bdi>ث</>
                 : 'تجميد'}
             </span>
-            <span className="shrink-0 rounded-full bg-white/25 px-1.5" style={{ fontSize: '0.68rem' }}>💎 3</span>
+            <span className="shrink-0 rounded-full bg-white/25 px-1.5" style={{ fontSize: '0.72rem' }}>💎 3</span>
           </button>
 
           {/* تجاوز السؤال */}
-          <button onClick={handleSkip}
+          <button onClick={handleSkip} onPointerDown={e => e.preventDefault()}
             disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
-            className="btn-3d shrink-0 w-full flex items-center justify-between gap-1 rounded-xl px-2.5 py-1.5 font-display font-black"
+            className="btn-3d min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 font-display font-black"
             style={{ background: '#fff', color: '#5b21b6', boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe', fontSize: '0.75rem' }}>
-            <span>تجاوز السؤال</span>
-            <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.68rem' }}>💎 1</span>
+            <span>تجاوز</span>
+            <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.72rem' }}>💎 1</span>
           </button>
+          </div>
 
           {/* الكلمة الأخيرة */}
           <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
@@ -594,7 +608,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
             placeholder={isFrozen ? `❄ مجمّد ${freezeSecsLeft}ث` : 'اكتب كلمة...'}
-            disabled={timeLeft <= 0 || isFrozen}
+            readOnly={timeLeft <= 0 || isFrozen}
             enterKeyHint="send"
             autoComplete="off"
             autoCorrect="off"
@@ -607,7 +621,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
               boxShadow: `0 5px 0 ${isFrozen ? '#38bdf8' : '#c4b5fd'}`,
             }}
           />
-          <button onClick={submitWord} disabled={!input.trim() || timeLeft <= 0 || isFrozen} aria-label="إرسال"
+          <button onClick={submitWord} onPointerDown={e => e.preventDefault()} disabled={!input.trim() || timeLeft <= 0 || isFrozen} aria-label="إرسال"
             className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
             style={{ background: isFrozen ? '#38bdf8' : '#22c55e', color: '#fff', boxShadow: `0 5px 0 ${isFrozen ? '#0369a1' : '#15803d'}`, border: `2px solid ${isFrozen ? '#7dd3fc' : '#4ade80'}` }}>
             {isFrozen
@@ -693,14 +707,19 @@ export default function Game() {
   const roomStateRef = useRef(null);
   useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
 
+  // آخر حالة أكّدها السيرفر — النقاط تنحسب منها بس (مو من العرض المؤقت)
+  const serverRef = useRef(null);
+
   // يطبّق حالة من السيرفر فقط إذا كانت أحدث من الموجودة (يتجاهل التحديثات المتأخرة)
   const applyServerState = useCallback((next) => {
     if (!next) return;
+    if (isNewerState(serverRef.current, next)) serverRef.current = next;
     setRoomState(prev => (isNewerState(prev, next) ? next : prev));
   }, []);
 
   const enterRoom = useCallback((code, role, state) => {
-    setMyRole(code, role);
+    serverRef.current = state;
+    setMyRole(code, role, state.rid);
     setCurrentRoom(code);
     setRoomInUrl(code);
     setRoomCode(code);
@@ -745,7 +764,7 @@ export default function Game() {
           if (urlCode) { setScreen('join-setup'); setJoinCode(urlCode); setGlobalError('ما لقينا غرفة بهذا الكود'); }
           return;
         }
-        const role = getMyRole(code);
+        const role = getMyRole(code, state);
         if (role && !state.players[role]?.left) {
           enterRoom(code, role, state);
           return;
@@ -781,7 +800,9 @@ export default function Game() {
   // فوز/تعادل أونلاين → نقاط (مرة وحدة لكل جولة)
   useEffect(() => {
     if (screen !== 'gameover' || !roomState || roomState.status !== 'finished' || !myRole || roomCode === 'DEMO') return;
-    const w = roomState.winner;
+    const confirmed = serverRef.current;
+    if (!confirmed || confirmed.status !== 'finished' || (confirmed.version ?? 0) !== (roomState.version ?? 0)) return;
+    const w = confirmed.winner;
     const custom = roomState.mode === 'guess' && roomState.settings?.custom;
     let pts = 0, win = false;
     if (w === 0) pts = POINTS.onlineDraw;
@@ -883,10 +904,10 @@ export default function Game() {
 
   // ============== مؤقت العرض ==============
   useEffect(() => {
-    if (screen !== 'playing') return;
+    if (screen !== 'playing' || roomState?.mode) return;
     const interval = setInterval(() => setDisplayNow(now()), 100);
     return () => clearInterval(interval);
-  }, [screen]);
+  }, [screen, roomState?.mode]);
 
   // ============== كتابة مشروطة لساعة الشطرنج ==============
   // تعرض التغيير فوراً، والسيرفر يرفضه إذا تغيّرت الغرفة في نفس اللحظة
@@ -908,6 +929,12 @@ export default function Game() {
   useEffect(() => {
     if (screen !== 'playing' || !roomState || roomState.mode || roomState.status !== 'playing') return;
     if (roomCode === 'DEMO') return;
+    if (roomState.pendingWord && roomState.pendingAt && !winSubmittedRef.current
+        && displayNow - roomState.pendingAt > 20000 + (roomState.pendingWord.by === myRole ? 2000 : 0)) {
+      winSubmittedRef.current = true;
+      acceptPending();
+      return;
+    }
     if (roomState.pendingWord || roomState.winner || winSubmittedRef.current) return;
     // اللاعب الحالي يكتب أولاً؛ إذا جواله نايم، الخصم يتولى بعد ثانيتين.
     // الكتابة المشروطة تمنع أي تكرار لو كتب الاثنان.
@@ -1017,21 +1044,20 @@ export default function Game() {
     setGlobalError(null);
 
     try {
-      let code, exists;
-      let tries = 0;
-      do {
-        code = generateRoomCode();
-        exists = await getRoom(code);
-        tries++;
-      } while (exists && tries < 10);
-
-      const state = selectedMode === 'race'
+      const rid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
+      const build = (code) => selectedMode === 'race'
         ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
         : selectedMode === 'guess'
         ? (guessCustom ? createGuessState(code, hostName.trim(), [...secret].length, secret, secretClue) : createGuessState(code, hostName.trim(), selectedGuessLen))
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
 
-      await saveRoom(code, state);
+      let code = null, state = null;
+      for (let tries = 0; tries < 12 && !code; tries++) {
+        const c = generateRoomCode();
+        const st = { ...build(c), rid };
+        if (await roomCreate(c, st)) { code = c; state = st; }
+      }
+      if (!code) throw new Error('ما لقينا كود فاضي، جرّب مرة ثانية');
       saveName(hostName.trim());
       enterRoom(code, 1, state);
     } catch (e) {
@@ -1049,7 +1075,7 @@ export default function Game() {
     try {
       const state = await getRoom(joinCode);
       if (!state) { setGlobalError('ما لقينا غرفة بهذا الكود'); return; }
-      const stored = getMyRole(joinCode);
+      const stored = getMyRole(joinCode, state);
       if (stored && !state.players[stored]?.left) { enterRoom(joinCode, stored, state); return; }
       if (state.players[2]?.joined) { setGlobalError('الغرفة ممتلئة'); return; }
       setJoinPreview(state);
@@ -1140,12 +1166,13 @@ export default function Game() {
         ...roomState,
         timeRemaining: { ...roomState.timeRemaining, [myRole]: newTimeForCurrent },
         pendingWord: { word, by: myRole },
-      });
+        pendingAt: now(),
+      }, 'pendingAt');
     }
   }, [roomState, myRole, currentInput, commitChess]);
 
   // كتابة مشروطة مع إعادة محاولة: لو تعارضت مع كتابة الخصم بنفس اللحظة نعيد على أحدث نسخة
-  const casRetry = useCallback(async (build) => {
+  const casRetry = useCallback(async (build, stamp = null) => {
     let base = roomStateRef.current;
     for (let attempt = 0; attempt < 4; attempt++) {
       const next = build(base);
@@ -1153,7 +1180,7 @@ export default function Game() {
       setRoomState(next);
       if (roomCode === 'DEMO') return; // وضع المعاينة
       try {
-        const r = await roomCas(roomCode, base.version ?? 0, next);
+        const r = await roomCas(roomCode, base.version ?? 0, next, stamp);
         if (r?.state) applyServerState(r.state);
         if (r?.ok || !r?.state) return;
         base = r.state;
@@ -1181,9 +1208,10 @@ export default function Game() {
   // اختيار كلمة الجولة الجديدة
   const chooseSecret = useCallback((word, clue = '') => casRetry((base) => {
     if (!base || base.status !== 'choosing' || base.setter !== myRole) return null;
+    if (base.players?.[myRole === 1 ? 2 : 1]?.left) return null;
     const len = [...word].length;
     return { ...base, status: 'playing', answer: word, clue: (clue || '').trim().slice(0, 40), settings: { ...base.settings, len, duration: DUEL_SECONDS[len] }, turnStartedAt: now() };
-  }), [casRetry, myRole]);
+  }, 'turnStartedAt'), [casRetry, myRole]);
 
   // انتهى وقت التحدي → يتحسم الفائز
   const guessTimeUp = useCallback(() => casRetry((base) => {
@@ -1257,6 +1285,7 @@ export default function Game() {
         guesses_p2: [],
         winner: null,
         resigned: null,
+        timeUp: false,
         gameNumber: newGameNum,
       };
     } else if (roomState.mode === 'race') {
@@ -1306,7 +1335,8 @@ export default function Game() {
   const leaveRoom = useCallback(async () => {
     if (roomCode && roomCode !== 'local' && myRole && roomState) {
       if (roomState.status === 'waiting' && myRole === 1) {
-        deleteRoom(roomCode).catch(() => {});
+        const code = roomCode, role = myRole;
+        roomCancel(code).then(ok => { if (!ok) roomLeave(code, role).catch(() => {}); }).catch(() => {});
       } else {
         roomLeave(roomCode, myRole).catch(() => {});
       }
@@ -1993,7 +2023,7 @@ export default function Game() {
           <Card className="p-3">
             {roomState.pendingWord && pendingByOpp ? (
               <div className="text-center slide-in">
-                <div className="text-xs text-muted font-display font-bold">{oppName} يقترح كلمة مو موجودة في القاموس</div>
+                <div className="text-xs text-muted font-display font-bold">{oppName} يقترح كلمة مو موجودة في القاموس · تنقبل تلقائياً بعد ٢٠ ثانية</div>
                 <div className="font-display font-black my-1.5 text-[#7c3aed]" style={{ fontSize: 'clamp(2rem, 10vw, 2.6rem)', lineHeight: 1.25 }}>
                   {roomState.pendingWord.word}
                 </div>
@@ -2023,7 +2053,7 @@ export default function Game() {
                     className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${isMyTurn ? '!border-[#22c55e] !bg-white' : ''} ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
                   />
                   <button
-                    onClick={submitWord}
+                    onClick={submitWord} onPointerDown={e => e.preventDefault()}
                     disabled={!currentInput.trim() || !isMyTurn}
                     aria-label="إرسال"
                     className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
@@ -2190,6 +2220,18 @@ export default function Game() {
             <div className="flex-1"><Btn variant="wood" onClick={leaveRoom}>خروج</Btn></div>
           </div>
         </div>
+      </Screen>
+    );
+  }
+
+  if (screen === 'gameover' && roomState) {
+    return (
+      <Screen>
+        <Card className="p-5 fade-in text-center">
+          <div className="text-4xl mb-2">👋</div>
+          <Title sub="ما تقدرون تكملون هالجولة">صاحبك طلع من الغرفة</Title>
+          <Btn variant="wood" onClick={leaveRoom}>خروج</Btn>
+        </Card>
       </Screen>
     );
   }
@@ -2397,7 +2439,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { pendingWord ? confirmPending() : submitWord(); } }}
-              disabled={!!pendingWord}
+              readOnly={!!pendingWord}
               placeholder={botTurn ? 'جهّز كلمتك هنا…' : `كلمة تنتهي بـ ${roomState.settings.ending}`}
               enterKeyHint="send"
               autoComplete="off"
@@ -2405,7 +2447,7 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center disabled:opacity-50 ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
             />
             <button
-              onClick={submitWord}
+              onClick={submitWord} onPointerDown={e => e.preventDefault()}
               disabled={!currentInput.trim() || !!pendingWord || botTurn}
               aria-label="إرسال"
               className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"

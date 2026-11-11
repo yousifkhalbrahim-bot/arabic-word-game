@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check } from 'lucide-react';
+import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
@@ -150,8 +150,8 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       <ArcadeBg letters={phase !== 'playing'} />
       <div className="shrink-0 flex items-center justify-between px-3 pt-2 pb-2">
         <button onClick={onExit} aria-label="رجوع"
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
-          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          <ArrowRight className="w-5 h-5 text-white" strokeWidth={2.8} />
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.9rem' }}>
           <Target className="w-4 h-4 text-[#ffb020]" strokeWidth={2.8} />
@@ -304,7 +304,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
             className={`flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none ${feedback && !feedback.ok ? 'shake' : ''}`}
             style={{ background: '#fff', color: '#2e1065', border: '3px solid #ede9fe', boxShadow: '0 5px 0 #c4b5fd' }}
           />
-          <button onClick={submit} disabled={!input.trim()} aria-label="إرسال"
+          <button onClick={submit} onPointerDown={e => e.preventDefault()} disabled={!input.trim()} aria-label="إرسال"
             className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
             style={{ background: '#22c55e', color: '#fff', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
             <Check className="w-7 h-7" strokeWidth={3.2} />

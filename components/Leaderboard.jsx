@@ -2,7 +2,7 @@
 
 // ============== الترتيب ==============
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Trophy, Loader2, Star } from 'lucide-react';
+import { ArrowRight, Trophy, Loader2, Star } from 'lucide-react';
 import { ArcadeBg, Num } from '@/components/ui';
 import { fetchLeaderboard, POINTS } from '@/lib/points';
 
@@ -54,13 +54,13 @@ export default function Leaderboard({ onExit }) {
       <ArcadeBg />
       <div className="shrink-0 flex items-center justify-between px-3 pt-2 pb-2">
         <button onClick={onExit} aria-label="رجوع"
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
-          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          <ArrowRight className="w-5 h-5 text-white" strokeWidth={2.8} />
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.95rem' }}>
           <Trophy className="w-4 h-4 text-[#fde047]" strokeWidth={2.6} /> الترتيب
         </div>
-        <button onClick={() => setShowHow(v => !v)} className="h-8 rounded-full px-3 bg-white/15 font-display font-bold text-xs">كيف أجمع؟</button>
+        <button onClick={() => setShowHow(v => !v)} className="h-10 rounded-full px-3 bg-white/15 font-display font-bold text-xs">كيف أجمع؟</button>
       </div>
 
       <div className="shrink-0 px-4">

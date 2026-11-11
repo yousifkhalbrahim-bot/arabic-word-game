@@ -4,7 +4,7 @@
 // خمّن الكلمة المخفية: كل تخمين يكشف لك أي الحروف صح ومكانها.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Delete, CornerDownLeft, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Trophy, Play } from 'lucide-react';
+import { ArrowRight, Delete, CornerDownLeft, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Trophy, Play } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import {
@@ -197,7 +197,7 @@ export default function GuessGame({ onExit }) {
     if (!KNOWN[len].has(word) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash('مو في قاموسنا 🤔 — اضغط ✓ مرة ثانية للتأكيد', 2200);
+      flash('مو في قاموسنا 🤔 — اضغط تأكيد مرة ثانية', 2200);
       return;
     }
 
@@ -281,7 +281,8 @@ export default function GuessGame({ onExit }) {
     if (k === 'ENTER') return submit();
     if (k === 'BACK') { setCurrent(c => [...c].slice(0, -1).join('')); return; }
     const ch = normalizeGuess(k);
-    if (!LETTER_SET.has(ch) || (bank && !bank.has(ch))) return;
+    if (!LETTER_SET.has(ch)) return;
+    if (bank && !bank.has(ch)) { flash('🔒 هذا الحرف مو في الكلمة'); return; }
     playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
   }, [busy, status, submit, len, bank]);
@@ -303,8 +304,8 @@ export default function GuessGame({ onExit }) {
       <ArcadeBg letters={phase !== 'playing'} />
       <div className="shrink-0 flex items-center justify-between px-3 pt-2 pb-1.5">
         <button onClick={phase === 'playing' ? () => setPhase('setup') : onExit} aria-label="رجوع"
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
-          <ArrowLeft className="w-4 h-4 text-white" strokeWidth={2.8} />
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          <ArrowRight className="w-5 h-5 text-white" strokeWidth={2.8} />
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.9rem' }}>
           <span className="flex gap-0.5"><i className="block w-2.5 h-2.5 rounded-sm bg-[#22c55e]" /><i className="block w-2.5 h-2.5 rounded-sm bg-[#ffb020]" /></span>
@@ -312,7 +313,7 @@ export default function GuessGame({ onExit }) {
           {sub && <span className="text-white/70 text-[0.75rem]">· {sub}</span>}
         </div>
         <button onClick={() => setShowHelp(true)} aria-label="طريقة اللعب"
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
           <HelpCircle className="w-4 h-4 text-white" strokeWidth={2.6} />
         </button>
       </div>
@@ -400,7 +401,7 @@ export default function GuessGame({ onExit }) {
         )}
         <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush' || len === 5} winRow={winRow} />
         {mode !== 'rush' && (
-          <div className="mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
+          <div className="streak-bar mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
             <div className="flex items-center gap-1.5">
               <span key={stats.streak} className="score-bump font-display font-black text-xl text-white"><Num>{stats.streak}</Num></span>
               <span className="text-lg">🔥</span>
@@ -416,7 +417,7 @@ export default function GuessGame({ onExit }) {
         )}
 
         {toast && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white whitespace-nowrap z-10"
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white max-w-[calc(100%-24px)] text-center z-10"
             style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>
             {toast}
           </div>
@@ -565,8 +566,8 @@ export function buildRows(guesses, current, tries, active) {
 export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false, winRow = -1 }) {
   // حجم المربع: يتسع حسب العرض والارتفاع
   const tileSize = compact
-    ? (len === 3 ? 'min(16vw, 4.6vh, 56px)' : len === 4 ? 'min(14vw, 4.6vh, 54px)' : 'min(12.5vw, 4.2vh, 50px)')
-    : (len === 3 ? 'min(19vw, 6.6vh, 68px)' : len === 4 ? 'min(17vw, 6.6vh, 64px)' : 'min(14.5vw, 6vh, 60px)');
+    ? (len === 3 ? 'min(16vw, 4.4svh, 56px)' : len === 4 ? 'min(14vw, 4.4svh, 54px)' : 'min(12.5vw, 4svh, 50px)')
+    : (len === 3 ? 'min(19vw, 5.6svh, 68px)' : len === 4 ? 'min(17vw, 5.6svh, 64px)' : 'min(14.5vw, 5.2svh, 60px)');
   return (
     <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">
       {rows.map((row, r) => (
@@ -599,7 +600,7 @@ export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compac
 export function WinBurst({ text, sub = null }) {
   return (
     <div className="win-burst absolute inset-0 z-30 pointer-events-none flex items-center justify-center overflow-hidden">
-      <Confetti count={90} />
+      <Confetti count={50} />
       <div className="win-rays absolute w-[160vmax] h-[160vmax]"
         style={{ background: 'repeating-conic-gradient(rgba(255,255,255,0.13) 0deg 10deg, transparent 10deg 20deg)', maskImage: 'radial-gradient(circle, #000 0%, transparent 55%)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, transparent 55%)' }} />
       <div className="win-glow absolute w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,224,71,0.85) 0%, rgba(34,197,94,0.35) 45%, transparent 70%)' }} />
@@ -647,7 +648,7 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = nu
             const off = !!allowed && k.length === 1 && !allowed.has(normalizeGuess(k));
             const look = isEnter ? 'kb-enter' : isBack ? 'kb-back' : off ? 'kb-off' : st ? `kb-${st}` : 'kb-plain';
             return (
-              <button key={k} onClick={() => press(k)} disabled={off}
+              <button key={k} onClick={() => press(k)} aria-disabled={off || undefined}
                 data-ch={!isEnter && !isBack && !off ? k : undefined}
                 className={`kb-key ${look} flex items-center justify-center font-display font-black`}
                 style={{
