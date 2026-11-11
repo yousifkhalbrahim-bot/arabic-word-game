@@ -1695,7 +1695,7 @@ export default function Game() {
                 className="btn-3d w-full rounded-2xl min-h-[52px] flex items-center justify-center gap-2 font-display font-black"
                 style={{ color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' }}>
                 <LogIn className="w-5 h-5" strokeWidth={2.6} />
-                صاحبك أرسل لك كود؟ ادخل
+                ادخل بكود
               </button>
               {gameCard({ key: 'e', ...ENDINGS, desc: 'بالدور ⏱ أو سباق ⚡ — أونلاين بكود', cta: 'أنشئ غرفة',
                 onClick: () => { setSelectedMode(m => (m === 'race' ? 'race' : 'chess')); setMyRoleState(null); setGlobalError(null); setScreen('create-setup'); } })}
