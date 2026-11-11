@@ -37,3 +37,6 @@ yarn-error.log*
 
 # vercel cli env pulls
 .env*.local
+
+# Claude agent worktrees
+.claude/worktrees/
