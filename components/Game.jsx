@@ -1101,17 +1101,18 @@ export default function Game() {
   }, [joinCode, enterRoom]);
 
   const confirmJoin = useCallback(async () => {
-    if (!joinName.trim()) { setGlobalError('اكتب اسمك'); return; }
-    if (isOffensive(joinName)) { setGlobalError(OFFENSIVE_MSG); return; }
+    const myName = (hostName || joinName).trim();
+    if (!myName) { setGlobalError('اكتب اسمك'); return; }
+    if (isOffensive(myName)) { setGlobalError(OFFENSIVE_MSG); return; }
     setBusy(true);
     setGlobalError(null);
     try {
-      const r = await roomJoin(joinCode, joinName.trim());
+      const r = await roomJoin(joinCode, myName);
       if (!r?.ok) {
         setGlobalError(r?.reason === 'full' ? 'الغرفة ممتلئة' : 'الغرفة لم تعد متاحة');
         return;
       }
-      saveName(joinName.trim());
+      saveName(myName);
       enterRoom(joinCode, 2, r.state);
     } catch (e) {
       console.error('[confirmJoin]', e);
@@ -1119,7 +1120,7 @@ export default function Game() {
     } finally {
       setBusy(false);
     }
-  }, [joinCode, joinName, enterRoom]);
+  }, [joinCode, joinName, hostName, enterRoom]);
 
   const submitWord = useCallback(async () => {
     if (!roomState || roomState.pendingWord) return;
@@ -1449,6 +1450,49 @@ export default function Game() {
     return (
       <Screen>
         <div className="flex justify-center"><Loader2 className="w-9 h-9 animate-spin text-white" /></div>
+      </Screen>
+    );
+  }
+
+  // أول مرة: اختر اسمك (ينحفظ ويُستخدم في كل مكان)
+  if (!getSavedName().trim() && roomCode !== 'DEMO') {
+    const logoTiles = [
+      { ch: 'ك', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -8 },
+      { ch: 'ل', bg: '#ffb020', fg: '#4a2400', sh: '#b86b00', r: 5 },
+      { ch: 'م', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -3 },
+      { ch: 'ا', bg: '#22c55e', fg: '#ffffff', sh: '#15803d', r: 7 },
+      { ch: 'ت', bg: '#ffffff', fg: '#3b1d6e', sh: '#c4b5fd', r: -6 },
+    ];
+    return (
+      <Screen>
+        <div className="fade-in py-4">
+          <div className="text-center mb-6">
+            <div className="flex justify-center gap-1.5 mb-3" dir="rtl">
+              {logoTiles.map((t, i) => (
+                <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
+                  <div className="word-pop rounded-xl flex items-center justify-center font-display font-black"
+                    style={{ width: 46, height: 50, fontSize: 28, paddingBottom: 3, background: t.bg, color: t.fg,
+                      boxShadow: `0 5px 0 ${t.sh}, 0 12px 18px -10px rgba(30,10,80,.6)`, border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms` }}>
+                    {t.ch}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <h1 className="font-display font-black text-white" style={{ fontSize: 'clamp(2.2rem, 10vw, 2.8rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
+              هلا والله! 👋
+            </h1>
+            <p className="text-white/85 font-display font-bold mt-1">قبل ما نبدأ، وش اسمك؟</p>
+          </div>
+          <Card className="p-5">
+            <input type="text" value={nameDraft} onChange={e => setNameDraft(e.target.value)} autoFocus maxLength={20}
+              onKeyDown={e => e.key === 'Enter' && saveMyName()}
+              placeholder="اكتب اسمك" autoComplete="nickname" enterKeyHint="go"
+              className={`${inputClass} text-center font-display text-2xl mb-3`} />
+            {nameErr && <div className="mb-3"><ErrorNote>{nameErr}</ErrorNote></div>}
+            <Btn icon={Play} disabled={!nameDraft.trim()} onClick={saveMyName}>يلا نبدأ</Btn>
+            <p className="text-center text-xs text-dim font-bold mt-3">يطلع لأصحابك وفي الترتيب · تقدر تغيّره بعدين من فوق</p>
+          </Card>
+        </div>
       </Screen>
     );
   }
@@ -1802,26 +1846,13 @@ export default function Game() {
               </div>
             )}
 
-            {!soloTime && savedNameOk && !editName && (
-              <div className="flex items-center justify-between rounded-2xl bg-[#f5f3ff] border-2 border-[#ede9fe] px-4 min-h-[48px]">
-                <span className="font-display font-bold text-[#6d5b95] text-sm">{isLocal && !isBot ? 'اللاعب الأول' : 'تلعب باسم'} <b className="text-[#2e1065] text-base">{hostName}</b></span>
-                <button onClick={() => setEditName(true)} className="font-display font-bold text-sm text-[#7c3aed] min-h-[40px] px-2">تغيير</button>
+            {isLocal && !isBot && (
+              <div>
+                <Label>اسم اللاعب الأول</Label>
+                <input type="text" value={hostName} onChange={(e) => setHostName(e.target.value)}
+                  placeholder="اكتب اسمك" maxLength={20} autoComplete="nickname" enterKeyHint="done" className={inputClass} />
               </div>
             )}
-
-            {!soloTime && (!savedNameOk || editName) && <div>
-              <Label>{isLocal && !isBot ? 'اسم اللاعب الأول' : 'اسمك'}</Label>
-              <input
-                type="text"
-                value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
-                placeholder="اكتب اسمك"
-                maxLength={20}
-                autoComplete="nickname"
-                enterKeyHint="done"
-                className={inputClass}
-              />
-            </div>}
 
             {isChess && (
               <>
@@ -1987,28 +2018,14 @@ export default function Game() {
           ) : (
             <div className="space-y-4">
               <RoomInfo state={joinPreview} />
-              <div>
-                <Label>اسمك</Label>
-                <input
-                  type="text"
-                  value={joinName}
-                  onChange={(e) => setJoinName(e.target.value)}
-                  placeholder="اكتب اسمك"
-                  maxLength={20}
-                  autoFocus
-                  autoComplete="nickname"
-                  enterKeyHint="go"
-                  onKeyDown={(e) => e.key === 'Enter' && confirmJoin()}
-                  className={`${inputClass} focus:!border-[#22d3ee]`}
-                />
-              </div>
+              <div className="text-center text-sm font-display font-bold text-[#6d5b95]">تدخل باسم <b className="text-[#2e1065] text-base">{hostName}</b></div>
               <ErrorNote>{globalError}</ErrorNote>
               <div className="flex gap-2.5">
                 <div className="flex-1">
                   <Btn variant="wood" size="md" onClick={() => { setJoinPreview(null); setGlobalError(null); }}>تغيير الكود</Btn>
                 </div>
                 <div className="flex-[1.5]">
-                  <Btn variant="teal" size="md" icon={Check} busy={busy} disabled={!joinName.trim()} onClick={confirmJoin}>يلا ندخل</Btn>
+                  <Btn variant="teal" size="md" icon={Check} busy={busy} onClick={confirmJoin}>يلا ندخل</Btn>
                 </div>
               </div>
             </div>
