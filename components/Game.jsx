@@ -670,6 +670,7 @@ export default function Game() {
   const [selectedMode, setSelectedMode] = useState('chess');
   const [homeTab, setHomeTab] = useState('solo');
   const [myPoints, setMyPoints] = useState(null);
+  const [weekTop, setWeekTop] = useState([]);
   const [pointsGain, setPointsGain] = useState(0);
   const [nameOpen, setNameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -795,7 +796,10 @@ export default function Game() {
     return () => window.removeEventListener('wg:points', upd);
   }, []);
   useEffect(() => {
-    if (screen === 'menu') { fetchLeaderboard('week'); fetchLeaderboard('all'); }
+    if (screen === 'menu') {
+      fetchLeaderboard('week').then(r => { if (r?.top) setWeekTop(r.top.slice(0, 3)); });
+      fetchLeaderboard('all');
+    }
     if (screen !== 'gameover' && screen !== 'local-gameover') setPointsGain(0);
   }, [screen]);
 
@@ -1622,18 +1626,49 @@ export default function Game() {
             </h1>
           </div>
 
-          {/* شريط الترتيب */}
+          {/* بطاقة الترتيب */}
           <button onClick={() => setScreen('leaderboard')}
-            className="w-full rounded-2xl px-2.5 py-2 mb-4 flex items-center gap-2.5 glass min-h-[52px] active:scale-[0.98] transition-all text-right">
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#fde047', boxShadow: '0 2px 0 #ca8a04' }}>
-              <Trophy className="w-5 h-5 text-[#713f12]" strokeWidth={2.6} />
+            className="btn-3d relative w-full overflow-hidden rounded-3xl p-3 mb-4 flex items-center gap-3 text-right bg-white"
+            style={{ boxShadow: '0 6px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+            {/* ترتيبك */}
+            <span className="relative shrink-0 w-[60px] h-[60px] rounded-2xl flex flex-col items-center justify-center"
+              style={{ background: 'linear-gradient(160deg, #ffe066 0%, #ffb020 100%)', boxShadow: '0 4px 0 #b86b00' }}>
+              {pts.week > 0 && pts.weekRank && <Trophy className="absolute -top-2 -left-2 w-6 h-6 text-[#ca8a04] rotate-[-14deg]" fill="#fde047" strokeWidth={2} />}
+              {pts.week > 0 && pts.weekRank ? (
+                <>
+                  <span className="text-[0.6rem] font-display font-black text-[#713f12] leading-none">ترتيبك</span>
+                  <span className="font-display font-black text-[1.7rem] text-[#4a2400] leading-none mt-0.5">#<bdi className="font-mono-ar">{pts.weekRank}</bdi></span>
+                </>
+              ) : (
+                <span className="text-2xl">🏆</span>
+              )}
             </span>
-            <span className="flex-1 min-w-0 font-display font-bold text-white text-sm">
-              {pts.week > 0 && pts.weekRank
-                ? <>ترتيبك هالأسبوع <b className="text-[#fde047] text-base">#<bdi className="font-mono-ar">{pts.weekRank}</bdi></b> · <bdi className="font-mono-ar">{pts.week}</bdi> نقطة</>
-                : 'الترتيب — العب وجمّع نقاط 🚀'}
+
+            {/* النص */}
+            <span className="flex-1 min-w-0">
+              <span className="block font-display font-black text-[#2e1065] text-[1.05rem] leading-tight">ترتيب الأسبوع</span>
+              <span className="block font-display font-bold text-[#6d5b95] text-[0.8rem] mt-0.5">
+                {pts.week > 0
+                  ? <>⭐ <bdi className="font-mono-ar">{pts.week}</bdi> نقطة هالأسبوع</>
+                  : 'العب وادخل المنافسة 🔥'}
+              </span>
             </span>
-            <ChevronLeft className="w-5 h-5 text-white/80 shrink-0" strokeWidth={3} />
+
+            {/* أول ٣ */}
+            {weekTop.length > 0 ? (
+              <span className="shrink-0 flex items-center" dir="ltr">
+                {weekTop.map((r, i) => (
+                  <span key={i} className="relative -ml-2 first:ml-0" style={{ zIndex: 3 - i }}>
+                    <span className="w-9 h-9 rounded-full flex items-center justify-center font-display font-black text-sm border-[3px] border-white"
+                      style={{ background: ['#ffb020', '#a5b4fc', '#fb923c'][i], color: '#2e1065' }}>
+                      {(r.name || '؟').slice(0, 1)}
+                    </span>
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[0.75rem] leading-none">{['🥇', '🥈', '🥉'][i]}</span>
+                  </span>
+                ))}
+              </span>
+            ) : null}
+            <ChevronLeft className="w-5 h-5 text-[#c4b5fd] shrink-0" strokeWidth={3} />
           </button>
 
           {/* لحالك / مع صاحبك */}
