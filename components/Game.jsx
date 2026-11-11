@@ -1034,7 +1034,7 @@ export default function Game() {
   // ============== الإجراءات ==============
   const createRoom = useCallback(async () => {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
-    const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
+    const finalEnding = ENDING_PRESETS[Math.floor(Math.random() * ENDING_PRESETS.length)].value;
     if (selectedMode === 'chess' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
     const secret = normalizeGuess(secretWord);
     if (selectedMode === 'guess' && guessCustom) {
@@ -1383,7 +1383,7 @@ export default function Game() {
   }, [inviteUrl, roomCode]);
 
   const startLocal = useCallback((vsBot = false) => {
-    const finalEnding = useCustom ? customEnding.trim() : selectedEnding;
+    const finalEnding = ENDING_PRESETS[Math.floor(Math.random() * ENDING_PRESETS.length)].value;
     if (!hostName.trim() || !finalEnding) {
       setGlobalError('أكمل البيانات أولاً');
       return;
@@ -1601,17 +1601,23 @@ export default function Game() {
           </div>
 
           {/* الشعار */}
-          <div className="flex items-center justify-center gap-2.5 mb-4" dir="rtl">
-            <div className="flex gap-0.5">
-              {logo.slice(0, 3).map((t, i) => (
-                <div key={i} className="word-pop rounded-md flex items-center justify-center font-display font-black"
-                  style={{ width: 26, height: 29, fontSize: 15, paddingBottom: 2, transform: `rotate(${t.r}deg)`, background: t.bg, color: t.fg, boxShadow: `0 3px 0 ${t.sh}`, animationDelay: `${i * 80}ms` }}>
-                  {t.ch}
+          <div className="text-center mb-4">
+            <div className="flex justify-center gap-1.5 mb-2" dir="rtl">
+              {logo.map((t, i) => (
+                <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
+                  <div className="word-pop rounded-xl flex items-center justify-center font-display font-black"
+                    style={{
+                      width: 40, height: 44, fontSize: 24, paddingBottom: 3,
+                      background: t.bg, color: t.fg, boxShadow: `0 5px 0 ${t.sh}, 0 12px 18px -10px rgba(30,10,80,.6)`,
+                      border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
+                    }}>
+                    {t.ch}
+                  </div>
                 </div>
               ))}
             </div>
             <h1 className="font-display font-black text-white"
-              style={{ fontSize: 'clamp(1.7rem, 8vw, 2.1rem)', lineHeight: 1.2, textShadow: '0 3px 0 rgba(46,16,101,0.5)' }}>
+              style={{ fontSize: 'clamp(2rem, 9.5vw, 2.6rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
               لعبة الكلمات
             </h1>
           </div>
@@ -1798,9 +1804,9 @@ export default function Game() {
                 </div>
                 <button onClick={() => setMoreOpts(v => !v)}
                   className="w-full flex items-center justify-between rounded-2xl bg-[#f5f3ff] border-2 border-[#ede9fe] px-4 min-h-[48px] font-display font-bold text-sm text-[#4c1d95]">
-                  <span>خيارات إضافية</span>
+                  <span>وقت الدور</span>
                   <span className="flex items-center gap-2 text-[#6d5b95]">
-                    <span>الدور <bdi className="font-mono-ar">{selectedTurnSkip}</bdi>ث · النهاية <b className="text-[#7c3aed]">{useCustom ? (customEnding || '؟') : selectedEnding}</b></span>
+                    <span>الدور <bdi className="font-mono-ar">{selectedTurnSkip}</bdi>ث</span>
                     <ChevronLeft className={`w-4 h-4 transition-transform ${moreOpts ? '-rotate-90' : ''}`} strokeWidth={3} />
                   </span>
                 </button>
@@ -1815,37 +1821,6 @@ export default function Game() {
                       </Choice>
                     ))}
                   </div>
-                </div>
-                <div>
-                  <Label aside={
-                    <button onClick={() => setUseCustom(!useCustom)}
-                      className="text-xs font-display font-bold text-[#7c3aed] hover:text-[#5b21b6] transition-colors inline-flex items-center gap-1">
-                      <Plus className="w-3 h-3" /> {useCustom ? 'النهايات الجاهزة' : 'نهاية مخصصة'}
-                    </button>
-                  }>نهاية الكلمات</Label>
-                  {!useCustom ? (
-                    <>
-                      <div className="grid grid-cols-5 gap-2">
-                        {ENDING_PRESETS.map(p => (
-                          <Choice key={p.value} selected={selectedEnding === p.value} onClick={() => setSelectedEnding(p.value)}
-                            className="font-display font-bold text-[1.35rem] leading-none py-2.5">
-                            {p.value}
-                          </Choice>
-                        ))}
-                      </div>
-                      {example && <p className="text-xs text-dim mt-2.5 text-center">مثل: <span className="text-muted">{example}</span></p>}
-                    </>
-                  ) : (
-                    <input
-                      type="text"
-                      value={customEnding}
-                      onChange={(e) => setCustomEnding(e.target.value)}
-                      placeholder="مثلاً: وب، اف"
-                      maxLength={4}
-                      className={`${inputClass} text-center font-display text-2xl`}
-                    />
-                  )}
-                  {isBot && useCustom && <p className="text-xs text-dim mt-2">الكمبيوتر يعرف كلمات القاموس بس، فالنهايات المخصصة أصعب عليه 😉</p>}
                 </div>
                 </>}
               </>
