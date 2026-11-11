@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User, Star, Pencil,
 } from 'lucide-react';
 import {
   supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole,
@@ -19,6 +19,8 @@ import { initNative, publicUrl, shareContent } from '@/lib/native';
 import { loadWordlist } from '@/lib/wordlist';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
+import Leaderboard from '@/components/Leaderboard';
+import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
 import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
@@ -653,6 +655,10 @@ export default function Game() {
   const [hostName, setHostName] = useState('');
   const [selectedMode, setSelectedMode] = useState('chess');
   const [homeTab, setHomeTab] = useState('solo');
+  const [myPoints, setMyPoints] = useState(null);
+  const [pointsGain, setPointsGain] = useState(0);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
   const [soloStyle, setSoloStyle] = useState('bot'); // لحالك: bot = ضد الكمبيوتر، time = ضد الوقت
   const [soloStartDuration, setSoloStartDuration] = useState(null);
   const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
@@ -759,6 +765,52 @@ export default function Game() {
       }
     })();
   }, [enterRoom]);
+
+  // ============== النقاط ==============
+  useEffect(() => {
+    const upd = () => setMyPoints(cachedPoints());
+    upd();
+    window.addEventListener('wg:points', upd);
+    return () => window.removeEventListener('wg:points', upd);
+  }, []);
+  useEffect(() => {
+    if (screen === 'menu') { fetchLeaderboard('week'); fetchLeaderboard('all'); }
+    if (screen !== 'gameover' && screen !== 'local-gameover') setPointsGain(0);
+  }, [screen]);
+
+  // فوز/تعادل أونلاين → نقاط (مرة وحدة لكل جولة)
+  useEffect(() => {
+    if (screen !== 'gameover' || !roomState || roomState.status !== 'finished' || !myRole || roomCode === 'DEMO') return;
+    const w = roomState.winner;
+    const custom = roomState.mode === 'guess' && roomState.settings?.custom;
+    let pts = 0, win = false;
+    if (w === 0) pts = POINTS.onlineDraw;
+    else if (w === myRole) {
+      win = true;
+      pts = custom ? (roomState.setter === myRole ? POINTS.customSetterWin : POINTS.customGuesserWin) : POINTS.onlineWin;
+    }
+    if (!pts) return;
+    const key = `${roomCode}:${roomState.gameNumber || 1}:${roomState.gameStartedAt || roomState.turnStartedAt || ''}:${myRole}`;
+    const p = awardOnce(key, pts, win);
+    if (p) p.then(r => r && setPointsGain(r.added || 0));
+  }, [screen, roomState, myRole, roomCode]);
+
+  // فوز ضد الكمبيوتر
+  useEffect(() => {
+    if (screen !== 'local-gameover' || !roomState?.vsBot || roomState.winner !== 1) return;
+    const p = awardOnce(`bot:${roomState.turnStartedAt}`, POINTS.botWin, true);
+    if (p) p.then(r => r && setPointsGain(r.added || 0));
+  }, [screen, roomState]);
+
+  const saveMyName = useCallback(() => {
+    const n = nameDraft.trim().slice(0, 20);
+    if (!n) return;
+    saveName(n);
+    setHostName(n);
+    setJoinName(n);
+    renamePlayer(n);
+    setNameOpen(false);
+  }, [nameDraft]);
 
   // ============== الاشتراك بـ Realtime ==============
   useEffect(() => {
@@ -1445,37 +1497,40 @@ export default function Game() {
       { key: 'guess', title: 'خمّن الكلمة', desc: 'نفس الكلمة، مين يحلها أول؟', icon: gameIcon('guess'), bg: GAMES.guess.bg, sh: GAMES.guess.sh, badge: 'جديد', onClick: createFor('guess') },
     ];
 
-    const tab = (id, title, sub, Icon, color, deep, ink) => {
-      const on = homeTab === id;
-      return (
-        <button onClick={() => setHomeTab(id)}
-          className="btn-3d flex-1 rounded-3xl p-3.5 flex flex-col items-center gap-1.5 font-display"
-          style={on
-            ? { background: color, color: ink, boxShadow: `0 6px 0 ${deep}`, border: '3px solid rgba(255,255,255,0.55)' }
-            : { background: 'rgba(255,255,255,0.14)', color: '#fff', boxShadow: '0 6px 0 rgba(30,10,80,0.25)', border: '3px solid rgba(255,255,255,0.12)' }}>
-          <span className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{ background: on ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)' }}>
-            <Icon className="w-7 h-7" strokeWidth={2.6} />
-          </span>
-          <span className="font-black text-[1.1rem] leading-tight">{title}</span>
-          <span className="text-[0.72rem] font-bold opacity-80 leading-tight">{sub}</span>
-        </button>
-      );
-    };
+    const shownName = hostName.trim() || 'اختر اسمك';
+    const pts = myPoints || {};
 
     return (
-      <Screen center={false} className="pt-4 pb-6">
+      <Screen center={false} className="pt-3 pb-6">
         <div className="fade-in">
+          {/* الشريط العلوي: اسمك + نقاطك */}
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <button onClick={() => { setNameDraft(hostName); setNameOpen(true); }}
+              className="flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 pl-3 pr-1 py-1 min-w-0 transition-all active:scale-95">
+              <span className="w-8 h-8 rounded-full flex items-center justify-center font-display font-black text-[#4a2400] shrink-0"
+                style={{ background: '#ffb020', boxShadow: '0 2px 0 #b86b00' }}>
+                {(hostName.trim() || '؟').slice(0, 1)}
+              </span>
+              <span className="font-display font-black text-white truncate max-w-[9rem]">{shownName}</span>
+              <Pencil className="w-3.5 h-3.5 text-white/70 shrink-0" strokeWidth={2.6} />
+            </button>
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-display font-black text-[#4a2400] shrink-0"
+              style={{ background: '#fde047', boxShadow: '0 3px 0 #ca8a04' }}>
+              <Star className="w-4 h-4" fill="currentColor" strokeWidth={0} />
+              <bdi className="font-mono-ar">{pts.points ?? 0}</bdi>
+            </div>
+          </div>
+
           {/* الشعار */}
-          <div className="text-center mb-5">
-            <div className="flex justify-center gap-1.5 mb-2.5" dir="rtl">
+          <div className="text-center mb-4">
+            <div className="flex justify-center gap-1 mb-1.5" dir="rtl">
               {logo.map((t, i) => (
                 <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>
-                  <div className="word-pop rounded-xl flex items-center justify-center font-display font-black"
+                  <div className="word-pop rounded-lg flex items-center justify-center font-display font-black"
                     style={{
-                      width: 40, height: 44, fontSize: 24, paddingBottom: 3,
-                      background: t.bg, color: t.fg, boxShadow: `0 5px 0 ${t.sh}, 0 12px 18px -10px rgba(30,10,80,.6)`,
-                      border: '3px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
+                      width: 34, height: 38, fontSize: 20, paddingBottom: 3,
+                      background: t.bg, color: t.fg, boxShadow: `0 4px 0 ${t.sh}`,
+                      border: '2px solid rgba(255,255,255,.65)', animationDelay: `${i * 80}ms`,
                     }}>
                     {t.ch}
                   </div>
@@ -1483,15 +1538,39 @@ export default function Game() {
               ))}
             </div>
             <h1 className="font-display font-black text-white"
-              style={{ fontSize: 'clamp(2.1rem, 10vw, 2.7rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
+              style={{ fontSize: 'clamp(1.9rem, 9vw, 2.4rem)', lineHeight: 1.15, textShadow: '0 4px 0 rgba(46,16,101,0.5)' }}>
               لعبة الكلمات
             </h1>
           </div>
 
+          {/* بطاقة الترتيب */}
+          <button onClick={() => setScreen('leaderboard')}
+            className="btn-3d w-full rounded-3xl p-3.5 mb-4 flex items-center gap-3 text-right"
+            style={{ background: 'linear-gradient(135deg, #ffd34d 0%, #ffb020 55%, #ff8a1f 100%)', boxShadow: '0 6px 0 #b86b00', border: '2px solid rgba(255,255,255,0.5)', color: '#4a2400' }}>
+            <span className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.4)' }}>
+              <Trophy className="w-7 h-7" strokeWidth={2.4} />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-display font-black text-[0.8rem] opacity-80">ترتيبك هذا الأسبوع</span>
+              <span className="block font-display font-black text-xl leading-tight">
+                {pts.week > 0 && pts.weekRank ? <>#<bdi className="font-mono-ar">{pts.weekRank}</bdi></> : 'اجمع نقاط وادخل! 🚀'}
+              </span>
+              <span className="block font-display font-bold text-[0.75rem] opacity-80">
+                <bdi className="font-mono-ar">{pts.week ?? 0}</bdi> نقطة هالأسبوع
+              </span>
+            </span>
+            <span className="shrink-0 font-display font-black text-sm flex items-center gap-0.5">الترتيب <ChevronLeft className="w-5 h-5" strokeWidth={3} /></span>
+          </button>
+
           {/* لحالك / مع صاحبك */}
-          <div className="flex gap-3 mb-5">
-            {tab('solo', 'العب لحالك', 'ضد الكمبيوتر والوقت', User, '#ffffff', '#c4b5fd', '#4c1d95')}
-            {tab('friends', 'مع صاحبك', 'أونلاين بكود', Users, '#ffb020', '#b86b00', '#4a2400')}
+          <div className="flex gap-1.5 p-1 rounded-2xl bg-white/15 mb-3.5">
+            {[['solo', 'العب لحالك', User], ['friends', 'مع صاحبك', Users]].map(([id, label, Icon]) => (
+              <button key={id} onClick={() => setHomeTab(id)}
+                className="flex-1 rounded-xl py-2.5 flex items-center justify-center gap-1.5 font-display font-black transition-all"
+                style={homeTab === id ? { background: '#fff', color: '#4c1d95', boxShadow: '0 3px 0 #c4b5fd' } : { color: 'rgba(255,255,255,0.9)' }}>
+                <Icon className="w-4 h-4" strokeWidth={2.8} /> {label}
+              </button>
+            ))}
           </div>
 
           {homeTab === 'solo' ? (
@@ -1506,10 +1585,6 @@ export default function Game() {
                 <LogIn className="w-5 h-5" strokeWidth={2.6} />
                 صاحبك أرسل لك كود؟ ادخل
               </button>
-              <div className="flex items-center gap-2 px-1 pt-1">
-                <span className="font-display font-black text-white text-sm">أو أنشئ غرفة وادعه</span>
-                <div className="h-[2px] flex-1 rounded-full bg-white/20" />
-              </div>
               {friendGames.map(listRow)}
               <button onClick={() => { setSelectedMode('chess'); setMyRoleState('local'); setGlobalError(null); setScreen('create-setup'); }}
                 className="w-full rounded-2xl py-2.5 flex items-center justify-center gap-2 font-display font-bold text-white/90 bg-white/10 hover:bg-white/15 transition-colors">
@@ -1519,8 +1594,28 @@ export default function Game() {
             </div>
           )}
         </div>
+
+        {/* تغيير الاسم */}
+        {nameOpen && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in" onClick={() => setNameOpen(false)}>
+            <Card className="w-full max-w-sm p-5 slide-in">
+              <div onClick={e => e.stopPropagation()}>
+                <Title sub="يظهر لأصحابك وفي الترتيب">اسمك</Title>
+                <input type="text" value={nameDraft} onChange={e => setNameDraft(e.target.value)} autoFocus maxLength={20}
+                  onKeyDown={e => e.key === 'Enter' && saveMyName()}
+                  placeholder="اكتب اسمك" autoComplete="nickname" className={`${inputClass} text-center font-display text-xl mb-3`} />
+                <Btn icon={Check} disabled={!nameDraft.trim()} onClick={saveMyName}>حفظ</Btn>
+              </div>
+            </Card>
+          </div>
+        )}
       </Screen>
     );
+  }
+
+  // -------- الترتيب --------
+  if (screen === 'leaderboard') {
+    return <Leaderboard onExit={() => setScreen('menu')} />;
   }
 
   // -------- خمّن الكلمة --------
@@ -1988,6 +2083,15 @@ export default function Game() {
             }))}
           />
 
+
+          {pointsGain > 0 && (
+            <div className="flex justify-center mb-4 -mt-1">
+              <div className="word-pop inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-display font-black text-[#4a2400]"
+                style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>
+                <Star className="w-4 h-4" fill="currentColor" strokeWidth={0} /> +<bdi className="font-mono-ar">{pointsGain}</bdi> نقطة
+              </div>
+            </div>
+          )}
           {isGuess && roomState.timeUp && (
             <div className="glass rounded-2xl px-4 py-2.5 mb-4 text-sm text-center font-display font-bold slide-in text-white">
               ⏰ انتهى الوقت — {isDraw ? 'ما أحد حلّها' : 'الفائز اللي حلّها أو اللي كان أقرب'}
@@ -2060,6 +2164,15 @@ export default function Game() {
             unit="كلمة"
             sides={[1, 2].map(r => ({ name: roomState.players[r].name, player: r, score: countOf(r) }))}
           />
+
+          {pointsGain > 0 && (
+            <div className="flex justify-center mb-4 -mt-1">
+              <div className="word-pop inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-display font-black text-[#4a2400]"
+                style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>
+                <Star className="w-4 h-4" fill="currentColor" strokeWidth={0} /> +<bdi className="font-mono-ar">{pointsGain}</bdi> نقطة
+              </div>
+            </div>
+          )}
           <MatchSummary roomState={roomState} myRole={1} />
           <div className="flex gap-2.5">
             <div className="flex-[1.5]">

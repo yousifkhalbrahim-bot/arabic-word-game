@@ -13,6 +13,7 @@ import {
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
+import { awardPoints, guessPoints } from '@/lib/points';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -72,6 +73,7 @@ export default function GuessGame({ onExit }) {
   const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
   const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
   const [lostStreak, setLostStreak] = useState(0);
+  const [gain, setGain] = useState(0);
   const [rushEndsAt, setRushEndsAt] = useState(0);
   const [rushScore, setRushScore] = useState(0);
   const [rushOver, setRushOver] = useState(null);
@@ -171,13 +173,16 @@ export default function GuessGame({ onExit }) {
       s.streak += 1;
       s.best = Math.max(s.best, s.streak);
       s.dist[finalGuesses.length - 1] = (s.dist[finalGuesses.length - 1] || 0) + 1;
+      const pts = guessPoints({ len, triesUsed: finalGuesses.length, tries: LENGTHS[len].tries, hints: hints.length, streak: s.streak });
+      setGain(pts);
+      awardPoints(pts, true);
     } else {
       setLostStreak(s.streak);
       s.streak = 0;
     }
     save(statsKey(len), s);
     setStats(s);
-  }, [len]);
+  }, [len, hints]);
 
   // -------- إرسال تخمين --------
   const submit = useCallback(() => {
@@ -424,7 +429,7 @@ export default function GuessGame({ onExit }) {
         )}
       </div>
 
-      {burst && <WinBurst text={burst} />}
+      {burst && <WinBurst text={burst} sub={gain > 0 ? `+${gain} ⭐` : null} />}
 
       {/* الكيبورد */}
       <GuessKeyboard keyStates={shownKeys} onKey={typeKey} allowed={bank} disabled={!!rushOver} />
@@ -591,7 +596,7 @@ export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compac
 }
 
 // احتفال الفوز: توهج + أشعة + كلمة كبيرة + قصاصات
-export function WinBurst({ text }) {
+export function WinBurst({ text, sub = null }) {
   return (
     <div className="win-burst absolute inset-0 z-30 pointer-events-none flex items-center justify-center overflow-hidden">
       <Confetti count={90} />
@@ -601,6 +606,11 @@ export function WinBurst({ text }) {
       <div className="win-text relative font-display font-black text-white text-center px-6"
         style={{ fontSize: 'clamp(2.6rem, 14vw, 4rem)', lineHeight: 1.15, textShadow: '0 5px 0 #15803d, 0 10px 30px rgba(20,5,60,0.6)' }}>
         {text}
+        {sub && (
+          <div className="mt-3 flex justify-center">
+            <span className="rounded-full px-4 py-1 font-display font-black text-[1.4rem] text-[#4a2400]" style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04', textShadow: 'none' }}>{sub}</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
+import { awardPoints, racePoints } from '@/lib/points';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -99,7 +100,8 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       writeBest(duration, score);
       setBests(b => ({ ...b, [duration]: score }));
     }
-    setResult({ score, prevBest, isRecord });
+    setResult({ score, prevBest, isRecord, pts: racePoints(score) });
+    if (score > 0) awardPoints(racePoints(score), false);
     setPhase('done');
   }, [phase, timeLeft, words.length, duration]);
 
@@ -209,7 +211,12 @@ export default function SoloGame({ endings, onExit, startDuration }) {
           <div className="font-display font-black text-white" style={{ fontSize: '4rem', lineHeight: 1.1, textShadow: '0 5px 0 rgba(46,16,101,0.45)' }}>
             <Num>{result.score}</Num>
           </div>
-          <div className="text-white/85 font-display font-bold text-sm mb-5">كلمة في <Num>{duration}</Num> ثانية</div>
+          <div className="text-white/85 font-display font-bold text-sm mb-3">كلمة في <Num>{duration}</Num> ثانية</div>
+          {result.pts > 0 && (
+            <div className="inline-block mb-4 rounded-full px-4 py-1 font-display font-black text-[#4a2400]" style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>
+              ⭐ +<Num>{result.pts}</Num> نقطة
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2.5 mb-5 text-sm">
             <Stat label="أفضل نتيجة" value={Math.max(result.score, result.prevBest)} />
