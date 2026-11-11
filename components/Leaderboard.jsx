@@ -40,7 +40,7 @@ export default function Leaderboard({ onExit }) {
         {rank <= 3 ? <span className="text-2xl">{MEDAL[rank - 1]}</span> : <Num>{rank}</Num>}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-display font-black truncate">{r.name}{highlight && <span className="text-xs opacity-75 mr-1">(أنت)</span>}</div>
+        <div className="font-display font-black truncate">{r.name ? <>{r.name}{highlight && <span className="text-xs opacity-75 mr-1">(أنت)</span>}</> : "أنت"}</div>
         {r.wins != null && <div className="text-[0.7rem] font-bold opacity-70"><Num>{r.wins}</Num> فوز</div>}
       </div>
       <div className="shrink-0 flex items-center gap-1 font-display font-black text-lg">
@@ -100,7 +100,7 @@ export default function Leaderboard({ onExit }) {
 
       {me && !meInTop && cur && !cur.error && (
         <div className="shrink-0 px-4 pb-3 pt-1">
-          {row({ name: me.name || 'أنت', score: me.score }, me.rank, true)}
+          {row({ name: me.name || '', score: me.score }, me.rank, true)}
         </div>
       )}
     </div>
