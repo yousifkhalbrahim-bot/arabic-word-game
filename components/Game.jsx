@@ -21,6 +21,7 @@ import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/r
 import SoloGame from '@/components/SoloGame';
 import Leaderboard from '@/components/Leaderboard';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
+import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
 import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
@@ -147,6 +148,7 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
     const w = normalizeGuess(word);
     const l = [...w].length;
     if (!/^[\u0621-\u064A]+$/.test(w) || (l !== 3 && l !== 5)) { setErr('لازم تكون ٣ أو ٥ أحرف عربية'); return; }
+    if (isOffensive(word) || isOffensive(clue)) { setErr(OFFENSIVE_MSG); return; }
     setErr(''); setBusy(true);
     await onChoose(w, clue);
     setBusy(false);
@@ -674,6 +676,7 @@ export default function Game() {
   const [pointsGain, setPointsGain] = useState(0);
   const [nameOpen, setNameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [nameErr, setNameErr] = useState('');
   const [editName, setEditName] = useState(false);
   const [moreOpts, setMoreOpts] = useState(false);
   const [soloStyle, setSoloStyle] = useState('bot'); // لحالك: bot = ضد الكمبيوتر، time = ضد الوقت
@@ -832,6 +835,8 @@ export default function Game() {
   const saveMyName = useCallback(() => {
     const n = nameDraft.trim().slice(0, 20);
     if (!n) return;
+    if (isOffensive(n)) { setNameErr(OFFENSIVE_MSG); return; }
+    setNameErr('');
     saveName(n);
     setHostName(n);
     setJoinName(n);
@@ -1038,6 +1043,8 @@ export default function Game() {
   // ============== الإجراءات ==============
   const createRoom = useCallback(async () => {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
+    if (isOffensive(hostName)) { setGlobalError(OFFENSIVE_MSG); return; }
+    if (selectedMode === 'guess' && guessCustom && (isOffensive(secretWord) || isOffensive(secretClue))) { setGlobalError(OFFENSIVE_MSG); return; }
     const finalEnding = ENDING_PRESETS[Math.floor(Math.random() * ENDING_PRESETS.length)].value;
     if (selectedMode === 'chess' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
     const secret = normalizeGuess(secretWord);
@@ -1095,6 +1102,7 @@ export default function Game() {
 
   const confirmJoin = useCallback(async () => {
     if (!joinName.trim()) { setGlobalError('اكتب اسمك'); return; }
+    if (isOffensive(joinName)) { setGlobalError(OFFENSIVE_MSG); return; }
     setBusy(true);
     setGlobalError(null);
     try {
@@ -1715,6 +1723,7 @@ export default function Game() {
                 <input type="text" value={nameDraft} onChange={e => setNameDraft(e.target.value)} autoFocus maxLength={20}
                   onKeyDown={e => e.key === 'Enter' && saveMyName()}
                   placeholder="اكتب اسمك" autoComplete="nickname" className={`${inputClass} text-center font-display text-xl mb-3`} />
+                {nameErr && <div className="mb-3"><ErrorNote>{nameErr}</ErrorNote></div>}
                 <Btn icon={Check} disabled={!nameDraft.trim()} onClick={saveMyName}>حفظ</Btn>
               </Card>
             </div>
