@@ -1701,11 +1701,6 @@ export default function Game() {
                 onClick: () => { setSelectedMode(m => (m === 'race' ? 'race' : 'chess')); setMyRoleState(null); setGlobalError(null); setScreen('create-setup'); } })}
               {gameCard({ key: 'g', ...GUESS, desc: 'نفس الكلمة، أو اختر له كلمة يخمّنها', cta: 'أنشئ غرفة', badge: 'جديد',
                 onClick: createFor('guess') })}
-              <button onClick={() => { setSelectedMode('chess'); setMyRoleState('local'); setGlobalError(null); setScreen('create-setup'); }}
-                className="w-full rounded-2xl min-h-[44px] flex items-center justify-center gap-2 font-display font-bold text-white/90 bg-white/10 hover:bg-white/15 transition-colors">
-                <Smartphone className="w-4 h-4" strokeWidth={2.6} />
-                أو العبوا على نفس الجوال بالدور
-              </button>
             </div>
           )}
         </div>
