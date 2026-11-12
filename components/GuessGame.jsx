@@ -14,7 +14,7 @@ import {
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints } from '@/lib/points';
-import { getBulbs, setBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
+import { getBulbs, syncBulbs, spendBulbs, earnBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -102,6 +102,7 @@ export default function GuessGame({ onExit }) {
     }
     setDailyDone(d);
     setBulbsState(getBulbs());
+    syncBulbs().then(setBulbsState);
     try { if (!localStorage.getItem('wg:guess-seen-help')) { setShowHelp(true); localStorage.setItem('wg:guess-seen-help', '1'); } } catch {}
   }, [day, phase]);
 
@@ -187,10 +188,9 @@ export default function GuessGame({ onExit }) {
       const pts = guessPoints({ len, triesUsed: finalGuesses.length, tries: LENGTHS[len].tries, penalty, streak: s.streak });
       setGain(pts);
       awardPoints(pts, true);
-      const before = getBulbs();
-      const after = setBulbs(before + bulbsEarned({ usedHints: hints.length + elimUses > 0, streak: s.streak }));
-      setBulbsState(after);
-      setEarned(after - before);
+      const want = bulbsEarned({ usedHints: hints.length + elimUses > 0, streak: s.streak });
+      setEarned(Math.min(want, BULB_MAX - getBulbs()));
+      earnBulbs(want).then(r => setBulbsState(r.bulbs));
     } else {
       setLostStreak(s.streak);
       s.streak = 0;
@@ -268,12 +268,17 @@ export default function GuessGame({ onExit }) {
   const maxHints = mode === 'rush' ? len - 1 : revealLimit(len);
   const hintsLeft = Math.max(0, maxHints - hints.length);
   const hintsLocked = mode !== 'rush' && guesses.length === 0;
-  const spend = useCallback((cost) => {
-    const b = getBulbs();
-    if (b < cost) return false;
-    setBulbsState(setBulbs(b - cost));
-    return true;
-  }, []);
+  const spending = useRef(false);
+  const spend = useCallback(async (cost) => {
+    if (spending.current) return false;
+    spending.current = true;
+    try {
+      const r = await spendBulbs(cost);
+      setBulbsState(r.bulbs);
+      if (!r.ok) flash('ما عندك لمبات كافية 💡');
+      return r.ok;
+    } finally { spending.current = false; }
+  }, [flash]);
 
   // حروف ممكن نطفيها: موجودة بالكيبورد، مو في الكلمة، وما انعرفت بعد
   const elimCandidates = useMemo(() => {
@@ -281,10 +286,10 @@ export default function GuessGame({ onExit }) {
     return [...LETTER_SET].filter(ch => !inAns.has(ch) && !keyStates[ch] && !elims.includes(ch) && (!bank || bank.has(ch)));
   }, [answer, keyStates, elims, bank]);
 
-  const useElim = useCallback(() => {
+  const useElim = useCallback(async () => {
     if (busy || status !== 'playing' || hintsLocked) return;
     if (elimUses >= HINT_TYPES.elim.maxPerGame || !elimCandidates.length) return;
-    if (!spend(HINT_TYPES.elim.cost)) return;
+    if (!(await spend(HINT_TYPES.elim.cost))) return;
     const pool = [...elimCandidates];
     const picked = [];
     for (let n = Math.min(elimCount(len), pool.length); n > 0; n--) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
@@ -295,14 +300,14 @@ export default function GuessGame({ onExit }) {
     flash(`🧹 طفّينا ${picked.length} حروف مو في الكلمة`);
   }, [busy, status, hintsLocked, elimUses, elimCandidates, spend, len, flash]);
 
-  const useHint = useCallback(() => {
+  const useHint = useCallback(async () => {
     if (busy || status !== 'playing' || hints.length >= maxHints || hintsLocked) return;
     const letters = [...answer];
     const known = new Set();
     guesses.forEach(g => g.result.forEach((r, i) => { if (r === 'correct') known.add(i); }));
     const cand = letters.map((_, i) => i).filter(i => !known.has(i) && !hints.includes(i));
     if (!cand.length) { flash('عرفت كل الحروف بمكانها! 😄'); return; }
-    if (mode !== 'rush' && !spend(HINT_TYPES.reveal.cost)) return;
+    if (mode !== 'rush' && !(await spend(HINT_TYPES.reveal.cost))) return;
     setShowHints(false);
     const i = cand[Math.floor(Math.random() * cand.length)];
     const nh = [...hints, i];

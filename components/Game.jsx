@@ -20,6 +20,7 @@ import { loadWordlist } from '@/lib/wordlist';
 import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/rules';
 import SoloGame from '@/components/SoloGame';
 import Leaderboard from '@/components/Leaderboard';
+import Profile from '@/components/Profile';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
@@ -844,6 +845,18 @@ export default function Game() {
     setNameOpen(false);
   }, [nameDraft]);
 
+  // تغيير الاسم من صفحة ملفي — يرجع رسالة خطأ أو ''
+  const applyName = useCallback((raw) => {
+    const n = (raw || '').trim().slice(0, 20);
+    if (!n) return 'اكتب اسمك';
+    if (isOffensive(n)) return OFFENSIVE_MSG;
+    saveName(n);
+    setHostName(n);
+    setJoinName(n);
+    renamePlayer(n);
+    return '';
+  }, []);
+
   // ============== الاشتراك بـ Realtime ==============
   useEffect(() => {
     if (!roomCode || roomCode === 'local' || roomCode === 'DEMO') return;
@@ -1640,14 +1653,14 @@ export default function Game() {
         <div className="fade-in">
           {/* الشريط العلوي: اسمك + نقاطك */}
           <div className="flex items-center justify-between gap-2 mb-3">
-            <button onClick={() => { setNameDraft(hostName); setNameOpen(true); }}
+            <button onClick={() => setScreen('profile')} aria-label="ملفي"
               className="flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 pl-3 pr-1 py-1 min-h-[44px] min-w-0 transition-all active:scale-95">
               <span className="w-9 h-9 rounded-full flex items-center justify-center font-display font-black text-[#4a2400] shrink-0"
                 style={{ background: '#ffb020', boxShadow: '0 2px 0 #b86b00' }}>
                 {(hostName.trim() || '؟').slice(0, 1)}
               </span>
               <span className="font-display font-black text-white truncate max-w-[9rem]">{shownName}</span>
-              <Pencil className="w-3.5 h-3.5 text-white/70 shrink-0" strokeWidth={2.6} />
+              <ChevronLeft className="w-4 h-4 text-white/70 shrink-0" strokeWidth={2.8} />
             </button>
             <div className="flex items-center gap-1.5 rounded-full px-3.5 py-2 font-display font-black text-[#4a2400] shrink-0"
               style={{ background: '#fde047', boxShadow: '0 3px 0 #ca8a04' }}>
@@ -1780,6 +1793,11 @@ export default function Game() {
   // -------- الترتيب --------
   if (screen === 'leaderboard') {
     return <Leaderboard onExit={() => setScreen('menu')} />;
+  }
+
+  // -------- ملفي --------
+  if (screen === 'profile') {
+    return <Profile name={hostName} onSaveName={applyName} onExit={() => setScreen('menu')} onLeaderboard={() => setScreen('leaderboard')} />;
   }
 
   // -------- خمّن الكلمة --------
