@@ -4,7 +4,7 @@
 // خمّن الكلمة المخفية: كل تخمين يكشف لك أي الحروف صح ومكانها.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ArrowRight, Delete, CornerDownLeft, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Trophy, Play } from 'lucide-react';
+import { ArrowRight, Delete, CornerDownLeft, Share2, RotateCcw, BarChart3, HelpCircle, Lightbulb, Trophy, Play, Lock } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import {
@@ -14,6 +14,7 @@ import {
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints } from '@/lib/points';
+import { getBulbs, setBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -70,6 +71,11 @@ export default function GuessGame({ onExit }) {
   const [stats, setStats] = useState(() => emptyStats(3));
   const [dailyDone, setDailyDone] = useState({});
   const [hints, setHints] = useState([]);          // مواضع الحروف المكشوفة
+  const [elims, setElims] = useState([]);          // حروف انطفت بالتلميح (مو في الكلمة)
+  const [elimUses, setElimUses] = useState(0);
+  const [bulbs, setBulbsState] = useState(3);
+  const [showHints, setShowHints] = useState(false);
+  const [earned, setEarned] = useState(0);
   const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
   const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
   const [lostStreak, setLostStreak] = useState(0);
@@ -85,6 +91,7 @@ export default function GuessGame({ onExit }) {
 
   const tries = LENGTHS[len].tries;
   const day = dayNumber();
+  const bank = useMemo(() => bankFor(len, answer), [len, answer]);
 
   // حالة "تحدي اليوم" لكل طول
   useEffect(() => {
@@ -94,6 +101,7 @@ export default function GuessGame({ onExit }) {
       d[l] = saved?.status && saved.status !== 'playing' ? saved.status : null;
     }
     setDailyDone(d);
+    setBulbsState(getBulbs());
     try { if (!localStorage.getItem('wg:guess-seen-help')) { setShowHelp(true); localStorage.setItem('wg:guess-seen-help', '1'); } } catch {}
   }, [day, phase]);
 
@@ -125,6 +133,7 @@ export default function GuessGame({ onExit }) {
     setConfirmUnknown('');
     setStats(load(statsKey(l), emptyStats(l)));
     setHints(restored.hints || []);
+    setElims([]); setElimUses(0); setShowHints(false); setEarned(0);
     setRushOver(null);
     if (m === 'rush') {
       const t = Date.now();
@@ -143,6 +152,7 @@ export default function GuessGame({ onExit }) {
     setCurrent('');
     setKeyStates({});
     setHints([]);
+    setElims([]); setElimUses(0); setShowHints(false);
     setConfirmUnknown('');
     setStatus('playing');
   }, [len]);
@@ -173,16 +183,21 @@ export default function GuessGame({ onExit }) {
       s.streak += 1;
       s.best = Math.max(s.best, s.streak);
       s.dist[finalGuesses.length - 1] = (s.dist[finalGuesses.length - 1] || 0) + 1;
-      const pts = guessPoints({ len, triesUsed: finalGuesses.length, tries: LENGTHS[len].tries, hints: hints.length, streak: s.streak });
+      const penalty = hints.length * HINT_TYPES.reveal.penalty + elimUses * HINT_TYPES.elim.penalty;
+      const pts = guessPoints({ len, triesUsed: finalGuesses.length, tries: LENGTHS[len].tries, penalty, streak: s.streak });
       setGain(pts);
       awardPoints(pts, true);
+      const before = getBulbs();
+      const after = setBulbs(before + bulbsEarned({ usedHints: hints.length + elimUses > 0, streak: s.streak }));
+      setBulbsState(after);
+      setEarned(after - before);
     } else {
       setLostStreak(s.streak);
       s.streak = 0;
     }
     save(statsKey(len), s);
     setStats(s);
-  }, [len, hints]);
+  }, [len, hints, elimUses]);
 
   // -------- إرسال تخمين --------
   const submit = useCallback(() => {
@@ -245,36 +260,67 @@ export default function GuessGame({ onExit }) {
     }, total);
   }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord, start]);
 
-  const bank = useMemo(() => bankFor(len, answer), [len, answer]);
   // للتجارب فقط (وضع التطوير)
   useEffect(() => { if (process.env.NODE_ENV !== 'production') window.__guessAnswer = answer; }, [answer]);
 
-  // -------- التلميح: يكشف حرف بمكانه --------
-  const maxHints = mode === 'rush' ? len - 1 : (len === 3 ? 1 : 2);
+  // -------- التلميح --------
+  // ما يفتح إلا بعد أول محاولة، وكل نوع له سعر باللمبات 💡
+  const maxHints = mode === 'rush' ? len - 1 : revealLimit(len);
   const hintsLeft = Math.max(0, maxHints - hints.length);
+  const hintsLocked = mode !== 'rush' && guesses.length === 0;
+  const spend = useCallback((cost) => {
+    const b = getBulbs();
+    if (b < cost) return false;
+    setBulbsState(setBulbs(b - cost));
+    return true;
+  }, []);
+
+  // حروف ممكن نطفيها: موجودة بالكيبورد، مو في الكلمة، وما انعرفت بعد
+  const elimCandidates = useMemo(() => {
+    const inAns = new Set([...answer]);
+    return [...LETTER_SET].filter(ch => !inAns.has(ch) && !keyStates[ch] && !elims.includes(ch) && (!bank || bank.has(ch)));
+  }, [answer, keyStates, elims, bank]);
+
+  const useElim = useCallback(() => {
+    if (busy || status !== 'playing' || hintsLocked) return;
+    if (elimUses >= HINT_TYPES.elim.maxPerGame || !elimCandidates.length) return;
+    if (!spend(HINT_TYPES.elim.cost)) return;
+    const pool = [...elimCandidates];
+    const picked = [];
+    for (let n = Math.min(elimCount(len), pool.length); n > 0; n--) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    setElims(e => [...e, ...picked]);
+    setElimUses(u => u + 1);
+    setShowHints(false);
+    playAccept(); haptic('light');
+    flash(`🧹 طفّينا ${picked.length} حروف مو في الكلمة`);
+  }, [busy, status, hintsLocked, elimUses, elimCandidates, spend, len, flash]);
+
   const useHint = useCallback(() => {
-    if (busy || status !== 'playing' || hints.length >= maxHints) return;
+    if (busy || status !== 'playing' || hints.length >= maxHints || hintsLocked) return;
     const letters = [...answer];
     const known = new Set();
     guesses.forEach(g => g.result.forEach((r, i) => { if (r === 'correct') known.add(i); }));
     const cand = letters.map((_, i) => i).filter(i => !known.has(i) && !hints.includes(i));
     if (!cand.length) { flash('عرفت كل الحروف بمكانها! 😄'); return; }
+    if (mode !== 'rush' && !spend(HINT_TYPES.reveal.cost)) return;
+    setShowHints(false);
     const i = cand[Math.floor(Math.random() * cand.length)];
     const nh = [...hints, i];
     setHints(nh);
     playAccept();
     if (mode === 'daily') save(dailyKey(len, day), { guesses, status, hints: nh });
     if (mode === 'rush') { setRushEndsAt(t => t - RUSH_HINT_COST * 1000); flash(`💡 −${RUSH_HINT_COST} ثواني`); }
-  }, [busy, status, hints, maxHints, answer, guesses, mode, len, day, flash]);
+  }, [busy, status, hints, maxHints, hintsLocked, answer, guesses, mode, len, day, flash, spend]);
 
   // الكيبورد يلوّن حروف التلميح بالأخضر
   const shownKeys = useMemo(() => {
-    if (!hints.length) return keyStates;
+    if (!hints.length && !elims.length) return keyStates;
     const k = { ...keyStates };
+    for (const ch of elims) if (!k[ch]) k[ch] = 'absent';
     const letters = [...answer];
     for (const i of hints) k[letters[i]] = 'correct';
     return k;
-  }, [keyStates, hints, answer]);
+  }, [keyStates, hints, elims, answer]);
 
   const typeKey = useCallback((k) => {
     if (busy || status !== 'playing') return;
@@ -383,14 +429,25 @@ export default function GuessGame({ onExit }) {
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 relative">
         {status === 'playing' && !rushOver && (
           <div className="flex items-center gap-2 mb-2.5" dir="rtl">
-            <button onClick={useHint} disabled={!hintsLeft || busy}
-              className="btn-3d inline-flex items-center gap-1 rounded-full px-3 py-1 font-display font-black text-[0.8rem]"
-              style={hintsLeft ? { background: '#fde047', color: '#713f12', boxShadow: '0 3px 0 #ca8a04' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)' }}>
-              <Lightbulb className="w-3.5 h-3.5" strokeWidth={2.6} />
-              {hintsLeft
-                ? <>تلميح {mode === 'rush' ? <span className="opacity-75">(−<Num>{RUSH_HINT_COST}</Num>ث)</span> : <span className="opacity-75">(<Num>{hintsLeft}</Num>)</span>}</>
-                : 'خلصت'}
-            </button>
+            {mode === 'rush' ? (
+              <button onClick={useHint} disabled={!hintsLeft || busy}
+                className="btn-3d inline-flex items-center gap-1 rounded-full px-3 py-1 font-display font-black text-[0.8rem]"
+                style={hintsLeft ? { background: '#fde047', color: '#713f12', boxShadow: '0 3px 0 #ca8a04' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)' }}>
+                <Lightbulb className="w-3.5 h-3.5" strokeWidth={2.6} />
+                {hintsLeft ? <>تلميح <span className="opacity-75">(−<Num>{RUSH_HINT_COST}</Num>ث)</span></> : 'خلصت'}
+              </button>
+            ) : (
+              <button disabled={busy}
+                onClick={() => hintsLocked ? flash('خمّن مرة وحدة أول، بعدين يفتح التلميح 💡', 1800) : setShowHints(v => !v)}
+                className="btn-3d inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-3 py-1 font-display font-black text-[0.8rem]"
+                style={hintsLocked ? { background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.7)' } : { background: '#fde047', color: '#713f12', boxShadow: '0 3px 0 #ca8a04' }}>
+                {hintsLocked ? <Lock className="w-3.5 h-3.5" strokeWidth={2.6} /> : <Lightbulb className="w-3.5 h-3.5" strokeWidth={2.6} />}
+                تلميح
+                <span className="rounded-full px-1.5 min-w-[1.6rem] text-center" style={{ background: hintsLocked ? 'rgba(255,255,255,0.15)' : 'rgba(113,63,18,0.15)' }}>
+                  <Num>{bulbs}</Num>💡
+                </span>
+              </button>
+            )}
             {hints.length > 0 && [...answer].map((ch, i) => (
               <div key={i} className="w-7 h-7 rounded-lg flex items-center justify-center font-display font-black text-base slide-in"
                 style={hints.includes(i) ? { background: '#22c55e', color: '#fff', boxShadow: '0 2px 0 #15803d' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
@@ -416,6 +473,18 @@ export default function GuessGame({ onExit }) {
           </div>
         )}
 
+        {showHints && status === 'playing' && !hintsLocked && mode !== 'rush' && (
+          <HintMenu
+            bulbs={bulbs}
+            len={len}
+            elimLeft={elimCandidates.length ? HINT_TYPES.elim.maxPerGame - elimUses : 0}
+            revealLeft={hintsLeft}
+            onElim={useElim}
+            onReveal={useHint}
+            onClose={() => setShowHints(false)}
+          />
+        )}
+
         {toast && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white max-w-[calc(100%-24px)] text-center z-10"
             style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>
@@ -430,7 +499,7 @@ export default function GuessGame({ onExit }) {
         )}
       </div>
 
-      {burst && <WinBurst text={burst} sub={gain > 0 ? `+${gain} ⭐` : null} />}
+      {burst && <WinBurst text={burst} sub={gain > 0 ? `+${gain} ⭐${earned > 0 ? ` · +${earned} 💡` : ''}` : null} />}
 
       {/* الكيبورد */}
       <GuessKeyboard keyStates={shownKeys} onKey={typeKey} allowed={bank} disabled={!!rushOver} />
@@ -545,9 +614,62 @@ function HelpSheet({ onClose }) {
           <p className="text-xs text-muted mb-4 leading-relaxed">
             الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي).
           </p>
+          <div className="rounded-2xl bg-[#fef9c3] border-2 border-[#fde047] p-3 mb-4 text-[0.8rem] text-[#713f12] font-bold leading-relaxed">
+            <div className="font-display font-black text-sm mb-0.5">💡 التلميحات</div>
+            يفتح التلميح بعد أول محاولة، وتدفع له لمبات:<br />
+            🧹 شيل حروف غلط = ١ 💡 · 🔍 اكشف حرف = ٢ 💡<br />
+            تكسب لمبة مع كل فوز بدون تلميح، ولمبة زيادة كل ٥ ستريك 🔥
+          </div>
           <Btn size="md" onClick={onClose}>يلا نلعب</Btn>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// قائمة التلميح: نوعين بأسعار مختلفة
+function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose }) {
+  const Option = ({ icon, title, desc, cost, penalty, left, onClick }) => {
+    const short = bulbs < cost;
+    const off = left <= 0 || short;
+    return (
+      <button onClick={onClick} disabled={off}
+        className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-right transition-all ${off ? 'opacity-50' : 'active:scale-[0.98]'}`}
+        style={{ background: '#fff', border: '2px solid #ede9fe', boxShadow: off ? 'none' : '0 3px 0 #c4b5fd' }}>
+        <span className="text-2xl">{icon}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-display font-black text-[#2e1065]">{title}</span>
+          <span className="block text-[0.72rem] font-bold text-[#6d5b95]">
+            {left <= 0 ? 'استخدمته هالجولة' : short ? `تحتاج ${cost} 💡` : desc}
+          </span>
+        </span>
+        <span className="shrink-0 text-center">
+          <span className="block rounded-full px-2 py-0.5 font-display font-black text-sm" style={{ background: '#fde047', color: '#713f12' }}><Num>{cost}</Num>💡</span>
+          <span className="block text-[0.65rem] font-bold text-[#b45309] mt-0.5">−<Num>{penalty}</Num>⭐</span>
+        </span>
+      </button>
+    );
+  };
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-[#1e0b4b]/45 fade-in" onClick={onClose}>
+      <div className="w-full max-w-[320px] rounded-3xl p-3 slide-in" onClick={e => e.stopPropagation()}
+        style={{ background: '#f5f3ff', boxShadow: '0 6px 0 #c4b5fd, 0 20px 40px -10px rgba(20,5,60,0.6)' }}>
+        <div className="flex items-center justify-between px-1 mb-2.5">
+          <div className="font-display font-black text-lg text-[#4c1d95]">💡 تلميح</div>
+          <div className="rounded-full px-2.5 py-0.5 font-display font-black text-sm" style={{ background: '#fde047', color: '#713f12', boxShadow: '0 2px 0 #ca8a04' }}>
+            عندك <Num>{bulbs}</Num>/<Num>{BULB_MAX}</Num> 💡
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Option icon="🧹" title="شيل حروف غلط" desc={`نطفي ${elimCount(len)} حروف مو في الكلمة`}
+            cost={HINT_TYPES.elim.cost} penalty={HINT_TYPES.elim.penalty} left={elimLeft} onClick={onElim} />
+          <Option icon="🔍" title="اكشف حرف" desc="نحط لك حرف بمكانه الصح"
+            cost={HINT_TYPES.reveal.cost} penalty={HINT_TYPES.reveal.penalty} left={revealLeft} onClick={onReveal} />
+        </div>
+        <div className="text-center text-[0.72rem] font-bold text-[#6d5b95] mt-2.5 leading-relaxed">
+          اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل ٥ ستريك 🔥
+        </div>
+      </div>
     </div>
   );
 }

@@ -142,7 +142,7 @@ export default function Leaderboard({ onExit }) {
         </div>
         {showHow && (
           <div className="mt-2 rounded-2xl bg-white text-[#2e1065] p-3 text-sm font-display font-bold leading-relaxed slide-in" style={{ boxShadow: '0 4px 0 #c4b5fd' }}>
-            <div>🟩 خمّن الكلمة لحالك: ١٠ (٣ أحرف) أو ٢٠ (٥ أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · كل تلميح −٣</div>
+            <div>🟩 خمّن الكلمة لحالك: ١٠ (٣ أحرف) أو ٢٠ (٥ أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −٢ · 🔍 −٥)</div>
             <div>⚔️ فوز أونلاين مع صاحبك: <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
             <div>🎯 «أنت تختار الكلمة»: اللي يحلها <Num>{POINTS.customGuesserWin}</Num> · اللي يصعّبها <Num>{POINTS.customSetterWin}</Num></div>
             <div>⏱ تحدي النهايات ضد الوقت: ٢ لكل كلمة</div>
