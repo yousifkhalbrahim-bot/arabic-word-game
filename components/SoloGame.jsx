@@ -6,6 +6,8 @@ import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/compo
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
 import { haptic, publicUrl, shareContent } from '@/lib/native';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { abuSay, phraseFor } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -44,6 +46,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
   const inputRef = useRef(null);
   const feedbackTimer = useRef(null);
   const lastTickRef = useRef(null);
+  const hurriedRef = useRef(false);   // «بسرعة!» مرة وحدة بس كل جولة
   const [showHelp, setShowHelp] = useState(false);
   const [shareNote, setShareNote] = useState('');
   const pausedAt = useRef(0);
@@ -105,6 +108,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setNowTs(t);
     setEndsAt(t + duration * 1000);
     setShareNote('');
+    hurriedRef.current = false;
     setPhase('playing');
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [endings, duration]);
@@ -127,7 +131,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       try { window.dispatchEvent(new Event('wg:stats')); } catch {}
       setBests(b => ({ ...b, [duration]: score }));
     }
-    setResult({ score, prevBest, isRecord, pts: racePoints(score) });
+    setResult({ score, prevBest, isRecord, pts: racePoints(score), line: isRecord ? phraseFor('record') : '' });
     if (score > 0) awardPoints(racePoints(score), false);
     setPhase('done');
   }, [phase, timeLeft, words.length, duration]);
@@ -141,13 +145,14 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       playTick();
     }
     if (secs > 5) lastTickRef.current = null;
-  }, [timeLeft, phase]);
+    if (secs === 10 && !hurriedRef.current && duration > 10) { hurriedRef.current = true; abuSay('hurry'); }
+  }, [timeLeft, phase, duration]);
 
   const submit = useCallback(() => {
     if (phase !== 'playing' || timeLeft <= 0 || !input.trim()) return;
     const check = checkRaceWord(input, ending, words.map(w => w.w));
     if (!check.ok) {
-      if (check.error) { playReject(); flash(false, check.error); }
+      if (check.error) { playReject(); flash(false, check.error); if (check.error === 'كلمة غير معروفة') abuSay('unknown'); }
       setStreak(0);
       return;
     }
@@ -159,6 +164,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setIndex(i => i + 1);
     setInput('');
     const best = bests[duration] || 0;
+    if (best > 0 && words.length + 1 === best + 1) abuSay('record');
     flash(true, best > 0 && words.length + 1 === best + 1 ? '🏆 كسرت رقمك القياسي!'
       : nextStreak % STREAK_EVERY === 0 ? `🔥 ${nextStreak} متتالية!` : '✓ ' + check.word);
   }, [phase, timeLeft, input, ending, words, streak, flash, bests, duration]);
@@ -245,10 +251,14 @@ ${url}`;
       <div className="flex-1 overflow-y-auto px-4 pb-6">
         <div className="w-full max-w-md mx-auto text-center fade-in pt-2">
           {result.isRecord && <Confetti />}
+          {result.isRecord ? (
+            <div className="flex justify-center pt-12 mb-1"><AbuShmagh mood="win" say={result.line} size={110} /></div>
+          ) : (
           <div className="mx-auto mb-2 w-16 h-16 rounded-2xl flex items-center justify-center bounce-gentle rotate-[-6deg]"
             style={{ background: '#ffb020', boxShadow: '0 6px 0 #b86b00', border: '3px solid rgba(255,255,255,0.6)' }}>
             <Trophy className="w-8 h-8 text-[#4a2400]" strokeWidth={2.6} />
           </div>
+          )}
           {result.isRecord && (
             <div className="inline-block font-display font-black text-white bg-[#22c55e] rounded-full px-3 py-0.5 mb-1 slide-in" style={{ boxShadow: '0 3px 0 #15803d' }}>
               🎉 رقم قياسي جديد!

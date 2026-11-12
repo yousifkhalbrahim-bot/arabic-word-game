@@ -23,6 +23,8 @@ import Leaderboard from '@/components/Leaderboard';
 import Profile from '@/components/Profile';
 import { levelFor } from '@/lib/levels';
 import TabBar, { TABBAR_SPACE } from '@/components/TabBar';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { phraseFor } from '@/lib/abu';
 import { applyTheme, watchSystemTheme } from '@/lib/settings';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
@@ -664,6 +666,7 @@ export default function Game() {
   useVisualViewport();
   const [screen, setScreen] = useState('menu');
   const [booting, setBooting] = useState(true);
+  const [abuLine, setAbuLine] = useState(null);   // أبو شماغ في الرئيسية: { text, n }
   const [myRole, setMyRoleState] = useState(null);
   const [roomCode, setRoomCode] = useState('');
   const [roomState, setRoomState] = useState(null);
@@ -794,6 +797,20 @@ export default function Game() {
       }
     })();
   }, [enterRoom]);
+
+  // ============== أبو شماغ يرحّب (مرة كل ما تفتح اللعبة) ==============
+  useEffect(() => {
+    // بعد ما تخلص شاشة التحميل، وبس لو فيه اسم (مو شاشة الترحيب الأولى)
+    if (booting || screen !== 'menu' || roomCode === 'DEMO' || !hostName.trim()) return;
+    try { if (sessionStorage.getItem('abu-hi')) return; } catch {}
+    const t = setTimeout(() => { try { sessionStorage.setItem('abu-hi', '1'); } catch {} setAbuLine({ text: phraseFor('hi'), n: Date.now() }); }, 700);
+    return () => clearTimeout(t);
+  }, [booting, screen, roomCode, hostName]);
+  useEffect(() => {
+    if (!abuLine) return;
+    const t = setTimeout(() => setAbuLine(null), 2800);
+    return () => clearTimeout(t);
+  }, [abuLine]);
 
   // ============== المظهر (فاتح/ليلي) ==============
   useEffect(() => { applyTheme(); return watchSystemTheme(); }, []);
@@ -1680,7 +1697,11 @@ export default function Game() {
           </button>
 
           {/* الشعار */}
-          <div className="text-center mb-4">
+          <div className="relative text-center mb-4">
+            {/* أبو شماغ واقف جنب العنوان — اضغطه ويتكلم */}
+            <button onClick={() => setAbuLine({ text: phraseFor('hi'), n: Date.now() })} aria-label="أبو شماغ" className="absolute left-0 -bottom-1 z-10 active:scale-95 transition-transform">
+              <AbuShmagh key={abuLine?.n || 0} mood={abuLine ? 'hi' : 'idle'} say={abuLine?.text} size={58} bubbleSide="side" />
+            </button>
             <div className="flex justify-center gap-1.5 mb-2" dir="rtl">
               {logo.map((t, i) => (
                 <div key={i} style={{ transform: `rotate(${t.r}deg)` }}>

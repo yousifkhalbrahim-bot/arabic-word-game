@@ -14,6 +14,8 @@ import {
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints } from '@/lib/points';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { phraseFor, abuSay } from '@/lib/abu';
 import { getBulbs, syncBulbs, spendBulbs, earnBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
@@ -85,6 +87,7 @@ export default function GuessGame({ onExit }) {
   const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
   const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
   const [lostStreak, setLostStreak] = useState(0);
+  const [lossLine, setLossLine] = useState('');      // عبارة أبو شماغ وقت الخسارة
   const [gain, setGain] = useState(0);
   const [rushEndsAt, setRushEndsAt] = useState(0);
   const [rushScore, setRushScore] = useState(0);
@@ -228,7 +231,7 @@ export default function GuessGame({ onExit }) {
     if (!KNOWN[len].has(word) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash('مو في قاموسنا 🤔 — اضغط تأكيد مرة ثانية', 2200);
+      abuSay('unknown', undefined, 'لو متأكد منها اضغط تأكيد مرة ثانية');
       return;
     }
 
@@ -260,8 +263,10 @@ export default function GuessGame({ onExit }) {
       if (won) {
         playWin();
         setWinRow(next.length - 1);
-        setBurst(PRAISE[next.length - 1] || PRAISE[PRAISE.length - 1]);
-        setTimeout(() => setBurst(null), 1900);
+        const willStreak = (mixedRef.current ? mixStats.streak : stats.streak) + 1;
+        const kind = next.length === 1 ? 'first' : willStreak % 5 === 0 ? 'streak' : 'win';
+        setBurst({ text: phraseFor(kind), mood: kind === 'streak' ? 'streak' : 'win' });
+        setTimeout(() => setBurst(null), 2450);
       } else if (lost) {
         playLose();
       } else {
@@ -270,11 +275,11 @@ export default function GuessGame({ onExit }) {
       if (newStatus !== 'playing') {
         setStatus(newStatus);
         finish(won, next);
-        if (won) setTimeout(() => { setWinRow(-1); start('free'); }, 2000);
-        else setTimeout(() => setShowResult(true), 900);
+        if (won) setTimeout(() => { setWinRow(-1); start('free'); }, 2500);
+        else { setLossLine(phraseFor('sad')); setTimeout(() => setShowResult(true), 900); }
       }
     }, total);
-  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord, start]);
+  }, [busy, status, current, len, confirmUnknown, answer, guesses, tries, mode, day, flash, finish, hints, nextRushWord, start, stats, mixStats]);
 
   // للتجارب فقط (وضع التطوير)
   useEffect(() => { if (process.env.NODE_ENV !== 'production') window.__guessAnswer = answer; }, [answer]);
@@ -312,7 +317,7 @@ export default function GuessGame({ onExit }) {
     setElims(e => [...e, ...picked]);
     setElimUses(u => u + 1);
     setShowHints(false);
-    playAccept(); haptic('light');
+    playAccept(); haptic('light'); abuSay('think');
     flash(`🧹 طفّينا ${picked.length} حروف مو في الكلمة`);
   }, [busy, status, hintsLocked, elimUses, elimCandidates, spend, len, flash]);
 
@@ -329,6 +334,7 @@ export default function GuessGame({ onExit }) {
     const nh = [...hints, i];
     setHints(nh);
     playAccept();
+    if (mode !== 'rush') abuSay('think');
     if (mode === 'daily') save(dailyKey(len, day), { guesses, status, hints: nh });
     if (mode === 'rush') { setRushEndsAt(t => t - RUSH_HINT_COST * 1000); flash(`💡 −${RUSH_HINT_COST} ثواني`); }
   }, [busy, status, hints, maxHints, hintsLocked, answer, guesses, mode, len, day, flash, spend]);
@@ -526,7 +532,7 @@ export default function GuessGame({ onExit }) {
         )}
       </div>
 
-      {burst && <WinBurst text={burst} sub={gain > 0 ? `+${gain} ⭐${earned > 0 ? ` · +${earned} 💡` : ''}` : null} />}
+      {burst && <WinBurst text={burst.text} abu={burst.mood} sub={gain > 0 ? `+${gain} ⭐${earned > 0 ? ` · +${earned} 💡` : ''}` : null} />}
 
       {/* الكيبورد */}
       <GuessKeyboard keyStates={shownKeys} onKey={typeKey} allowed={bank} disabled={!!rushOver} />
@@ -559,6 +565,7 @@ export default function GuessGame({ onExit }) {
       {showResult && status === 'lost' && (
         <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in">
           <Card className="w-full max-w-sm p-5 slide-in text-center" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="-mt-20 mb-1 flex justify-center"><AbuShmagh mood="sad" say={lossLine} size={96} /></div>
             <div className="font-display font-black text-2xl text-[var(--ink-2)]">المرة الجاية! 💪</div>
             <div className="text-muted text-sm font-display font-bold mt-1 mb-3">الكلمة كانت</div>
             <LetterTiles text={answer} size={len === 3 ? 52 : 40} className="mb-4" />
@@ -746,13 +753,22 @@ export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compac
 }
 
 // احتفال الفوز: توهج + أشعة + كلمة كبيرة + قصاصات
-export function WinBurst({ text, sub = null }) {
+export function WinBurst({ text, sub = null, abu = null }) {
   return (
     <div className="win-burst absolute inset-0 z-30 pointer-events-none flex items-center justify-center overflow-hidden">
       <Confetti count={50} />
       <div className="win-rays absolute w-[160vmax] h-[160vmax]"
         style={{ background: 'repeating-conic-gradient(rgba(255,255,255,0.13) 0deg 10deg, transparent 10deg 20deg)', maskImage: 'radial-gradient(circle, #000 0%, transparent 55%)', WebkitMaskImage: 'radial-gradient(circle, #000 0%, transparent 55%)' }} />
       <div className="win-glow absolute w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,224,71,0.85) 0%, rgba(34,197,94,0.35) 45%, transparent 70%)' }} />
+      {abu ? (
+        // أبو شماغ يقول العبارة ويرمي العقال
+        <div className="relative flex flex-col items-center pt-14">
+          <AbuShmagh mood={abu} say={text} size={150} />
+          {sub && (
+            <span className="mt-2 rounded-full px-4 py-1 font-display font-black text-[1.3rem] text-[#4a2400]" style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>{sub}</span>
+          )}
+        </div>
+      ) : (
       <div className="win-text relative font-display font-black text-white text-center px-6"
         style={{ fontSize: 'clamp(2.6rem, 14vw, 4rem)', lineHeight: 1.15, textShadow: '0 5px 0 #15803d, 0 10px 30px rgba(20,5,60,0.6)' }}>
         {text}
@@ -762,6 +778,7 @@ export function WinBurst({ text, sub = null }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
