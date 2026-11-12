@@ -45,6 +45,7 @@ const rushKey = (len) => `wg:guess-rush-best:${len}`;
 const RUSH_SECONDS = 120;
 const RUSH_HINT_COST = 10;
 const dailyKey = (len, day) => `wg:guess-daily:${len}:${day}`;
+const MIX_KEY = 'wg:guess-mix';
 const emptyStats = (len) => ({ played: 0, wins: 0, streak: 0, best: 0, dist: Array(LENGTHS[len].tries).fill(0) });
 function load(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -76,6 +77,11 @@ export default function GuessGame({ onExit }) {
   const [bulbs, setBulbsState] = useState(3);
   const [showHints, setShowHints] = useState(false);
   const [earned, setEarned] = useState(0);
+  // «مختلط»: كل جولة 3 أو 5 عشوائي، وله ستريك خاص فيه
+  const [mixed, setMixed] = useState(false);
+  const mixedRef = useRef(false);
+  mixedRef.current = mixed;
+  const [mixStats, setMixStats] = useState({ streak: 0, best: 0 });
   const [winRow, setWinRow] = useState(-1);        // الصف اللي يرقص وقت الفوز
   const [burst, setBurst] = useState(null);        // كلمة الاحتفال بالنص
   const [lostStreak, setLostStreak] = useState(0);
@@ -102,6 +108,7 @@ export default function GuessGame({ onExit }) {
     }
     setDailyDone(d);
     setBulbsState(getBulbs());
+    setMixStats(load(MIX_KEY, { streak: 0, best: 0 }));
     syncBulbs().then(setBulbsState);
     try { if (!localStorage.getItem('wg:guess-seen-help')) { setShowHelp(true); localStorage.setItem('wg:guess-seen-help', '1'); } } catch {}
   }, [day, phase]);
@@ -115,6 +122,7 @@ export default function GuessGame({ onExit }) {
 
   // -------- بدء لعبة --------
   const start = useCallback((m, l = len) => {
+    if (m === 'free' && mixedRef.current) l = PLAYABLE_LENGTHS[Math.floor(Math.random() * PLAYABLE_LENGTHS.length)];
     const word = m === 'daily' ? dailyAnswer(l, day) : randomAnswer(l, answer);
     let restored = { guesses: [], status: 'playing', hints: [] };
     if (m === 'daily') restored = load(dailyKey(l, day), restored);
@@ -196,6 +204,13 @@ export default function GuessGame({ onExit }) {
       s.streak = 0;
     }
     save(statsKey(len), s);
+    if (mixedRef.current) {
+      const ms = load(MIX_KEY, { streak: 0, best: 0 });
+      if (won) { ms.streak += 1; ms.best = Math.max(ms.best, ms.streak); }
+      else { setLostStreak(ms.streak); ms.streak = 0; }
+      save(MIX_KEY, ms);
+      setMixStats(ms);
+    }
     try { window.dispatchEvent(new Event('wg:stats')); } catch {}
     setStats(s);
   }, [len, hints, elimUses]);
@@ -381,21 +396,26 @@ export default function GuessGame({ onExit }) {
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-6 flex items-center justify-center">
         <Card className="w-full max-w-sm p-5 fade-in">
           <LetterTiles text="خمن" size={46} className="mb-3" />
-          <h2 className="text-center font-display font-black text-[#4c1d95] text-2xl mb-1">خمّن الكلمة</h2>
+          <h2 className="text-center font-display font-black text-[var(--ink-2)] text-2xl mb-1">خمّن الكلمة</h2>
           <p className="text-center text-muted text-sm leading-relaxed mb-5">
             عندك محاولات محدودة تكتشف فيها الكلمة المخفية.<br />
             <span className="text-dim">الألوان تقول لك وين الحروف الصح</span>
           </p>
 
           <div className="font-display font-bold text-[0.85rem] text-muted mb-2">عدد الحروف</div>
-          <div className="grid grid-cols-2 gap-2.5 mb-5">
+          <div className="grid grid-cols-3 gap-2 mb-5">
             {PLAYABLE_LENGTHS.map(l => (
-              <Choice key={l} selected={len === l} onClick={() => setLen(l)} className="py-2.5">
+              <Choice key={l} selected={!mixed && len === l} onClick={() => { setMixed(false); setLen(l); }} className="py-2.5 px-1">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
-                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل · 7 حروف مقفلة' : 'أصعب · كل الحروف'}</div>
+                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل' : 'أصعب'}</div>
               </Choice>
             ))}
+            <Choice selected={mixed} onClick={() => setMixed(true)} className="py-2.5 px-1">
+              <div className="font-display font-black text-xl leading-tight">🎲 مختلط</div>
+              <div className="text-xs opacity-75"><Num>3</Num> أو <Num>5</Num></div>
+              <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">مفاجأة كل جولة</div>
+            </Choice>
           </div>
 
           <Btn icon={Play} onClick={() => start('free')}>ابدأ</Btn>
@@ -414,6 +434,7 @@ export default function GuessGame({ onExit }) {
 
   // -------- اللعب --------
   const rows = buildRows(guesses, current, tries, status === 'playing');
+  const shown = mixed ? mixStats : stats;
 
   return shell(
     <>
@@ -425,7 +446,7 @@ export default function GuessGame({ onExit }) {
             <div key={rushScore} className="score-bump font-display font-black text-2xl leading-none text-white" style={{ textShadow: '0 2px 0 #b86b00' }}><Num>{rushScore}</Num></div>
           </div>
           <div className={`flex-1 rounded-2xl px-3 py-1 text-center ${rushLeft <= 15 ? 'animate-pulse' : ''}`}
-            style={rushLeft <= 15 ? { background: '#ff4d6d', boxShadow: '0 4px 0 #b3123a', color: '#fff' } : { background: '#fff', boxShadow: '0 4px 0 #c4b5fd', color: '#3b1d6e' }}>
+            style={rushLeft <= 15 ? { background: '#ff4d6d', boxShadow: '0 4px 0 #b3123a', color: '#fff' } : { background: 'var(--card)', boxShadow: '0 4px 0 var(--edge)', color: 'var(--ink-3)' }}>
             <div className="text-[0.7rem] font-display font-black opacity-80">الوقت</div>
             <div className="font-mono-ar font-black text-2xl leading-none"><bdi>{Math.floor(rushLeft / 60)}:{String(Math.floor(rushLeft % 60)).padStart(2, '0')}</bdi></div>
           </div>
@@ -466,13 +487,13 @@ export default function GuessGame({ onExit }) {
         {mode !== 'rush' && (
           <div className="streak-bar mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
             <div className="flex items-center gap-1.5">
-              <span key={stats.streak} className="score-bump font-display font-black text-xl text-white"><Num>{stats.streak}</Num></span>
+              <span key={shown.streak} className="score-bump font-display font-black text-xl text-white"><Num>{shown.streak}</Num></span>
               <span className="text-lg">🔥</span>
               <span className="text-[0.7rem] font-display font-bold text-white/75">ستريك حالي</span>
             </div>
             <div className="w-px h-6 bg-white/20" />
             <div className="flex items-center gap-1.5">
-              <span className="font-display font-black text-xl text-white"><Num>{stats.best}</Num></span>
+              <span className="font-display font-black text-xl text-white"><Num>{shown.best}</Num></span>
               <Trophy className="w-4 h-4 text-[#fde047]" strokeWidth={2.6} />
               <span className="text-[0.7rem] font-display font-bold text-white/75">أعلى ستريك</span>
             </div>
@@ -492,8 +513,8 @@ export default function GuessGame({ onExit }) {
         )}
 
         {toast && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white max-w-[calc(100%-24px)] text-center z-10"
-            style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[var(--ink)] bg-[var(--card)] max-w-[calc(100%-24px)] text-center z-10"
+            style={{ boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
             {toast}
           </div>
         )}
@@ -515,13 +536,13 @@ export default function GuessGame({ onExit }) {
         <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in">
           {rushOver.record && <Confetti />}
           <Card className="w-full max-w-sm p-5 slide-in text-center" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-            <div className="font-display font-black text-xl text-[#4c1d95]">⏰ خلص الوقت!</div>
+            <div className="font-display font-black text-xl text-[var(--ink-2)]">⏰ خلص الوقت!</div>
             {rushOver.record && (
               <div className="inline-block mt-1 font-display font-black text-white bg-[#22c55e] rounded-full px-3 py-0.5" style={{ boxShadow: '0 3px 0 #15803d' }}>🎉 رقم قياسي جديد!</div>
             )}
-            <div className="font-display font-black text-[#2e1065] mt-2" style={{ fontSize: '3.6rem', lineHeight: 1.1 }}><Num>{rushOver.score}</Num></div>
+            <div className="font-display font-black text-[var(--ink)] mt-2" style={{ fontSize: '3.6rem', lineHeight: 1.1 }}><Num>{rushOver.score}</Num></div>
             <div className="text-muted text-sm font-display font-bold mb-3">كلمة حليتها في دقيقتين</div>
-            <div className="flex items-center justify-center gap-2 mb-4 text-sm font-display font-bold text-[#6d5b95]">
+            <div className="flex items-center justify-center gap-2 mb-4 text-sm font-display font-bold text-[var(--muted-c)]">
               <Trophy className="w-4 h-4" /> أفضل نتيجة: <Num>{rushOver.best}</Num>
             </div>
             <div className="text-xs text-muted font-bold mb-1">آخر كلمة كانت</div>
@@ -538,13 +559,13 @@ export default function GuessGame({ onExit }) {
       {showResult && status === 'lost' && (
         <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center p-3 bg-[#1e0b4b]/55 fade-in">
           <Card className="w-full max-w-sm p-5 slide-in text-center" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-            <div className="font-display font-black text-2xl text-[#4c1d95]">المرة الجاية! 💪</div>
+            <div className="font-display font-black text-2xl text-[var(--ink-2)]">المرة الجاية! 💪</div>
             <div className="text-muted text-sm font-display font-bold mt-1 mb-3">الكلمة كانت</div>
             <LetterTiles text={answer} size={len === 3 ? 52 : 40} className="mb-4" />
-            <div className="flex items-center justify-center gap-4 mb-4 font-display font-bold text-[#6d5b95] text-sm">
+            <div className="flex items-center justify-center gap-4 mb-4 font-display font-bold text-[var(--muted-c)] text-sm">
               <span>🔥 ستريكك كان <Num>{lostStreak}</Num></span>
               <span className="w-px h-4 bg-[#ddd6fe]" />
-              <span>🏆 أعلى <Num>{stats.best}</Num></span>
+              <span>🏆 أعلى <Num>{shown.best}</Num></span>
             </div>
             <Btn icon={RotateCcw} onClick={() => start('free')}>كلمة ثانية</Btn>
             <div className="flex justify-center gap-5 mt-3">
@@ -555,15 +576,15 @@ export default function GuessGame({ onExit }) {
         </div>
       )}
     </>,
-    null
+    mixed ? <>🎲 <Num>{len}</Num> أحرف</> : null
   );
 }
 
 function MiniStat({ label, value }) {
   return (
-    <div className="rounded-xl py-1.5 bg-[#f5f3ff] border-2 border-[#ede9fe]">
-      <div className="font-display font-black text-lg text-[#2e1065] leading-tight"><Num>{value}</Num></div>
-      <div className="text-[0.65rem] font-bold text-[#6d5b95]">{label}</div>
+    <div className="rounded-xl py-1.5 bg-[var(--soft)] border-2 border-[var(--line)]">
+      <div className="font-display font-black text-lg text-[var(--ink)] leading-tight"><Num>{value}</Num></div>
+      <div className="text-[0.65rem] font-bold text-[var(--muted-c)]">{label}</div>
     </div>
   );
 }
@@ -575,13 +596,13 @@ function Distribution({ dist, highlight }) {
       <div className="text-xs font-display font-bold text-muted mb-1.5">توزيع المحاولات</div>
       {dist.map((n, i) => (
         <div key={i} className="flex items-center gap-2" dir="rtl">
-          <span className="w-3 text-xs font-display font-black text-[#6d5b95] text-center"><Num>{i + 1}</Num></span>
+          <span className="w-3 text-xs font-display font-black text-[var(--muted-c)] text-center"><Num>{i + 1}</Num></span>
           <div className="flex-1">
             <div className="h-5 rounded-md flex items-center justify-end px-1.5 text-[0.7rem] font-black transition-all"
               style={{
                 width: `${Math.max(8, (n / max) * 100)}%`,
                 background: highlight === i + 1 ? '#22c55e' : '#ede9fe',
-                color: highlight === i + 1 ? '#ffffff' : '#6d5b95',
+                color: highlight === i + 1 ? '#ffffff' : 'var(--muted-c)',
               }}>
               <Num>{n}</Num>
             </div>
@@ -598,19 +619,19 @@ function HelpSheet({ onClose }) {
       <div className="flex gap-1.5 mb-1" dir="rtl">
         {[...word].map((ch, i) => (
           <div key={i} className="w-9 h-9 rounded-lg border-2 flex items-center justify-center font-display font-black text-lg"
-            style={i === mark ? TILE[state] : { background: '#f5f3ff', color: '#3b1d6e', borderColor: '#ede9fe' }}>
+            style={i === mark ? TILE[state] : { background: 'var(--soft)', color: 'var(--ink-3)', borderColor: 'var(--line)' }}>
             {ch}
           </div>
         ))}
       </div>
-      <div className="text-sm text-[#2e1065]">{text}</div>
+      <div className="text-sm text-[var(--ink)]">{text}</div>
     </div>
   );
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in" onClick={onClose}>
       <Card className="w-full max-w-sm p-5 slide-in">
         <div onClick={e => e.stopPropagation()}>
-          <div className="font-display font-black text-xl text-[#4c1d95] mb-1">طريقة اللعب</div>
+          <div className="font-display font-black text-xl text-[var(--ink-2)] mb-1">طريقة اللعب</div>
           <p className="text-sm text-muted mb-4 leading-relaxed">
             اكتب كلمة كاملة واضغط ✓. بعد كل محاولة تتلوّن المربعات:
           </p>
@@ -641,11 +662,11 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
     return (
       <button onClick={onClick} disabled={off}
         className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-right transition-all ${off ? 'opacity-50' : 'active:scale-[0.98]'}`}
-        style={{ background: '#fff', border: '2px solid #ede9fe', boxShadow: off ? 'none' : '0 3px 0 #c4b5fd' }}>
+        style={{ background: 'var(--card)', border: '2px solid var(--line)', boxShadow: off ? 'none' : '0 3px 0 var(--edge)' }}>
         <span className="text-2xl">{icon}</span>
         <span className="flex-1 min-w-0">
-          <span className="block font-display font-black text-[#2e1065]">{title}</span>
-          <span className="block text-[0.72rem] font-bold text-[#6d5b95]">
+          <span className="block font-display font-black text-[var(--ink)]">{title}</span>
+          <span className="block text-[0.72rem] font-bold text-[var(--muted-c)]">
             {left <= 0 ? 'استخدمته هالجولة' : short ? `تحتاج ${cost} 💡` : desc}
           </span>
         </span>
@@ -659,9 +680,9 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-[#1e0b4b]/45 fade-in" onClick={onClose}>
       <div className="w-full max-w-[320px] rounded-3xl p-3 slide-in" onClick={e => e.stopPropagation()}
-        style={{ background: '#f5f3ff', boxShadow: '0 6px 0 #c4b5fd, 0 20px 40px -10px rgba(20,5,60,0.6)' }}>
+        style={{ background: 'var(--soft)', boxShadow: '0 6px 0 var(--edge), 0 20px 40px -10px rgba(20,5,60,0.6)' }}>
         <div className="flex items-center justify-between px-1 mb-2.5">
-          <div className="font-display font-black text-lg text-[#4c1d95]">💡 تلميح</div>
+          <div className="font-display font-black text-lg text-[var(--ink-2)]">💡 تلميح</div>
           <div className="rounded-full px-2.5 py-0.5 font-display font-black text-sm" style={{ background: '#fde047', color: '#713f12', boxShadow: '0 2px 0 #ca8a04' }}>
             عندك <Num>{bulbs}</Num>/<Num>{BULB_MAX}</Num> 💡
           </div>
@@ -672,7 +693,7 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
           <Option icon="🔍" title="اكشف حرف" desc="نحط لك حرف بمكانه الصح"
             cost={HINT_TYPES.reveal.cost} penalty={HINT_TYPES.reveal.penalty} left={revealLeft} onClick={onReveal} />
         </div>
-        <div className="text-center text-[0.72rem] font-bold text-[#6d5b95] mt-2.5 leading-relaxed">
+        <div className="text-center text-[0.72rem] font-bold text-[var(--muted-c)] mt-2.5 leading-relaxed">
           اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل 5 ستريك 🔥
         </div>
       </div>
@@ -708,7 +729,7 @@ export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compac
             const style = res
               ? { ...TILE[res], ...(flipping ? { animation: `tile-flip ${FLIP_MS * 2}ms ease ${i * FLIP_MS}ms both`, transition: `background-color 0s ${i * FLIP_MS + FLIP_MS}ms, color 0s ${i * FLIP_MS + FLIP_MS}ms, box-shadow 0s ${i * FLIP_MS + FLIP_MS}ms` } : {}) }
               : filled
-                ? { background: '#fff', color: '#3b1d6e', borderColor: '#ede9fe', boxShadow: '0 4px 0 #c4b5fd' }
+                ? { background: 'var(--card)', color: 'var(--ink-3)', borderColor: 'var(--line)', boxShadow: '0 4px 0 var(--edge)' }
                 : { background: 'rgba(255,255,255,0.1)', borderColor: row.active ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)' };
             return (
               <div key={r === winRow ? `w${i}` : i}

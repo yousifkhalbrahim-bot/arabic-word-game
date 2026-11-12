@@ -9,7 +9,7 @@ import { fetchProfile, cachedPoints } from '@/lib/points';
 import { LENGTHS, PLAYABLE_LENGTHS } from '@/lib/guess';
 import { levelFor } from '@/lib/levels';
 import { readProgress, computeBadges } from '@/lib/badges';
-import { getSetting, setSetting } from '@/lib/settings';
+import { getSetting, setSetting, getTheme, setTheme } from '@/lib/settings';
 import { playAccept } from '@/lib/sounds';
 import { haptic } from '@/lib/native';
 
@@ -39,6 +39,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const [draft, setDraft] = useState(name);
   const [err, setErr] = useState('');
   const [settings, setSettings] = useState({ sound: true, haptics: true });
+  const [themePref, setThemePref] = useState('auto');
   const toggle = (k) => {
     const on = !settings[k];
     setSetting(k, on);
@@ -51,6 +52,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   useEffect(() => {
     setCache(cachedPoints());
     setSettings({ sound: getSetting('sound'), haptics: getSetting('haptics') });
+    setThemePref(getTheme());
     const gs = {};
     for (const l of PLAYABLE_LENGTHS) gs[l] = readJSON(`wg:guess-stats:${l}`, null);
     setGuessStats(gs);
@@ -94,7 +96,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
         <h2 className="font-display font-black text-white text-[1.05rem]" style={{ textShadow: '0 2px 0 rgba(46,16,101,0.4)' }}>{title}</h2>
         {aside}
       </div>
-      <div className="rounded-3xl bg-white p-4 text-[#2e1065]" style={{ boxShadow: '0 5px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+      <div className="rounded-3xl bg-[var(--card)] p-4 text-[var(--ink)]" style={{ boxShadow: '0 5px 0 var(--edge)', border: '2px solid var(--line)' }}>
         {children}
       </div>
     </section>
@@ -113,10 +115,10 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
         <div className="w-10" />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-2 pb-8 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-2 pb-6 space-y-5">
 
         {/* ===== البطاقة الرئيسية ===== */}
-        <div className="rounded-[28px] bg-white text-[#2e1065] overflow-hidden fade-in" style={{ boxShadow: '0 6px 0 #c4b5fd, 0 18px 30px -16px rgba(20,5,60,0.6)' }}>
+        <div className="rounded-[28px] bg-[var(--card)] text-[var(--ink)] overflow-hidden fade-in" style={{ boxShadow: '0 6px 0 var(--edge), 0 18px 30px -16px rgba(20,5,60,0.6)' }}>
           <div className="relative px-4 pt-4 pb-3" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)' }}>
             <span className="absolute -left-10 -top-10 w-36 h-36 rounded-full bg-white/10" />
             <span className="absolute left-16 -bottom-12 w-24 h-24 rounded-full bg-white/[0.07]" />
@@ -170,7 +172,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
           </div>
 
           {/* الأرقام */}
-          <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#ede9fe]">
+          <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[var(--line)]">
             {[
               { label: 'النقاط', value: points, icon: '⭐' },
               { label: 'الفوز', value: wins, icon: '🏆' },
@@ -178,13 +180,13 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             ].map(c => (
               <div key={c.label} className="py-3 text-center">
                 <div className="font-display font-black text-[1.45rem] leading-none"><Num>{c.value}</Num></div>
-                <div className="text-[0.7rem] font-display font-bold text-[#6d5b95] mt-1">{c.icon} {c.label}</div>
+                <div className="text-[0.7rem] font-display font-bold text-[var(--muted-c)] mt-1">{c.icon} {c.label}</div>
               </div>
             ))}
           </div>
 
           {/* الترتيب */}
-          <button onClick={onLeaderboard} className="w-full flex items-center gap-3 px-4 py-3 border-t-2 border-[#f5f3ff] hover:bg-[#faf8ff] active:bg-[#f5f3ff] transition-all">
+          <button onClick={onLeaderboard} className="w-full flex items-center gap-3 px-4 py-3 border-t-2 border-[var(--soft)] hover:bg-[var(--soft-2)] active:bg-[var(--soft)] transition-all">
             <span className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-[#4a2400]" style={{ background: '#ffb020', boxShadow: '0 3px 0 #b86b00' }}>
               {rank ? <Num>{rank}</Num> : '—'}
             </span>
@@ -192,7 +194,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
               <span className="block font-display font-black text-[0.95rem]">
                 {rank ? <>مركزك في الترتيب{prof?.players ? <> من <Num>{prof.players}</Num></> : null}</> : 'العب عشان تدخل الترتيب'}
               </span>
-              <span className="block text-[0.72rem] font-display font-bold text-[#6d5b95]">
+              <span className="block text-[0.72rem] font-display font-bold text-[var(--muted-c)]">
                 {weekRank ? <>هالأسبوع: المركز <Num>{weekRank}</Num></> : 'ما لعبت هالأسبوع'}
               </span>
             </span>
@@ -207,9 +209,9 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
               const ok = b.have >= b.need;
               return (
                 <div key={b.name} className="rounded-2xl pt-2.5 pb-2 px-1 text-center flex flex-col items-center"
-                  style={ok ? { background: 'linear-gradient(170deg, #fffdf3, #fff6d6)', border: '2px solid #fde68a' } : { background: '#f5f3ff', border: '2px solid #ede9fe' }}>
+                  style={ok ? { background: 'var(--gold-soft)', border: '2px solid var(--gold-line)' } : { background: 'var(--soft)', border: '2px solid var(--line)' }}>
                   <BadgeArt {...b.art} on={ok} className={`w-[60px] h-[66px] ${ok ? 'word-pop' : ''}`} />
-                  <div className="text-[0.74rem] font-display font-black mt-1" style={{ color: ok ? '#2e1065' : '#9c8cc4' }}>{b.name}</div>
+                  <div className="text-[0.74rem] font-display font-black mt-1" style={{ color: ok ? 'var(--ink)' : '#9c8cc4' }}>{b.name}</div>
                   {!ok && (
                     <div className="text-[0.64rem] font-display font-bold text-[#b9a8f0]">
                       <Frac a={Math.min(b.have, b.need)} b={b.need} />
@@ -227,7 +229,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             {PLAYABLE_LENGTHS.map(l => (
               <button key={l} onClick={() => setLen(l)}
                 className="rounded-full px-3 py-1 text-xs font-display font-black transition-all"
-                style={len === l ? { background: '#fff', color: '#4c1d95' } : { color: 'rgba(255,255,255,0.85)' }}>
+                style={len === l ? { background: 'var(--card)', color: 'var(--ink-2)' } : { color: 'rgba(255,255,255,0.85)' }}>
                 <Num>{l}</Num> أحرف
               </button>
             ))}
@@ -239,17 +241,17 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 {[['لعبت', gs.played], ['فوز %', winPct], ['ستريك', gs.streak], ['أعلى', gs.best]].map(([l, v]) => (
                   <div key={l}>
                     <div className="font-display font-black text-[1.35rem] leading-tight"><Num>{v}</Num></div>
-                    <div className="text-[0.68rem] font-display font-bold text-[#6d5b95]">{l}</div>
+                    <div className="text-[0.68rem] font-display font-bold text-[var(--muted-c)]">{l}</div>
                   </div>
                 ))}
               </div>
               <div className="h-px bg-[#ede9fe] my-3" />
-              <div className="text-[0.75rem] font-display font-bold text-[#6d5b95] mb-2">حليتها من كم محاولة؟</div>
+              <div className="text-[0.75rem] font-display font-bold text-[var(--muted-c)] mb-2">حليتها من كم محاولة؟</div>
               <div className="space-y-1.5">
                 {dist.map((n, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="w-4 text-center font-display font-black text-sm text-[#6d5b95]"><Num>{i + 1}</Num></span>
-                    <div className="flex-1 h-[22px] rounded-md bg-[#f5f3ff] overflow-hidden">
+                    <span className="w-4 text-center font-display font-black text-sm text-[var(--muted-c)]"><Num>{i + 1}</Num></span>
+                    <div className="flex-1 h-[22px] rounded-md bg-[var(--soft)] overflow-hidden">
                       {n > 0 && (
                         <div className="h-full rounded-md flex items-center justify-end px-2 font-display font-black text-xs text-white"
                           style={{ width: `${Math.max(12, (n / maxDist) * 100)}%`, background: n === maxDist ? '#22c55e' : '#a78bfa' }}>
@@ -262,7 +264,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
               </div>
             </>
           ) : (
-            <div className="text-center text-sm font-display font-bold text-[#6d5b95] py-4">ما لعبت <Num>{len}</Num> أحرف للحين 🙂</div>
+            <div className="text-center text-sm font-display font-bold text-[var(--muted-c)] py-4">ما لعبت <Num>{len}</Num> أحرف للحين 🙂</div>
           )}
         </Section>
 
@@ -270,11 +272,11 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
         <Section title="⏱ تحدي النهايات" aside={<span className="text-[0.75rem] font-display font-bold text-white/75">أفضل نتيجة</span>}>
           <div className="grid grid-cols-3 gap-2 text-center">
             {ENDING_TIMES.map(({ s, label }) => (
-              <div key={s} className="rounded-2xl py-2.5" style={endBest[s] ? { background: '#fff7e6', border: '2px solid #ffd58a' } : { background: '#f5f3ff', border: '2px solid transparent' }}>
-                <div className="font-display font-black text-2xl leading-tight" style={{ color: endBest[s] ? '#b45309' : '#c4b5fd' }}>
+              <div key={s} className="rounded-2xl py-2.5" style={endBest[s] ? { background: 'var(--gold-soft)', border: '2px solid var(--gold-line)' } : { background: 'var(--soft)', border: '2px solid transparent' }}>
+                <div className="font-display font-black text-2xl leading-tight" style={{ color: endBest[s] ? 'var(--gold-ink)' : 'var(--edge)' }}>
                   {endBest[s] ? <Num>{endBest[s]}</Num> : '—'}
                 </div>
-                <div className="text-[0.72rem] font-display font-bold text-[#6d5b95]">{label}</div>
+                <div className="text-[0.72rem] font-display font-bold text-[var(--muted-c)]">{label}</div>
               </div>
             ))}
           </div>
@@ -282,13 +284,27 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
         {/* ===== الإعدادات ===== */}
         <Section title="⚙️ الإعدادات">
-          <div className="divide-y-2 divide-[#f5f3ff] -my-1">
+          {/* المظهر */}
+          <div className="pb-3 mb-1 border-b-2 border-[var(--soft)]">
+            <div className="font-display font-black mb-2">🌙 المظهر</div>
+            <div className="flex gap-1 p-1 rounded-2xl bg-[var(--soft)]">
+              {[['auto', 'حسب الجوال'], ['light', '☀️ فاتح'], ['dark', '🌙 ليلي']].map(([k, label]) => (
+                <button key={k} onClick={() => { setTheme(k); setThemePref(k); haptic('light'); }}
+                  aria-pressed={themePref === k}
+                  className="flex-1 rounded-xl min-h-[40px] font-display font-black text-[0.82rem] transition-all"
+                  style={themePref === k ? { background: '#ffb020', color: '#4a2400', boxShadow: '0 3px 0 #b86b00' } : { color: 'var(--muted-c)' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="divide-y-2 divide-[var(--soft)] -my-1">
             {[['sound', '🔊 الأصوات', 'أصوات اللعب والفوز'], ['haptics', '📳 الاهتزاز', 'داخل تطبيق الآيفون']].map(([k, label, sub]) => (
               <button key={k} role="switch" aria-checked={settings[k]} onClick={() => toggle(k)}
                 className="w-full flex items-center justify-between gap-3 py-2.5 text-right">
                 <span>
                   <span className="block font-display font-black">{label}</span>
-                  <span className="block text-[0.72rem] font-display font-bold text-[#6d5b95]">{sub}</span>
+                  <span className="block text-[0.72rem] font-display font-bold text-[var(--muted-c)]">{sub}</span>
                 </span>
                 <span className="relative shrink-0 w-[52px] h-[30px] rounded-full transition-colors" style={{ background: settings[k] ? '#22c55e' : '#d4cdea' }}>
                   <span className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow transition-all" style={settings[k] ? { right: 25 } : { right: 3 }} />
@@ -298,6 +314,8 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
           </div>
         </Section>
       </div>
+      {/* مكان شريط التنقل */}
+      <div className="shrink-0" style={{ height: 68 }} />
     </div>
   );
 }

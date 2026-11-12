@@ -246,8 +246,8 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       {/* شريط الحالة: الاثنين يلعبون بنفس الوقت + الوقت المتبقي */}
       <div className="shrink-0 px-3 pt-1">
         <div className="slide-in rounded-2xl px-3 py-2 flex items-center gap-3"
-          style={iAmSetter ? { background: '#ffffff', color: '#4c1d95', boxShadow: '0 5px 0 #c4b5fd', border: '2px solid rgba(255,255,255,0.6)' } : myDone
-            ? { background: '#ffffff', color: '#4c1d95', boxShadow: '0 5px 0 #c4b5fd', border: '2px solid rgba(255,255,255,0.6)' }
+          style={iAmSetter ? { background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 5px 0 var(--edge)', border: '2px solid rgba(255,255,255,0.6)' } : myDone
+            ? { background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 5px 0 var(--edge)', border: '2px solid rgba(255,255,255,0.6)' }
             : urgent
               ? { background: '#ff4d6d', color: '#ffffff', boxShadow: '0 5px 0 #b3123a', border: '2px solid rgba(255,255,255,0.45)' }
               : { background: '#22c55e', color: '#ffffff', boxShadow: '0 5px 0 #15803d', border: '2px solid rgba(255,255,255,0.45)' }}>
@@ -267,7 +267,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
             </div>
           </div>
           <div className={`shrink-0 rounded-2xl px-2.5 py-1 text-center ${urgent && !myDone ? 'animate-pulse' : ''}`}
-            style={{ background: myDone ? '#f5f3ff' : 'rgba(255,255,255,0.28)' }}>
+            style={{ background: myDone ? 'var(--soft)' : 'rgba(255,255,255,0.28)' }}>
             <div className="font-mono-ar font-black text-[1.45rem] leading-none"><bdi>{clock}</bdi></div>
             <div className="text-[0.6rem] font-black opacity-80">الوقت</div>
           </div>
@@ -306,8 +306,8 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         <GuessBoard rows={rows} len={len} revealing={iAmSetter ? -1 : revealing} shakeRow={shakeRow} compact winRow={iAmSetter ? -1 : winRow} />
         {burst && <WinBurst text={burst} />}
         {toast && (
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[#2e1065] bg-white max-w-[calc(100%-24px)] text-center z-10"
-            style={{ boxShadow: '0 4px 0 #c4b5fd', fontSize: '0.9rem' }}>
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[var(--ink)] bg-[var(--card)] max-w-[calc(100%-24px)] text-center z-10"
+            style={{ boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
             {toast}
           </div>
         )}

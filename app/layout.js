@@ -19,9 +19,15 @@ export const viewport = {
   themeColor: '#6d28d9',
 };
 
+// يطبّق الوضع الليلي قبل ما تطلع الصفحة (بدون وميض أبيض)
+const THEME_BOOT = `try{var p=localStorage.getItem('wg:theme')||'auto';var d=p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light')}catch(e){}`;
+
 export default function RootLayout({ children }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
       <body className="font-body text-stone-100 antialiased">
         {children}
       </body>

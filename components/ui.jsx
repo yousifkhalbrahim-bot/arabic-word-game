@@ -60,7 +60,7 @@ export function Card({ children, className = '', style }) {
   );
 }
 
-export function Title({ children, sub, color = '#4c1d95' }) {
+export function Title({ children, sub, color = 'var(--ink-2)' }) {
   return (
     <div className="mb-5">
       <h2 className="font-display font-black" style={{ fontSize: 'clamp(1.7rem, 7vw, 2.1rem)', color, lineHeight: 1.2 }}>
@@ -87,7 +87,7 @@ const BTN = {
   green: { color: '#ffffff', background: '#16a34a', boxShadow: '0 6px 0 #166534', border: '2px solid #4ade80' },
   red:   { color: '#ffffff', background: '#ff4d6d', boxShadow: '0 6px 0 #b3123a', border: '2px solid #ff7d93' },
   grape: { color: '#ffffff', background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' },
-  wood:  { color: '#5b21b6', background: '#ffffff', boxShadow: '0 6px 0 #c4b5fd', border: '2px solid #ede9fe' },
+  wood:  { color: 'var(--ink-2)', background: 'var(--card)', boxShadow: '0 6px 0 var(--edge)', border: '2px solid var(--line)' },
 };
 
 export function Btn({ variant = 'gold', size = 'lg', icon: Icon, busy, children, className = '', disabled, ...rest }) {
@@ -105,7 +105,7 @@ export function Btn({ variant = 'gold', size = 'lg', icon: Icon, busy, children,
 // زر صغير خفيف (داخل البطاقات البيضاء)
 export function GhostBtn({ children, className = '', ...rest }) {
   return (
-    <button {...rest} className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-display font-bold text-[#5b21b6] bg-[#f5f3ff] border-2 border-[#ede9fe] hover:bg-[#ede9fe] active:scale-95 transition-all ${className}`}>
+    <button {...rest} className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-display font-bold text-[var(--ink-2)] bg-[var(--soft)] border-2 border-[var(--line)] hover:brightness-95 active:scale-95 transition-all ${className}`}>
       {children}
     </button>
   );
@@ -126,7 +126,7 @@ export function Choice({ selected, onClick, accent = '#ffb020', children, classN
 }
 
 // -------- حقل إدخال --------
-export const inputClass = 'w-full rounded-2xl px-4 py-3.5 bg-[#f5f3ff] border-[3px] border-[#ede9fe] text-[#2e1065] placeholder:text-[#b9a8f0] font-display focus:outline-none focus:border-[#a78bfa] focus:bg-white transition-all';
+export const inputClass = 'w-full rounded-2xl px-4 py-3.5 bg-[var(--soft)] border-[3px] border-[var(--line)] text-[var(--ink)] placeholder:text-[#b9a8f0] font-display focus:outline-none focus:border-[#a78bfa] focus:bg-white transition-all';
 
 export function ErrorNote({ children }) {
   if (!children) return null;

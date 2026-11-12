@@ -22,6 +22,8 @@ import SoloGame from '@/components/SoloGame';
 import Leaderboard from '@/components/Leaderboard';
 import Profile from '@/components/Profile';
 import { levelFor } from '@/lib/levels';
+import TabBar, { TABBAR_SPACE } from '@/components/TabBar';
+import { applyTheme, watchSystemTheme } from '@/lib/settings';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
@@ -176,7 +178,7 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
         ) : (
           <div className="py-6">
             <div className="text-5xl mb-3">🤫</div>
-            <div className="font-display font-black text-xl text-[#4c1d95]"><Thinking>{other} يختار لك كلمة</Thinking></div>
+            <div className="font-display font-black text-xl text-[var(--ink-2)]"><Thinking>{other} يختار لك كلمة</Thinking></div>
             <div className="text-sm text-muted font-bold mt-2">جهّز نفسك!</div>
           </div>
         )}
@@ -201,7 +203,7 @@ function RoomInfo({ state }) {
         ]),
   ];
   return (
-    <div className="info-list rounded-2xl divide-y-2 divide-[#ede9fe] text-right">
+    <div className="info-list rounded-2xl divide-y-2 divide-[var(--line)] text-right">
       {rows.map(([k, v]) => (
         <div key={k} className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-muted">{k}</span>
@@ -481,7 +483,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
               className={`rounded-xl px-2 py-1 text-center ${i === 0 ? 'word-pop' : ''}`}
               style={i === 0
                 ? { background: color, color: on, boxShadow: `0 3px 0 ${deep}` }
-                : { background: 'rgba(255,255,255,0.9)', color: '#3b1d6e' }}>
+                : { background: 'rgba(255,255,255,0.9)', color: 'var(--ink-3)' }}>
               <div className="font-display font-black truncate" style={{ fontSize: i === 0 ? '0.98rem' : '0.86rem' }}>{wordStr(w)}</div>
             </div>
           ))}
@@ -513,14 +515,14 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
       <div className="shrink-0 px-3 pb-2 pt-1">
         <div className="flex items-center gap-2.5">
           {scorePanel('mine')}
-          <div className="race-timer shrink-0 relative rounded-full bg-white" style={{ width: 72, height: 72, boxShadow: '0 5px 0 #c4b5fd' }}>
+          <div className="race-timer shrink-0 relative rounded-full bg-[var(--card)]" style={{ width: 72, height: 72, boxShadow: '0 5px 0 var(--edge)' }}>
             <svg width="72" height="72" className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="36" cy="36" r={timerR} fill="none" stroke="#ede9fe" strokeWidth="6" />
               <circle cx="36" cy="36" r={timerR} fill="none" stroke={timeColor} strokeWidth="6"
                 strokeDasharray={timerCirc} strokeDashoffset={timerOffset} strokeLinecap="round" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="font-mono-ar font-black" style={{ fontSize: '1rem', color: '#3b1d6e', lineHeight: 1 }}>{timerDisplay}</span>
+              <span className="font-mono-ar font-black" style={{ fontSize: '1rem', color: 'var(--ink-3)', lineHeight: 1 }}>{timerDisplay}</span>
             </div>
           </div>
           {scorePanel('opp')}
@@ -564,7 +566,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           <button onClick={handleSkip} onPointerDown={e => e.preventDefault()}
             disabled={myDisplayScore < 1 || timeLeft <= 0 || isFrozen}
             className="btn-3d min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 font-display font-black"
-            style={{ background: '#fff', color: '#5b21b6', boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe', fontSize: '0.75rem' }}>
+            style={{ background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)', fontSize: '0.75rem' }}>
             <span>تجاوز</span>
             <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.72rem' }}>💎 1</span>
           </button>
@@ -620,7 +622,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
             style={{
               direction: 'rtl',
               background: isFrozen ? '#e0f2fe' : '#fff',
-              color: '#2e1065',
+              color: 'var(--ink)',
               border: `3px solid ${isFrozen ? '#7dd3fc' : '#ede9fe'}`,
               boxShadow: `0 5px 0 ${isFrozen ? '#38bdf8' : '#c4b5fd'}`,
             }}
@@ -792,6 +794,9 @@ export default function Game() {
       }
     })();
   }, [enterRoom]);
+
+  // ============== المظهر (فاتح/ليلي) ==============
+  useEffect(() => { applyTheme(); return watchSystemTheme(); }, []);
 
   // ============== النقاط ==============
   useEffect(() => {
@@ -1550,21 +1555,21 @@ export default function Game() {
 
   const listRow = ({ key, title, desc, icon, bg, sh, onClick, badge, chips }) => (
     <button key={key} onClick={onClick}
-      className="btn-3d relative w-full rounded-2xl bg-white p-2.5 pl-3 flex items-center gap-3 text-right"
-      style={{ boxShadow: '0 5px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+      className="btn-3d relative w-full rounded-2xl bg-[var(--card)] p-2.5 pl-3 flex items-center gap-3 text-right"
+      style={{ boxShadow: '0 5px 0 var(--edge)', border: '2px solid var(--line)' }}>
       <span className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: bg, boxShadow: `0 3px 0 ${sh}` }}>
         {icon}
       </span>
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-2">
-          <span className="font-display font-black text-[1.05rem] text-[#2e1065]">{title}</span>
+          <span className="font-display font-black text-[1.05rem] text-[var(--ink)]">{title}</span>
           {badge && <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.62rem] font-display font-black text-white">{badge}</span>}
         </span>
-        <span className="block text-[0.78rem] font-bold text-[#6d5b95] truncate">{desc}</span>
+        <span className="block text-[0.78rem] font-bold text-[var(--muted-c)] truncate">{desc}</span>
         {chips && (
           <span className="flex gap-1.5 mt-1">
             {chips.map(c => (
-              <span key={c} className="rounded-full bg-[#f5f3ff] border border-[#ede9fe] px-2 py-[1px] text-[0.62rem] font-display font-bold text-[#6d28d9]">{c}</span>
+              <span key={c} className="rounded-full bg-[var(--soft)] border border-[var(--line)] px-2 py-[1px] text-[0.62rem] font-display font-bold text-[#6d28d9]">{c}</span>
             ))}
           </span>
         )}
@@ -1698,8 +1703,8 @@ export default function Game() {
 
           {/* بطاقة الترتيب */}
           <button onClick={() => setScreen('leaderboard')}
-            className="btn-3d relative w-full overflow-hidden rounded-3xl p-3 mb-4 flex items-center gap-3 text-right bg-white"
-            style={{ boxShadow: '0 6px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+            className="btn-3d relative w-full overflow-hidden rounded-3xl p-3 mb-4 flex items-center gap-3 text-right bg-[var(--card)]"
+            style={{ boxShadow: '0 6px 0 var(--edge)', border: '2px solid var(--line)' }}>
             {/* ترتيبك */}
             <span className="relative shrink-0 w-[60px] h-[60px] rounded-2xl flex flex-col items-center justify-center"
               style={{ background: 'linear-gradient(160deg, #ffe066 0%, #ffb020 100%)', boxShadow: '0 4px 0 #b86b00' }}>
@@ -1716,8 +1721,8 @@ export default function Game() {
 
             {/* النص */}
             <span className="flex-1 min-w-0">
-              <span className="block font-display font-black text-[#2e1065] text-[1.05rem] leading-tight">ترتيب الأسبوع</span>
-              <span className="block font-display font-bold text-[#6d5b95] text-[0.8rem] mt-0.5">
+              <span className="block font-display font-black text-[var(--ink)] text-[1.05rem] leading-tight">ترتيب الأسبوع</span>
+              <span className="block font-display font-bold text-[var(--muted-c)] text-[0.8rem] mt-0.5">
                 {pts.week > 0
                   ? <>⭐ <bdi className="font-mono-ar">{pts.week}</bdi> نقطة هالأسبوع</>
                   : 'العب وادخل المنافسة 🔥'}
@@ -1730,7 +1735,7 @@ export default function Game() {
                 {weekTop.map((r, i) => (
                   <span key={i} className="relative -ml-2 first:ml-0" style={{ zIndex: 3 - i }}>
                     <span className="w-9 h-9 rounded-full flex items-center justify-center font-display font-black text-sm border-[3px] border-white"
-                      style={{ background: ['#ffb020', '#a5b4fc', '#fb923c'][i], color: '#2e1065' }}>
+                      style={{ background: ['#ffb020', '#a5b4fc', '#fb923c'][i], color: 'var(--ink)' }}>
                       {(r.name || '؟').slice(0, 1)}
                     </span>
                     <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[0.75rem] leading-none">{['🥇', '🥈', '🥉'][i]}</span>
@@ -1746,7 +1751,7 @@ export default function Game() {
             {[['solo', 'العب لحالك', User], ['friends', 'مع صاحبك', Users]].map(([id, label, Icon]) => (
               <button key={id} onClick={() => setHomeTab(id)}
                 className="flex-1 rounded-xl min-h-[44px] flex items-center justify-center gap-1.5 font-display font-black transition-all"
-                style={homeTab === id ? { background: '#fff', color: '#4c1d95', boxShadow: '0 3px 0 #c4b5fd' } : { color: 'rgba(255,255,255,0.9)' }}>
+                style={homeTab === id ? { background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 3px 0 var(--edge)' } : { color: 'rgba(255,255,255,0.9)' }}>
                 <Icon className="w-4 h-4" strokeWidth={2.8} /> {label}
               </button>
             ))}
@@ -1791,18 +1796,31 @@ export default function Game() {
             </div>
           </div>
         )}
+        {/* مكان شريط التنقل */}
+        <div style={{ height: TABBAR_SPACE }} />
+        <TabBar active="menu" onNav={setScreen} />
       </Screen>
     );
   }
 
   // -------- الترتيب --------
   if (screen === 'leaderboard') {
-    return <Leaderboard onExit={() => setScreen('menu')} />;
+    return (
+      <>
+        <Leaderboard onExit={() => setScreen('menu')} />
+        <TabBar active="leaderboard" onNav={setScreen} />
+      </>
+    );
   }
 
   // -------- ملفي --------
   if (screen === 'profile') {
-    return <Profile name={hostName} onSaveName={applyName} onExit={() => setScreen('menu')} onLeaderboard={() => setScreen('leaderboard')} />;
+    return (
+      <>
+        <Profile name={hostName} onSaveName={applyName} onExit={() => setScreen('menu')} onLeaderboard={() => setScreen('leaderboard')} />
+        <TabBar active="profile" onNav={setScreen} />
+      </>
+    );
   }
 
   // -------- خمّن الكلمة --------
@@ -1896,9 +1914,9 @@ export default function Game() {
                   </div>
                 </div>
                 <button onClick={() => setMoreOpts(v => !v)}
-                  className="w-full flex items-center justify-between rounded-2xl bg-[#f5f3ff] border-2 border-[#ede9fe] px-4 min-h-[48px] font-display font-bold text-sm text-[#4c1d95]">
+                  className="w-full flex items-center justify-between rounded-2xl bg-[var(--soft)] border-2 border-[var(--line)] px-4 min-h-[48px] font-display font-bold text-sm text-[var(--ink-2)]">
                   <span>وقت الدور</span>
-                  <span className="flex items-center gap-2 text-[#6d5b95]">
+                  <span className="flex items-center gap-2 text-[var(--muted-c)]">
                     <span>الدور <bdi className="font-mono-ar">{selectedTurnSkip}</bdi>ث</span>
                     <ChevronLeft className={`w-4 h-4 transition-transform ${moreOpts ? '-rotate-90' : ''}`} strokeWidth={3} />
                   </span>
@@ -2027,10 +2045,10 @@ export default function Game() {
                   const active = i === Math.min(joinCode.length, 3);
                   return (
                     <span key={i}
-                      className={`w-[60px] h-[72px] rounded-2xl flex items-center justify-center font-mono-ar text-[2.4rem] font-black text-[#2e1065] border-[3px] transition-all ${
-                        ch ? 'bg-white border-[#a78bfa]' : 'bg-[#faf8ff] border-dashed border-[#d9d0fb]'
+                      className={`w-[60px] h-[72px] rounded-2xl flex items-center justify-center font-mono-ar text-[2.4rem] font-black text-[var(--ink)] border-[3px] transition-all ${
+                        ch ? 'bg-[var(--card)] border-[#a78bfa]' : 'bg-[var(--soft-2)] border-dashed border-[#d9d0fb]'
                       } ${active ? 'group-focus-within:border-solid group-focus-within:border-[#22d3ee] group-focus-within:shadow-[0_0_0_4px_rgba(34,211,238,0.25)]' : ''}`}
-                      style={ch ? { boxShadow: '0 4px 0 #c4b5fd' } : undefined}>
+                      style={ch ? { boxShadow: '0 4px 0 var(--edge)' } : undefined}>
                       {ch}
                     </span>
                   );
@@ -2056,7 +2074,7 @@ export default function Game() {
           ) : (
             <div className="space-y-4">
               <RoomInfo state={joinPreview} />
-              <div className="text-center text-sm font-display font-bold text-[#6d5b95]">تدخل باسم <b className="text-[#2e1065] text-base">{hostName}</b></div>
+              <div className="text-center text-sm font-display font-bold text-[var(--muted-c)]">تدخل باسم <b className="text-[var(--ink)] text-base">{hostName}</b></div>
               <ErrorNote>{globalError}</ErrorNote>
               <div className="flex gap-2.5">
                 <div className="flex-1">
@@ -2182,7 +2200,7 @@ export default function Game() {
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${isMyTurn ? '!border-[#22c55e] !bg-white' : ''} ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
+                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${isMyTurn ? '!border-[#22c55e] !bg-[var(--card)]' : ''} ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
                   />
                   <button
                     onClick={submitWord} onPointerDown={e => e.preventDefault()}

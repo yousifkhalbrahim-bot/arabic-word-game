@@ -217,7 +217,7 @@ ${url}`;
           <div className="ending-badge mx-auto mb-3 w-14 h-14 rounded-full flex items-center justify-center">
             <Target className="w-7 h-7 text-[#7c3aed]" strokeWidth={2.6} />
           </div>
-          <h2 className="text-center font-display font-black text-[#4c1d95] text-2xl mb-1">تحدَّ نفسك</h2>
+          <h2 className="text-center font-display font-black text-[var(--ink-2)] text-2xl mb-1">تحدَّ نفسك</h2>
           <p className="text-center text-muted text-sm leading-relaxed mb-5">
             أكبر عدد من الكلمات قبل ما يخلص الوقت.<br />
             <span className="text-dim">كل سؤال نهاية مختلفة · التجاوز يكلّفك <Num>{SKIP_COST_SECONDS}</Num> ثوانٍ</span>
@@ -316,9 +316,9 @@ ${url}`;
             </div>
           )}
         </div>
-        <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: low ? '#ff4d6d' : '#fff', boxShadow: `0 5px 0 ${low ? '#b3123a' : '#c4b5fd'}`, border: '2px solid rgba(255,255,255,0.5)' }}>
-          <div className="font-display font-black text-[0.75rem]" style={{ color: low ? '#fff' : '#6d5b95' }}>الوقت</div>
-          <div className={`font-mono-ar font-black ${low ? 'animate-pulse' : ''}`} style={{ fontSize: '2rem', lineHeight: 1.05, color: low ? '#fff' : '#3b1d6e' }}>
+        <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: low ? '#ff4d6d' : 'var(--card)', boxShadow: `0 5px 0 ${low ? '#b3123a' : 'var(--edge)'}`, border: '2px solid rgba(255,255,255,0.5)' }}>
+          <div className="font-display font-black text-[0.75rem]" style={{ color: low ? '#fff' : 'var(--muted-c)' }}>الوقت</div>
+          <div className={`font-mono-ar font-black ${low ? 'animate-pulse' : ''}`} style={{ fontSize: '2rem', lineHeight: 1.05, color: low ? '#fff' : 'var(--ink-3)' }}>
             <Num>{Math.ceil(timeLeft)}</Num>
           </div>
         </div>
@@ -361,7 +361,7 @@ ${url}`;
             autoComplete="off"
             autoCorrect="off"
             className={`flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none ${feedback && !feedback.ok ? 'shake' : ''}`}
-            style={{ background: '#fff', color: '#2e1065', border: '3px solid #ede9fe', boxShadow: '0 5px 0 #c4b5fd' }}
+            style={{ background: 'var(--card)', color: 'var(--ink)', border: '3px solid var(--line)', boxShadow: '0 5px 0 var(--edge)' }}
           />
           <button onClick={submit} onPointerDown={e => e.preventDefault()} disabled={!input.trim()} aria-label="إرسال"
             className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
@@ -400,7 +400,7 @@ function HelpSheet({ onClose, paused }) {
     <div className="flex gap-3">
       <span className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-display font-black text-sm text-[#4a2400]" style={{ background: '#ffb020', boxShadow: '0 2px 0 #b86b00' }}><Num>{n}</Num></span>
       <div className="flex-1 min-w-0">
-        <div className="font-display font-black text-[#2e1065]">{title}</div>
+        <div className="font-display font-black text-[var(--ink)]">{title}</div>
         {body}
       </div>
     </div>
@@ -410,14 +410,14 @@ function HelpSheet({ onClose, paused }) {
       <Card className="w-full max-w-sm p-5 slide-in max-h-full overflow-y-auto no-scrollbar">
         <div onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-4">
-            <div className="font-display font-black text-xl text-[#4c1d95]">طريقة اللعب</div>
-            {paused && <span className="rounded-full bg-[#f5f3ff] px-2.5 py-0.5 text-xs font-display font-bold text-[#6d5b95]">⏸ الوقت واقف</span>}
+            <div className="font-display font-black text-xl text-[var(--ink-2)]">طريقة اللعب</div>
+            {paused && <span className="rounded-full bg-[var(--soft)] px-2.5 py-0.5 text-xs font-display font-bold text-[var(--muted-c)]">⏸ الوقت واقف</span>}
           </div>
 
           <div className="space-y-4">
             {step(1, 'يطلع لك نهاية', (
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="rounded-2xl px-4 py-1.5 font-display font-black text-2xl text-[#4c1d95] bg-[#f5f3ff] border-2 border-[#ede9fe]">ـام</span>
+                <span className="rounded-2xl px-4 py-1.5 font-display font-black text-2xl text-[var(--ink-2)] bg-[var(--soft)] border-2 border-[var(--line)]">ـام</span>
                 <span className="text-sm text-muted font-bold">مثلاً</span>
               </div>
             ))}
@@ -432,11 +432,11 @@ function HelpSheet({ onClose, paused }) {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-5 text-[0.78rem] font-display font-bold text-[#2e1065]">
-            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">⏭ التجاوز ينقص <Num>{SKIP_COST_SECONDS}</Num> ثواني</div>
-            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">🔥 كل <Num>{STREAK_EVERY}</Num> ورا بعض ستريك</div>
-            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">🚫 الكلمة ما تتكرر</div>
-            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">⭐ <Num>2</Num> نقطة لكل كلمة</div>
+          <div className="grid grid-cols-2 gap-2 mt-5 text-[0.78rem] font-display font-bold text-[var(--ink)]">
+            <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">⏭ التجاوز ينقص <Num>{SKIP_COST_SECONDS}</Num> ثواني</div>
+            <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">🔥 كل <Num>{STREAK_EVERY}</Num> ورا بعض ستريك</div>
+            <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">🚫 الكلمة ما تتكرر</div>
+            <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">⭐ <Num>2</Num> نقطة لكل كلمة</div>
           </div>
           <p className="text-[0.72rem] text-muted font-bold mt-3 leading-relaxed">
             الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي).

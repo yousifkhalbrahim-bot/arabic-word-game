@@ -84,9 +84,9 @@ export default function Leaderboard({ onExit }) {
         className="flex items-center gap-3 rounded-2xl px-3 min-h-[58px]"
         style={highlight
           ? { background: '#ffb020', color: '#4a2400', boxShadow: '0 4px 0 #b86b00', border: '2px solid #ffc95c' }
-          : { background: '#fff', color: '#2e1065', boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+          : { background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)' }}>
         <div className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-display font-black text-lg"
-          style={highlight ? { background: 'rgba(255,255,255,0.45)' } : { background: tile, color: '#2e1065', boxShadow: '0 2px 0 rgba(0,0,0,0.12)' }}>
+          style={highlight ? { background: 'rgba(255,255,255,0.45)' } : { background: tile, color: 'var(--ink)', boxShadow: '0 2px 0 rgba(0,0,0,0.12)' }}>
           <Num>{rank}</Num>
         </div>
         <div className="flex-1 min-w-0">
@@ -129,7 +129,7 @@ export default function Leaderboard({ onExit }) {
           {[['week', 'الأسبوع'], ['all', 'الكل']].map(([id, label]) => (
             <button key={id} onClick={() => setScope(id)}
               className="flex-1 rounded-xl min-h-[42px] font-display font-black text-sm transition-all"
-              style={scope === id ? { background: '#fff', color: '#4c1d95', boxShadow: '0 3px 0 #c4b5fd' } : { color: 'rgba(255,255,255,0.85)' }}>
+              style={scope === id ? { background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 3px 0 var(--edge)' } : { color: 'rgba(255,255,255,0.85)' }}>
               {label}
             </button>
           ))}
@@ -141,7 +141,7 @@ export default function Leaderboard({ onExit }) {
           <button onClick={() => setShowHow(v => !v)} className="underline underline-offset-2 min-h-[32px]">كيف أجمع نقاط؟</button>
         </div>
         {showHow && (
-          <div className="mt-2 rounded-2xl bg-white text-[#2e1065] p-3 text-sm font-display font-bold leading-relaxed slide-in" style={{ boxShadow: '0 4px 0 #c4b5fd' }}>
+          <div className="mt-2 rounded-2xl bg-[var(--card)] text-[var(--ink)] p-3 text-sm font-display font-bold leading-relaxed slide-in" style={{ boxShadow: '0 4px 0 var(--edge)' }}>
             <div>🟩 خمّن الكلمة لحالك: 10 (3 أحرف) أو 20 (5 أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −2 · 🔍 −5)</div>
             <div>⚔️ فوز أونلاين مع صاحبك: <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
             <div>🎯 «أنت تختار الكلمة»: اللي يحلها <Num>{POINTS.customGuesserWin}</Num> · اللي يصعّبها <Num>{POINTS.customSetterWin}</Num></div>
@@ -181,17 +181,19 @@ export default function Leaderboard({ onExit }) {
           {me.score > 0 ? row({ name: me.name || '', score: me.score }, me.rank, true) : (
             // ما عنده نقاط: لا نطلّع له مركز
             <button onClick={onExit}
-              className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 min-h-[58px] bg-white text-[#2e1065] font-display font-black active:scale-[0.98] transition-all"
-              style={{ boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+              className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 min-h-[58px] bg-[var(--card)] text-[var(--ink)] font-display font-black active:scale-[0.98] transition-all"
+              style={{ boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)' }}>
               <span className="text-right">
                 <span className="block">{scope === 'week' ? 'ما عندك نقاط هالأسبوع' : 'ما عندك نقاط للحين'}</span>
-                <span className="block text-[0.72rem] font-bold text-[#6d5b95]">العب وادخل المنافسة 🔥</span>
+                <span className="block text-[0.72rem] font-bold text-[var(--muted-c)]">العب وادخل المنافسة 🔥</span>
               </span>
               <span className="text-[#7c3aed] text-sm">العب ←</span>
             </button>
           )}
         </div>
       )}
+      {/* مكان شريط التنقل */}
+      <div className="shrink-0" style={{ height: 68 }} />
     </div>
   );
 }
