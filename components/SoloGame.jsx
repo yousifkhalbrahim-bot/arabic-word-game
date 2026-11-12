@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check } from 'lucide-react';
+import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check, HelpCircle, X } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
+import { haptic } from '@/lib/native';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -43,6 +44,29 @@ export default function SoloGame({ endings, onExit, startDuration }) {
   const inputRef = useRef(null);
   const feedbackTimer = useRef(null);
   const lastTickRef = useRef(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const pausedAt = useRef(0);
+
+  // أول مرة: يفتح الشرح تلقائي
+  useEffect(() => {
+    try { if (!localStorage.getItem('wg:solo-seen-help')) { setShowHelp(true); localStorage.setItem('wg:solo-seen-help', '1'); } } catch {}
+  }, []);
+
+  // الشرح وقت اللعب يوقف الوقت
+  const openHelp = useCallback(() => {
+    haptic('light');
+    if (phase === 'playing') pausedAt.current = Date.now();
+    setShowHelp(true);
+  }, [phase]);
+  const closeHelp = useCallback(() => {
+    if (pausedAt.current) {
+      const gap = Date.now() - pausedAt.current;
+      pausedAt.current = 0;
+      setEndsAt(e => e + gap);
+      setNowTs(Date.now());
+    }
+    setShowHelp(false);
+  }, []);
 
   useEffect(() => {
     const b = {};
@@ -51,10 +75,10 @@ export default function SoloGame({ endings, onExit, startDuration }) {
   }, []);
 
   useEffect(() => {
-    if (phase !== 'playing') return;
+    if (phase !== 'playing' || showHelp) return;
     const iv = setInterval(() => setNowTs(Date.now()), 100);
     return () => clearInterval(iv);
-  }, [phase]);
+  }, [phase, showHelp]);
 
   const timeLeft = phase === 'playing' ? Math.max(0, (endsAt - nowTs) / 1000) : 0;
   const ending = endingAt(queue, index);
@@ -157,9 +181,13 @@ export default function SoloGame({ endings, onExit, startDuration }) {
           <Target className="w-4 h-4 text-[#ffb020]" strokeWidth={2.8} />
           <span>تحدي النهايات · ضد الوقت</span>
         </div>
-        <div style={{ width: 32 }} />
+        <button onClick={openHelp} aria-label="طريقة اللعب"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-90 transition-all">
+          <HelpCircle className="w-4 h-4 text-white" strokeWidth={2.6} />
+        </button>
       </div>
       {children}
+      {showHelp && <HelpSheet paused={phase === 'playing'} onClose={closeHelp} />}
     </div>
   );
 
@@ -325,6 +353,67 @@ export default function SoloGame({ endings, onExit, startDuration }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============== طريقة اللعب ==============
+function HelpSheet({ onClose, paused }) {
+  const chip = (w, ok) => (
+    <span className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1 font-display font-black text-[0.95rem]"
+      style={ok ? { background: '#22c55e', color: '#fff', boxShadow: '0 3px 0 #15803d' } : { background: '#ff4d6d', color: '#fff', boxShadow: '0 3px 0 #b3123a' }}>
+      {w} {ok ? <Check className="w-3.5 h-3.5" strokeWidth={3.5} /> : <X className="w-3.5 h-3.5" strokeWidth={3.5} />}
+    </span>
+  );
+  const step = (n, title, body) => (
+    <div className="flex gap-3">
+      <span className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-display font-black text-sm text-[#4a2400]" style={{ background: '#ffb020', boxShadow: '0 2px 0 #b86b00' }}><Num>{n}</Num></span>
+      <div className="flex-1 min-w-0">
+        <div className="font-display font-black text-[#2e1065]">{title}</div>
+        {body}
+      </div>
+    </div>
+  );
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in" onClick={onClose}>
+      <Card className="w-full max-w-sm p-5 slide-in max-h-full overflow-y-auto no-scrollbar">
+        <div onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="font-display font-black text-xl text-[#4c1d95]">طريقة اللعب</div>
+            {paused && <span className="rounded-full bg-[#f5f3ff] px-2.5 py-0.5 text-xs font-display font-bold text-[#6d5b95]">⏸ الوقت واقف</span>}
+          </div>
+
+          <div className="space-y-4">
+            {step(1, 'يطلع لك نهاية', (
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="rounded-2xl px-4 py-1.5 font-display font-black text-2xl text-[#4c1d95] bg-[#f5f3ff] border-2 border-[#ede9fe]">ـام</span>
+                <span className="text-sm text-muted font-bold">مثلاً</span>
+              </div>
+            ))}
+            {step(2, 'اكتب كلمة تنتهي فيها', (
+              <div className="mt-1.5 space-y-2">
+                <div className="flex flex-wrap gap-1.5">{chip('كلام', true)}{chip('سلام', true)}{chip('طعام', true)}</div>
+                <div className="flex flex-wrap items-center gap-1.5">{chip('قلم', false)}<span className="text-xs text-muted font-bold">ما تنتهي بـ «ام»</span></div>
+              </div>
+            ))}
+            {step(3, 'كل كلمة صح = نهاية جديدة', (
+              <p className="text-sm text-muted font-bold leading-relaxed mt-0.5">حل أكثر عدد قبل ما يخلص الوقت</p>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-5 text-[0.78rem] font-display font-bold text-[#2e1065]">
+            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">⏭ التجاوز ينقص <Num>{SKIP_COST_SECONDS}</Num> ثواني</div>
+            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">🔥 كل <Num>{STREAK_EVERY}</Num> ورا بعض ستريك</div>
+            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">🚫 الكلمة ما تتكرر</div>
+            <div className="rounded-xl bg-[#f5f3ff] px-2.5 py-2">⭐ <Num>2</Num> نقطة لكل كلمة</div>
+          </div>
+          <p className="text-[0.72rem] text-muted font-bold mt-3 leading-relaxed">
+            الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي).
+          </p>
+
+          <div className="mt-4"><Btn size="md" onClick={onClose}>{paused ? 'كمّل اللعب' : 'يلا نلعب'}</Btn></div>
+        </div>
+      </Card>
     </div>
   );
 }
