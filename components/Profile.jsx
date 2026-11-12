@@ -2,8 +2,9 @@
 
 // ============== ملفي ==============
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Pencil, Check, X, ChevronLeft, Lock } from 'lucide-react';
+import { ArrowRight, Pencil, Check, X, ChevronLeft } from 'lucide-react';
 import { ArcadeBg, Num, inputClass, ErrorNote } from '@/components/ui';
+import BadgeArt from '@/components/BadgeArt';
 import { fetchProfile, cachedPoints } from '@/lib/points';
 import { LENGTHS, PLAYABLE_LENGTHS } from '@/lib/guess';
 
@@ -85,12 +86,12 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
   // الأوسمة
   const BADGES = [
-    { icon: '🎯', name: 'أول فوز',        have: wins,        need: 1 },
-    { icon: '🔥', name: 'ستريك 5',         have: bestStreak,  need: 5 },
-    { icon: '⚡', name: 'ستريك 10',        have: bestStreak,  need: 10 },
-    { icon: '🤯', name: 'من أول محاولة',   have: firstTry,    need: 1 },
-    { icon: '🖐️', name: 'بطل الخمسة',      have: g5.wins || 0, need: 10 },
-    { icon: '⏱', name: 'ملك النهايات',     have: bestEnding,  need: 15 },
+    { name: 'أول فوز',       have: wins,         need: 1,  art: { shape: 'circle',   glyph: 'check',      color: 'green',  ribbon: true } },
+    { name: 'ستريك 5',       have: bestStreak,   need: 5,  art: { shape: 'shield',   glyph: 'flame',      color: 'orange', tag: '5' } },
+    { name: 'ستريك 10',      have: bestStreak,   need: 10, art: { shape: 'shield',   glyph: 'bolt',       color: 'red',    tag: '10' } },
+    { name: 'من أول محاولة', have: firstTry,     need: 1,  art: { shape: 'hex',      glyph: 'target',     color: 'blue' } },
+    { name: 'بطل الخمسة',    have: g5.wins || 0, need: 10, art: { shape: 'squircle', glyph: 'five',       color: 'purple', tag: '5' } },
+    { name: 'ملك النهايات',  have: bestEnding,   need: 15, art: { shape: 'seal',     glyph: 'crownClock', color: 'gold' } },
   ];
   const earnedCount = BADGES.filter(b => b.have >= b.need).length;
 
@@ -224,13 +225,13 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             {BADGES.map(b => {
               const ok = b.have >= b.need;
               return (
-                <div key={b.name} className="rounded-2xl py-2.5 px-1 text-center relative"
-                  style={ok ? { background: 'linear-gradient(160deg, #fff7d6, #ffe7a3)', border: '2px solid #fcd34d', boxShadow: '0 3px 0 #f59e0b' } : { background: '#f5f3ff', border: '2px solid #ede9fe' }}>
-                  <div className="text-[1.7rem] leading-none" style={ok ? {} : { filter: 'grayscale(1)', opacity: 0.35 }}>{b.icon}</div>
-                  <div className="text-[0.72rem] font-display font-black mt-1.5" style={{ color: ok ? '#713f12' : '#9c8cc4' }}>{b.name}</div>
+                <div key={b.name} className="rounded-2xl pt-2.5 pb-2 px-1 text-center flex flex-col items-center"
+                  style={ok ? { background: 'linear-gradient(170deg, #fffdf3, #fff6d6)', border: '2px solid #fde68a' } : { background: '#f5f3ff', border: '2px solid #ede9fe' }}>
+                  <BadgeArt {...b.art} on={ok} className={`w-[60px] h-[66px] ${ok ? 'word-pop' : ''}`} />
+                  <div className="text-[0.74rem] font-display font-black mt-1" style={{ color: ok ? '#2e1065' : '#9c8cc4' }}>{b.name}</div>
                   {!ok && (
-                    <div className="text-[0.62rem] font-display font-bold text-[#b9a8f0] flex items-center justify-center gap-0.5">
-                      <Lock className="w-2.5 h-2.5" strokeWidth={3} /><Frac a={Math.min(b.have, b.need)} b={b.need} />
+                    <div className="text-[0.64rem] font-display font-bold text-[#b9a8f0]">
+                      <Frac a={Math.min(b.have, b.need)} b={b.need} />
                     </div>
                   )}
                 </div>
