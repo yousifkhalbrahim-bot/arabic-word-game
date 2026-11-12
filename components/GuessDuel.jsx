@@ -71,7 +71,36 @@ export function settleGuessDuel(state, timeUp = false) {
   return winner === null ? state : { ...state, status: 'finished', winner };
 }
 
-export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess, onResign, onTimeUp }) {
+// ============== المباراة: 10 جولات ==============
+// كل جولة تنحسم بنفس القواعد، والفائز ياخذ نقطة. تبدأ الجولة الجاية تلقائي.
+// المباراة تخلص بعد 10 جولات، أو أول ما يصير الفرق أكبر من الجولات الباقية.
+export const MATCH_ROUNDS = 10;
+export const newMatch = () => ({ total: MATCH_ROUNDS, round: 1, score: { 1: 0, 2: 0 }, last: null, over: false });
+// استراحة بين جولتين (الجولة خلصت والمباراة لا)
+export const isRoundBreak = (s) => !!(s && s.mode === 'guess' && s.match && !s.match.over && s.status === 'finished');
+
+export function scoreRound(s) {
+  if (!s.match || s.status !== 'finished') return s;
+  const m = s.match, w = s.winner;
+  const score = { 1: m.score[1] + (w === 1 ? 1 : 0), 2: m.score[2] + (w === 2 ? 1 : 0) };
+  const left = m.total - m.round;
+  const over = left <= 0 || Math.abs(score[1] - score[2]) > left;
+  const match = { ...m, score, last: w, over };
+  if (!over) return { ...s, match };
+  const mw = score[1] > score[2] ? 1 : score[2] > score[1] ? 2 : 0;
+  // في نهاية المباراة winner = فائز المباراة (والجولة الأخيرة محفوظة في roundWinner)
+  return { ...s, match: { ...match, winner: mw }, winner: mw, roundWinner: w };
+}
+
+// يحسم الجولة + يحسب نقطتها في المباراة
+export function settleRound(state, timeUp = false) {
+  const s = settleGuessDuel(state, timeUp);
+  return s.status === 'finished' && state.status !== 'finished' ? scoreRound(s) : s;
+}
+
+const BREAK_SECONDS = 4;
+
+export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess, onResign, onTimeUp, onNextRound }) {
   const oppRole = myRole === 1 ? 2 : 1;
   const len = roomState.settings.len;
   const tries = LENGTHS[len].tries;
@@ -238,9 +267,15 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         </button>
         <div className="flex items-center gap-1.5 font-display font-black rounded-full px-3 py-1 bg-white/15" style={{ fontSize: '0.85rem' }}>
           <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[#4ade80]' : 'bg-[#ff4d6d] animate-pulse'}`} />
-          تحدي · خمّن الكلمة
+          {roomState.match ? <>الجولة <Num>{roomState.match.round}</Num>/<Num>{roomState.match.total}</Num></> : 'تحدي · خمّن الكلمة'}
         </div>
-        <div style={{ width: 32 }} />
+        {roomState.match ? (
+          <div className="h-10 flex items-center gap-1 rounded-full px-2.5 font-display font-black text-sm" style={{ background: 'rgba(255,255,255,0.16)' }} aria-label="النتيجة">
+            <span style={{ color: PLAYER_COLORS[myRole] }}><Num>{roomState.match.score[myRole]}</Num></span>
+            <span className="opacity-60">-</span>
+            <span style={{ color: PLAYER_COLORS[oppRole] }}><Num>{roomState.match.score[oppRole]}</Num></span>
+          </div>
+        ) : <div style={{ width: 32 }} />}
       </div>
 
       {/* شريط الحالة: الاثنين يلعبون بنفس الوقت + الوقت المتبقي */}
@@ -319,6 +354,10 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         )}
       </div>
 
+      {isRoundBreak(roomState) && (
+        <RoundBreak roomState={roomState} myRole={myRole} oppName={oppName} onNextRound={onNextRound} />
+      )}
+
       {iAmSetter ? (
         <div className="shrink-0 px-4 pb-4 pt-2 text-center font-display font-bold text-white/85 text-sm">
           👀 تتفرج على {oppName} وهو يخمّن… تشوف حروفه أول بأول
@@ -326,6 +365,48 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
       ) : (
         <GuessKeyboard keyStates={keyStates} onKey={typeKey} disabled={myDone} allowed={bank} />
       )}
+    </div>
+  );
+}
+
+// ============== بين الجولات ==============
+// نتيجة الجولة + النتيجة الكلية + عدّاد، وبعدها تبدأ الجولة الجاية تلقائي.
+function RoundBreak({ roomState, myRole, oppName, onNextRound }) {
+  const m = roomState.match;
+  const oppRole = myRole === 1 ? 2 : 1;
+  const [left, setLeft] = useState(BREAK_SECONDS);
+  const fired = useRef(false);
+  useEffect(() => {
+    const iv = setInterval(() => setLeft(l => l - 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  useEffect(() => {
+    if (left > 0 || fired.current || !onNextRound) return;
+    fired.current = true;
+    onNextRound();
+  }, [left, onNextRound]);
+  const w = m.last;
+  const title = w === 0 ? '🤝 تعادل في هالجولة' : w === myRole ? '🏆 الجولة لك!' : 'الجولة لـ ' + oppName;
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in">
+      <div className="w-full max-w-sm rounded-3xl p-5 text-center slide-in" style={{ background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 6px 0 var(--edge)' }}>
+        <div className="font-display font-black text-2xl" style={{ color: w === myRole ? '#16a34a' : w === 0 ? 'var(--ink-2)' : PLAYER_COLORS[oppRole] }}>{title}</div>
+        <div className="text-sm font-display font-bold mt-1" style={{ color: 'var(--muted-c)' }}>الكلمة كانت <b style={{ color: 'var(--ink)' }}>{roomState.answer}</b></div>
+        <div className="flex items-center justify-center gap-5 my-4">
+          <div>
+            <div className="font-display font-black text-[2.6rem] leading-none" style={{ color: PLAYER_COLORS[myRole] }}><Num>{m.score[myRole]}</Num></div>
+            <div className="text-xs font-display font-bold mt-1" style={{ color: 'var(--muted-c)' }}>أنت</div>
+          </div>
+          <div className="font-display font-black text-xl opacity-40">-</div>
+          <div>
+            <div className="font-display font-black text-[2.6rem] leading-none" style={{ color: PLAYER_COLORS[oppRole] }}><Num>{m.score[oppRole]}</Num></div>
+            <div className="text-xs font-display font-bold mt-1 truncate max-w-[7rem]" style={{ color: 'var(--muted-c)' }}>{oppName}</div>
+          </div>
+        </div>
+        <div className="rounded-2xl py-2 font-display font-black" style={{ background: 'var(--soft)', color: 'var(--ink-2)' }}>
+          الجولة <Num>{m.round + 1}</Num> من <Num>{m.total}</Num> تبدأ بعد <Num>{Math.max(0, left)}</Num>…
+        </div>
+      </div>
     </div>
   );
 }

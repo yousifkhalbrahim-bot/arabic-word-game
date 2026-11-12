@@ -29,7 +29,7 @@ import { applyTheme, watchSystemTheme } from '@/lib/settings';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
-import GuessDuel, { settleGuessDuel, DUEL_SECONDS } from '@/components/GuessDuel';
+import GuessDuel, { settleRound, DUEL_SECONDS, newMatch, isRoundBreak } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
@@ -107,6 +107,7 @@ const createGuessState = (code, hostName, len, customWord = null, clue = '') => 
   guesses_p2: [],
   winner: null,
   gameNumber: 1,
+  match: newMatch(),
 });
 
 const generateEndingQueue = () => shuffledEndingQueue(ENDING_PRESETS.map(p => p.value));
@@ -195,7 +196,8 @@ function RoomInfo({ state }) {
     ['المضيف', <span key="h" className="font-black" style={{ color: PLAYER_INK[1] }}>{state.players[1]?.name}</span>],
     ['نوع اللعبة', isRace ? '⚡ سباق الكلمات' : state.mode === 'guess' ? (state.settings?.custom ? '🎯 خمّن كلمة المضيف' : '🟩 خمّن الكلمة') : '⏱ ساعة الشطرنج'],
     ...(state.mode === 'guess'
-      ? [['عدد الحروف', <span key="l"><bdi className="font-mono-ar">{state.settings.len}</bdi> أحرف · <bdi className="font-mono-ar">{GUESS_LENGTHS[state.settings.len].tries}</bdi> محاولات</span>]]
+      ? [['عدد الحروف', <span key="l"><bdi className="font-mono-ar">{state.settings.len}</bdi> أحرف · <bdi className="font-mono-ar">{GUESS_LENGTHS[state.settings.len].tries}</bdi> محاولات</span>],
+         ...(state.match ? [['المباراة', <span key="m"><bdi className="font-mono-ar">{state.match.total}</bdi> جولات</span>]] : [])]
       : isRace
       ? [['المدة', <span key="d"><bdi className="font-mono-ar">{state.settings.duration}</bdi> ثانية</span>]]
       : [
@@ -739,7 +741,7 @@ export default function Game() {
     setMyRoleState(role);
     setRoomState(state);
     setGlobalError(null);
-    setScreen(screenForStatus(state.status));
+    setScreen(isRoundBreak(state) ? 'playing' : screenForStatus(state.status));
   }, []);
 
   // ============== الإقلاع: مزامنة الساعة + العودة للغرفة / رابط الدعوة ==============
@@ -833,10 +835,11 @@ export default function Game() {
   // فوز/تعادل أونلاين → نقاط (مرة وحدة لكل جولة)
   useEffect(() => {
     if (screen !== 'gameover' || !roomState || roomState.status !== 'finished' || !myRole || roomCode === 'DEMO') return;
+    if (roomState.match && !roomState.match.over) return;
     const confirmed = serverRef.current;
     if (!confirmed || confirmed.status !== 'finished' || (confirmed.version ?? 0) !== (roomState.version ?? 0)) return;
     const w = confirmed.winner;
-    const custom = roomState.mode === 'guess' && roomState.settings?.custom;
+    const custom = roomState.mode === 'guess' && roomState.settings?.custom && !roomState.match;
     let pts = 0, win = false;
     if (w === 0) pts = POINTS.onlineDraw;
     else if (w === myRole) {
@@ -936,6 +939,8 @@ export default function Game() {
     if (roomState.status === 'playing' && (screen === 'waiting')) {
       setScreen('playing');
     } else if (roomState.status === 'finished' && (screen === 'playing' || screen === 'waiting')) {
+      // بين الجولات نبقى في اللعب — إلا لو الخصم طلع
+      if (isRoundBreak(roomState) && !roomState.players[myRole === 1 ? 2 : 1]?.left) return;
       setScreen('gameover');
     } else if (roomState.status === 'choosing' && screen === 'gameover') {
       setScreen('playing');
@@ -1252,7 +1257,7 @@ export default function Game() {
       if (!base || base.status !== 'playing') return null;
       const mine = base[key] || [];
       if (mine.length >= tries || mine.some(g => g.result.every(r => r === 'correct'))) return null;
-      return settleGuessDuel({ ...base, [key]: [...mine, { word, result, ts: now() }] });
+      return settleRound({ ...base, [key]: [...mine, { word, result, ts: now() }] });
     });
   }, [myRole, casRetry]);
 
@@ -1267,7 +1272,7 @@ export default function Game() {
   // انتهى وقت التحدي → يتحسم الفائز
   const guessTimeUp = useCallback(() => casRetry((base) => {
     if (!base || base.status !== 'playing') return null;
-    return settleGuessDuel(base, true);
+    return settleRound(base, true);
   }), [casRetry]);
 
   const acceptPending = useCallback(() => {
@@ -1299,11 +1304,18 @@ export default function Game() {
       status: 'finished',
       winner: myRole === 1 ? 2 : 1,
       resigned: myRole,
+      ...(roomState.match ? { match: { ...roomState.match, over: true, winner: myRole === 1 ? 2 : 1 } } : {}),
     });
   }, [roomState, myRole, commitChess]);
 
-  const rematch = useCallback(async () => {
+  // nextRound: الجولة الجاية في نفس المباراة (تلقائي) — غيره: مباراة جديدة
+  const rematch = useCallback(async (opts = {}) => {
     if (!roomState) return;
+    const nextRound = opts.nextRound === true;
+    if (nextRound && !isRoundBreak(roomState)) return;
+    const matchNext = roomState.match
+      ? (nextRound ? { ...roomState.match, round: roomState.match.round + 1, last: null } : newMatch())
+      : undefined;
     const gameNumber = roomState.gameNumber || 1;
     const newGameNum = gameNumber + 1;
     const cleanPlayers = {
@@ -1325,19 +1337,21 @@ export default function Game() {
         resigned: null,
         timeUp: false,
         gameNumber: newGameNum,
+        ...(matchNext ? { match: matchNext, roundWinner: null } : {}),
       };
     } else if (roomState.mode === 'guess') {
       newState = {
         ...roomState,
         status: 'playing',
         players: cleanPlayers,
-        answer: randomAnswer(roomState.settings.len),
+        answer: randomAnswer(roomState.settings.len, roomState.answer),
         guesses_p1: [],
         guesses_p2: [],
         winner: null,
         resigned: null,
         timeUp: false,
         gameNumber: newGameNum,
+        ...(matchNext ? { match: matchNext, roundWinner: null } : {}),
       };
     } else if (roomState.mode === 'race') {
       newState = {
@@ -1382,6 +1396,8 @@ export default function Game() {
       setBusy(false);
     }
   }, [roomState, roomCode, applyServerState]);
+  // الجولة الجاية تبدأ تلقائي (الاثنين يطلبونها والسيرفر يقبل أول طلب بس)
+  const nextRound = useCallback(() => rematch({ nextRound: true }), [rematch]);
 
   const leaveRoom = useCallback(async () => {
     if (roomCode && roomCode !== 'local' && myRole && roomState) {
@@ -2162,7 +2178,7 @@ export default function Game() {
 
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'guess') {
     return <GuessDuel key={roomState.gameNumber} roomState={roomState} myRole={myRole} connected={connected}
-      onSubmitGuess={submitGuessOnline} onResign={resign} onTimeUp={guessTimeUp} />;
+      onSubmitGuess={submitGuessOnline} onResign={resign} onTimeUp={guessTimeUp} onNextRound={nextRound} />;
   }
 
   if (screen === 'playing' && roomState && myRole && roomState.mode === 'race') {
@@ -2263,7 +2279,8 @@ export default function Game() {
       return i < 0 ? 0 : i + 1;
     };
     const isCustom = isGuess && !!roomState.settings?.custom;
-    const scoreOf = (r) => (isCustom && roomState.setter === r ? '🎯' : isGuess ? (guessSolved(r) || '✗') : isRace ? raceScore(roomState, r) : wordCounts[r]);
+    const isMatch = isGuess && !!roomState.match;
+    const scoreOf = (r) => isMatch ? roomState.match.score[r] : (isCustom && roomState.setter === r ? '🎯' : isGuess ? (guessSolved(r) || '✗') : isRace ? raceScore(roomState, r) : wordCounts[r]);
     const iWon = !isDraw && winner === myRole;
 
     return (
@@ -2274,13 +2291,16 @@ export default function Game() {
             isDraw={isDraw}
             winnerName={!isDraw ? roomState.players[winner].name : ''}
             winnerPlayer={winner}
-            subtitle={isCustom
+            subtitle={isMatch
+              ? (roomState.resigned ? (iWon ? 'فزت بالمباراة 🎉' : 'خسرت المباراة') : isDraw ? 'تعادل في المباراة 🤝' : iWon ? 'فزت بالمباراة! 🎉' : 'خسرت المباراة… المرة الجاية 💪')
+              : isCustom
               ? (winner === roomState.setter ? 'الكلمة صعّبت عليه 😏' : 'حلّ الكلمة! 🎉')
               : isDraw ? 'كلاكم على نفس المستوى 🤝' : iWon ? 'مبروك! 🎉' : 'حظ أوفر المرة الجاية'}
-            unit={isGuess ? 'محاولات' : isRace ? 'نقطة' : 'كلمة'}
+            unit={isMatch ? 'جولات' : isGuess ? 'محاولات' : isRace ? 'نقطة' : 'كلمة'}
             sides={[myRole, oppRole].map(r => ({
               name: roomState.players[r]?.name, player: r, score: scoreOf(r), tag: r === myRole ? '(أنت)' : '',
               ...(isGuess ? { dim: !isDraw && winner !== r } : {}),
+              ...(isMatch ? { dim: !isDraw && winner !== r } : {}),
             }))}
           />
 
@@ -2309,7 +2329,7 @@ export default function Game() {
 
           {isGuess ? (
             <div className="mb-5 slide-in">
-              <div className="text-center text-white/85 text-sm font-display font-bold mb-2">الكلمة كانت</div>
+              <div className="text-center text-white/85 text-sm font-display font-bold mb-2">{isMatch ? 'كلمة آخر جولة' : 'الكلمة كانت'}</div>
               <LetterTiles text={roomState.answer} size={roomState.settings.len === 3 ? 52 : roomState.settings.len === 4 ? 46 : 40} className="mb-4" />
               <div className="grid grid-cols-2 gap-3">
                 {[myRole, oppRole].filter(r => !(isCustom && roomState.setter === r)).map(r => (
@@ -2327,7 +2347,7 @@ export default function Game() {
           <div className="flex gap-2.5">
             {!oppLeft && !oppResigned && (
               <div className="flex-[1.5]">
-                <Btn icon={RotateCcw} busy={busy} onClick={rematch}>{isCustom ? 'جولة ثانية · بدّلوا' : 'جولة ثانية'}</Btn>
+                <Btn icon={RotateCcw} busy={busy} onClick={() => rematch()}>{isMatch ? 'مباراة جديدة' : isCustom ? 'جولة ثانية · بدّلوا' : 'جولة ثانية'}</Btn>
               </div>
             )}
             <div className="flex-1">
