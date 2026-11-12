@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, Pencil, Check, X, ChevronLeft, Lock } from 'lucide-react';
 import { ArcadeBg, Num, inputClass, ErrorNote } from '@/components/ui';
 import { fetchProfile, cachedPoints } from '@/lib/points';
-import { getBulbs, syncBulbs, BULB_MAX } from '@/lib/bulbs';
 import { LENGTHS, PLAYABLE_LENGTHS } from '@/lib/guess';
 
 const ENDING_TIMES = [
@@ -44,7 +43,6 @@ const readInt = (key) => { try { return parseInt(localStorage.getItem(key) || '0
 export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const [prof, setProf] = useState(null);
   const [cache, setCache] = useState(null);
-  const [bulbs, setBulbs] = useState(3);
   const [guessStats, setGuessStats] = useState({});
   const [endBest, setEndBest] = useState({});
   const [len, setLen] = useState(3);
@@ -54,7 +52,6 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
   useEffect(() => {
     setCache(cachedPoints());
-    setBulbs(getBulbs());
     const gs = {};
     for (const l of PLAYABLE_LENGTHS) gs[l] = readJSON(`wg:guess-stats:${l}`, null);
     setGuessStats(gs);
@@ -64,8 +61,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
     if ((gs[5]?.played || 0) > (gs[3]?.played || 0)) setLen(5);
 
     fetchProfile().then(r => {
-      if (r) { setProf(r); if (typeof r.bulbs === 'number') setBulbs(Math.min(BULB_MAX, r.bulbs)); }
-      else syncBulbs().then(setBulbs);
+      if (r) setProf(r);
     });
   }, []);
 
@@ -219,19 +215,6 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             </span>
             <span className="flex items-center gap-0.5 text-[0.75rem] font-display font-black text-[#7c3aed]">المتصدرين <ChevronLeft className="w-4 h-4" strokeWidth={3} /></span>
           </button>
-        </div>
-
-        {/* ===== لمبات التلميح ===== */}
-        <div className="rounded-3xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.14)', border: '2px solid rgba(255,255,255,0.18)' }}>
-          <div className="flex-1 min-w-0">
-            <div className="font-display font-black text-[0.95rem]">💡 لمبات التلميح · <Frac a={bulbs} b={BULB_MAX} /></div>
-            <div className="flex gap-1 mt-1.5" dir="rtl">
-              {Array.from({ length: BULB_MAX }, (_, i) => (
-                <span key={i} className="flex-1 h-2 rounded-full" style={{ background: i < bulbs ? '#fde047' : 'rgba(255,255,255,0.18)', boxShadow: i < bulbs ? '0 0 8px rgba(253,224,71,0.6)' : 'none' }} />
-              ))}
-            </div>
-            <div className="text-[0.7rem] font-display font-bold text-white/75 mt-1.5">تكسب لمبة مع كل فوز بدون تلميح</div>
-          </div>
         </div>
 
         {/* ===== الأوسمة ===== */}
