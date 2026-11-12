@@ -722,8 +722,8 @@ export function buildRows(guesses, current, tries, active) {
 export function GuessBoard({ rows, len, revealing = -1, shakeRow = false, compact = false, winRow = -1 }) {
   // حجم المربع: يتسع حسب العرض والارتفاع
   const tileSize = compact
-    ? (len === 3 ? 'min(16vw, 4.4svh, 56px)' : len === 4 ? 'min(14vw, 4.4svh, 54px)' : 'min(12.5vw, 4svh, 50px)')
-    : (len === 3 ? 'min(19vw, 5.6svh, 68px)' : len === 4 ? 'min(17vw, 5.6svh, 64px)' : 'min(14.5vw, 5.2svh, 60px)');
+    ? (len === 3 ? 'min(19vw, 5.4svh, 66px)' : len === 4 ? 'min(16vw, 5.2svh, 62px)' : 'min(15vw, 5.2svh, 60px)')
+    : (len === 3 ? 'min(22vw, 6.6svh, 80px)' : len === 4 ? 'min(19vw, 6.4svh, 74px)' : 'min(16vw, 5.8svh, 66px)');
   return (
     <div className="flex flex-col gap-[min(1.4vw,7px)]" dir="rtl">
       {rows.map((row, r) => (
