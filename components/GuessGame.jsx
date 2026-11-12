@@ -196,6 +196,7 @@ export default function GuessGame({ onExit }) {
       s.streak = 0;
     }
     save(statsKey(len), s);
+    try { window.dispatchEvent(new Event('wg:stats')); } catch {}
     setStats(s);
   }, [len, hints, elimUses]);
 
@@ -236,7 +237,7 @@ export default function GuessGame({ onExit }) {
       setKeyStates(k => mergeKeyStates(k, word, result));
       if (mode === 'rush') {
         if (rushOverRef.current) return;
-        if (won) { playStreak(); setWinRow(next.length - 1); setRushScore(s => s + 1); flash('+١ 🔥', 900); setStatus('won'); setTimeout(() => { setWinRow(-1); nextRushWord(); }, 900); }
+        if (won) { playStreak(); setWinRow(next.length - 1); setRushScore(s => s + 1); flash('+1 🔥', 900); setStatus('won'); setTimeout(() => { setWinRow(-1); nextRushWord(); }, 900); }
         else if (lost) { playLose(); flash(`الكلمة كانت: ${answer}`, 1600); setStatus('lost'); setTimeout(nextRushWord, 1400); }
         else playAccept();
         return;
@@ -392,7 +393,7 @@ export default function GuessGame({ onExit }) {
               <Choice key={l} selected={len === l} onClick={() => setLen(l)} className="py-2.5">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
-                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل · ٧ حروف مقفلة' : 'أصعب · كل الحروف'}</div>
+                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل · 7 حروف مقفلة' : 'أصعب · كل الحروف'}</div>
               </Choice>
             ))}
           </div>
@@ -622,8 +623,8 @@ function HelpSheet({ onClose }) {
           <div className="rounded-2xl bg-[#fef9c3] border-2 border-[#fde047] p-3 mb-4 text-[0.8rem] text-[#713f12] font-bold leading-relaxed">
             <div className="font-display font-black text-sm mb-0.5">💡 التلميحات</div>
             يفتح التلميح بعد أول محاولة، وتدفع له لمبات:<br />
-            🧹 شيل حروف غلط = ١ 💡 · 🔍 اكشف حرف = ٢ 💡<br />
-            تكسب لمبة مع كل فوز بدون تلميح، ولمبة زيادة كل ٥ ستريك 🔥
+            🧹 شيل حروف غلط = 1 💡 · 🔍 اكشف حرف = 2 💡<br />
+            تكسب لمبة مع كل فوز بدون تلميح، ولمبة زيادة كل 5 ستريك 🔥
           </div>
           <Btn size="md" onClick={onClose}>يلا نلعب</Btn>
         </div>
@@ -672,7 +673,7 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
             cost={HINT_TYPES.reveal.cost} penalty={HINT_TYPES.reveal.penalty} left={revealLeft} onClick={onReveal} />
         </div>
         <div className="text-center text-[0.72rem] font-bold text-[#6d5b95] mt-2.5 leading-relaxed">
-          اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل ٥ ستريك 🔥
+          اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل 5 ستريك 🔥
         </div>
       </div>
     </div>

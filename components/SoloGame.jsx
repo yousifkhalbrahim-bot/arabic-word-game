@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check, HelpCircle, X } from 'lucide-react';
+import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check, HelpCircle, X, Share2 } from 'lucide-react';
 import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
-import { haptic } from '@/lib/native';
+import { haptic, publicUrl, shareContent } from '@/lib/native';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
 const DURATIONS = [
-  { s: 30, label: '٣٠', sub: 'ثانية' },
-  { s: 60, label: '١', sub: 'دقيقة' },
-  { s: 90, label: '١.٥', sub: 'دقيقة' },
+  { s: 30, label: '30', sub: 'ثانية' },
+  { s: 60, label: '1', sub: 'دقيقة' },
+  { s: 90, label: '1.5', sub: 'دقيقة' },
 ];
 const SKIP_COST_SECONDS = 3;
 const STREAK_EVERY = 5;
@@ -45,6 +45,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
   const feedbackTimer = useRef(null);
   const lastTickRef = useRef(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [shareNote, setShareNote] = useState('');
   const pausedAt = useRef(0);
 
   // أول مرة: يفتح الشرح تلقائي
@@ -103,6 +104,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     const t = Date.now();
     setNowTs(t);
     setEndsAt(t + duration * 1000);
+    setShareNote('');
     setPhase('playing');
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [endings, duration]);
@@ -122,6 +124,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     const isRecord = score > prevBest;
     if (isRecord) {
       writeBest(duration, score);
+      try { window.dispatchEvent(new Event('wg:stats')); } catch {}
       setBests(b => ({ ...b, [duration]: score }));
     }
     setResult({ score, prevBest, isRecord, pts: racePoints(score) });
@@ -155,8 +158,10 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setWords(ws => [...ws, { w: check.word, ending }]);
     setIndex(i => i + 1);
     setInput('');
-    flash(true, nextStreak % STREAK_EVERY === 0 ? `🔥 ${nextStreak} متتالية!` : '✓ ' + check.word);
-  }, [phase, timeLeft, input, ending, words, streak, flash]);
+    const best = bests[duration] || 0;
+    flash(true, best > 0 && words.length + 1 === best + 1 ? '🏆 كسرت رقمك القياسي!'
+      : nextStreak % STREAK_EVERY === 0 ? `🔥 ${nextStreak} متتالية!` : '✓ ' + check.word);
+  }, [phase, timeLeft, input, ending, words, streak, flash, bests, duration]);
 
   const skip = useCallback(() => {
     if (phase !== 'playing' || timeLeft <= SKIP_COST_SECONDS) return;
@@ -168,6 +173,19 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setInput('');
     inputRef.current?.focus();
   }, [phase, timeLeft]);
+
+  // مشاركة النتيجة (واتساب وغيره)
+  const shareResult = async () => {
+    if (!result) return;
+    const label = duration === 30 ? '30 ثانية' : duration === 60 ? 'دقيقة' : 'دقيقة ونص';
+    const url = publicUrl('/');
+    const text = `⏱ حليت ${result.score} كلمة في ${label} بتحدي النهايات 🔥
+تقدر تغلبني؟
+${url}`;
+    if (await shareContent({ title: 'تحدي النهايات', text })) return;
+    try { await navigator.clipboard.writeText(text); setShareNote('تم نسخ النتيجة 📋'); }
+    catch { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); }
+  };
 
   const shell = (children) => (
     <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
@@ -264,6 +282,10 @@ export default function SoloGame({ endings, onExit, startDuration }) {
             <div className="flex-[1.4]"><Btn icon={RotateCcw} onClick={start}>مرة ثانية</Btn></div>
             <div className="flex-1"><Btn variant="wood" onClick={() => setPhase('setup')}>تغيير المدة</Btn></div>
           </div>
+          {result.score > 0 && (
+            <div className="mt-3"><Btn variant="green" size="md" icon={Share2} onClick={shareResult}>شارك نتيجتك</Btn></div>
+          )}
+          {shareNote && <div className="mt-2 text-sm font-display font-bold text-white/90 slide-in">{shareNote}</div>}
         </div>
       </div>
     );
@@ -271,6 +293,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
 
   // -------- اللعب --------
   const low = timeLeft <= 10;
+  const best = bests[duration] || 0;
   const timeColor = low ? '#ff4d6d' : timeLeft <= 20 ? '#ffb020' : '#22c55e';
   const pct = Math.min(100, (timeLeft / duration) * 100);
   const recent = [...words].reverse().slice(0, 14);
@@ -284,6 +307,14 @@ export default function SoloGame({ endings, onExit, startDuration }) {
           <div key={words.length} className="score-bump font-display font-black text-white" style={{ fontSize: '2rem', lineHeight: 1.05, textShadow: '0 3px 0 #b86b00' }}>
             <Num>{words.length}</Num>
           </div>
+          {/* رقمك القياسي قدامك */}
+          {best > 0 && (
+            <div className="font-display font-black text-[0.68rem] text-[#4a2400] leading-tight">
+              {words.length > best ? '🔥 رقم قياسي!'
+                : best - words.length < 3 ? <>باقي <Num>{best - words.length + 1}</Num> وتكسره!</>
+                : <>🏆 رقمك <Num>{best}</Num></>}
+            </div>
+          )}
         </div>
         <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: low ? '#ff4d6d' : '#fff', boxShadow: `0 5px 0 ${low ? '#b3123a' : '#c4b5fd'}`, border: '2px solid rgba(255,255,255,0.5)' }}>
           <div className="font-display font-black text-[0.75rem]" style={{ color: low ? '#fff' : '#6d5b95' }}>الوقت</div>

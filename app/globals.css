@@ -485,3 +485,12 @@ html { background: #4f46e5; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* بطاقة «وسام جديد!» تنزل من فوق */
+@keyframes celebrate-drop {
+  0%   { opacity: 0; transform: translateY(-120%) scale(0.9); }
+  60%  { opacity: 1; transform: translateY(6px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.celebrate-drop { animation: celebrate-drop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) { .celebrate-drop { animation: none; } }

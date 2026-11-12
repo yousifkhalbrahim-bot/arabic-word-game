@@ -142,10 +142,10 @@ export default function Leaderboard({ onExit }) {
         </div>
         {showHow && (
           <div className="mt-2 rounded-2xl bg-white text-[#2e1065] p-3 text-sm font-display font-bold leading-relaxed slide-in" style={{ boxShadow: '0 4px 0 #c4b5fd' }}>
-            <div>🟩 خمّن الكلمة لحالك: ١٠ (٣ أحرف) أو ٢٠ (٥ أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −٢ · 🔍 −٥)</div>
+            <div>🟩 خمّن الكلمة لحالك: 10 (3 أحرف) أو 20 (5 أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −2 · 🔍 −5)</div>
             <div>⚔️ فوز أونلاين مع صاحبك: <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
             <div>🎯 «أنت تختار الكلمة»: اللي يحلها <Num>{POINTS.customGuesserWin}</Num> · اللي يصعّبها <Num>{POINTS.customSetterWin}</Num></div>
-            <div>⏱ تحدي النهايات ضد الوقت: ٢ لكل كلمة</div>
+            <div>⏱ تحدي النهايات ضد الوقت: 2 لكل كلمة</div>
           </div>
         )}
       </div>
@@ -162,7 +162,7 @@ export default function Leaderboard({ onExit }) {
           </div>
         ) : (
           <>
-            {/* المنصة: ٢ يمين، ١ بالنص، ٣ يسار */}
+            {/* المنصة: 2 يمين، 1 بالنص، 3 يسار */}
             <div className="flex items-start gap-2.5 mb-4" dir="rtl">
               {podiumSlot(2)}
               {podiumSlot(1)}
@@ -178,7 +178,18 @@ export default function Leaderboard({ onExit }) {
       {/* ترتيبك (لو مو ظاهر فوق) */}
       {me && !meInTop && cur && !cur.error && (
         <div className="shrink-0 px-4 pb-3 pt-1">
-          {row({ name: me.name || '', score: me.score }, me.rank, true)}
+          {me.score > 0 ? row({ name: me.name || '', score: me.score }, me.rank, true) : (
+            // ما عنده نقاط: لا نطلّع له مركز
+            <button onClick={onExit}
+              className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 min-h-[58px] bg-white text-[#2e1065] font-display font-black active:scale-[0.98] transition-all"
+              style={{ boxShadow: '0 4px 0 #c4b5fd', border: '2px solid #ede9fe' }}>
+              <span className="text-right">
+                <span className="block">{scope === 'week' ? 'ما عندك نقاط هالأسبوع' : 'ما عندك نقاط للحين'}</span>
+                <span className="block text-[0.72rem] font-bold text-[#6d5b95]">العب وادخل المنافسة 🔥</span>
+              </span>
+              <span className="text-[#7c3aed] text-sm">العب ←</span>
+            </button>
+          )}
         </div>
       )}
     </div>

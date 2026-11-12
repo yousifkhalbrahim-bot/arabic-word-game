@@ -21,6 +21,7 @@ import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/r
 import SoloGame from '@/components/SoloGame';
 import Leaderboard from '@/components/Leaderboard';
 import Profile from '@/components/Profile';
+import { levelFor } from '@/lib/levels';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
@@ -36,8 +37,8 @@ import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppea
 // ============== الثوابت ==============
 const TIME_CONTROLS = [
   { id: 'bullet', name: 'بوليت', icon: Zap, minutes: 1, desc: 'دقيقة' },
-  { id: 'blitz', name: 'بليتز', icon: Flame, minutes: 3, desc: '٣ دقائق' },
-  { id: 'rapid', name: 'رابيد', icon: Hourglass, minutes: 5, desc: '٥ دقائق' },
+  { id: 'blitz', name: 'بليتز', icon: Flame, minutes: 3, desc: '3 دقائق' },
+  { id: 'rapid', name: 'رابيد', icon: Hourglass, minutes: 5, desc: '5 دقائق' },
 ];
 
 const ENDING_PRESETS = [
@@ -148,7 +149,7 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
   const submit = async () => {
     const w = normalizeGuess(word);
     const l = [...w].length;
-    if (!/^[\u0621-\u064A]+$/.test(w) || (l !== 3 && l !== 5)) { setErr('لازم تكون ٣ أو ٥ أحرف عربية'); return; }
+    if (!/^[\u0621-\u064A]+$/.test(w) || (l !== 3 && l !== 5)) { setErr('لازم تكون 3 أو 5 أحرف عربية'); return; }
     if (isOffensive(word) || isOffensive(clue)) { setErr(OFFENSIVE_MSG); return; }
     setErr(''); setBusy(true);
     await onChoose(w, clue);
@@ -161,10 +162,10 @@ function ChooseWord({ roomState, myRole, onChoose, onExit }) {
         {mine ? (
           <>
             <div className="text-4xl mb-1">🎯</div>
-            <Title sub="أي كلمة عربية من ٣ أو ٥ أحرف — اختر وحدة تصعّب عليه!">دورك تختار الكلمة</Title>
+            <Title sub="أي كلمة عربية من 3 أو 5 أحرف — اختر وحدة تصعّب عليه!">دورك تختار الكلمة</Title>
             <input type="text" value={word} onChange={e => setWord(e.target.value)} autoFocus
               onKeyDown={e => e.key === 'Enter' && submit()}
-              placeholder="٣ أو ٥ أحرف" maxLength={8} autoComplete="off" autoCorrect="off"
+              placeholder="3 أو 5 أحرف" maxLength={8} autoComplete="off" autoCorrect="off"
               className={`${inputClass} text-center font-display text-3xl mb-2.5`} />
             <input type="text" value={clue} onChange={e => setClue(e.target.value)}
               placeholder="💡 تلميح لصاحبك (اختياري)" maxLength={40} autoComplete="off"
@@ -526,7 +527,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
         </div>
       </div>
 
-      {/* ===== المنطقة الرئيسية: ٣ أعمدة ===== */}
+      {/* ===== المنطقة الرئيسية: 3 أعمدة ===== */}
       <div className="flex-1 flex gap-2 px-3 pt-1 pb-2 min-h-0 overflow-hidden">
 
         {wordColumn('mine')}
@@ -1063,7 +1064,7 @@ export default function Game() {
     const secret = normalizeGuess(secretWord);
     if (selectedMode === 'guess' && guessCustom) {
       const sl = [...secret].length;
-      if (!/^[\u0621-\u064A]+$/.test(secret) || (sl !== 3 && sl !== 5)) { setGlobalError('الكلمة السرية لازم تكون ٣ أو ٥ أحرف عربية'); return; }
+      if (!/^[\u0621-\u064A]+$/.test(secret) || (sl !== 3 && sl !== 5)) { setGlobalError('الكلمة السرية لازم تكون 3 أو 5 أحرف عربية'); return; }
     }
 
     setBusy(true);
@@ -1095,7 +1096,7 @@ export default function Game() {
   }, [hostName, useCustom, customEnding, selectedEnding, selectedTime, selectedTurnSkip, selectedMode, selectedRaceDuration, selectedGuessLen, guessCustom, secretWord, secretClue, enterRoom]);
 
   const checkJoinCode = useCallback(async () => {
-    if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون ٤ أرقام'); return; }
+    if (joinCode.length !== 4) { setGlobalError('الكود لازم يكون 4 أرقام'); return; }
     setBusy(true);
     setGlobalError(null);
     try {
@@ -1600,6 +1601,7 @@ export default function Game() {
 
     const shownName = hostName.trim() || 'اختر اسمك';
     const pts = myPoints || {};
+    const lv = levelFor(pts.points || 0);
 
     // رسومات البطاقات
     const endingsArt = (
@@ -1651,23 +1653,26 @@ export default function Game() {
     return (
       <Screen center={false} className="pt-3 pb-6">
         <div className="fade-in">
-          {/* الشريط العلوي: اسمك + نقاطك */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <button onClick={() => setScreen('profile')} aria-label="ملفي"
-              className="flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 pl-3 pr-1 py-1 min-h-[44px] min-w-0 transition-all active:scale-95">
-              <span className="w-9 h-9 rounded-full flex items-center justify-center font-display font-black text-[#4a2400] shrink-0"
-                style={{ background: '#ffb020', boxShadow: '0 2px 0 #b86b00' }}>
-                {(hostName.trim() || '؟').slice(0, 1)}
+          {/* الشريط العلوي: اسمك + مستواك (يفتح ملفي) */}
+          <button onClick={() => setScreen('profile')} aria-label="ملفي"
+            className="w-full flex items-center gap-2.5 rounded-2xl bg-white/15 hover:bg-white/20 pl-2.5 pr-1.5 py-1.5 mb-3 min-h-[54px] transition-all active:scale-[0.98] text-right">
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-lg text-[#4a2400] shrink-0"
+              style={{ background: 'linear-gradient(160deg, #ffd166, #ffb020)', boxShadow: '0 3px 0 #b86b00', paddingBottom: 2 }}>
+              {(hostName.trim() || '؟').slice(0, 1)}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center justify-between gap-2">
+                <span className="font-display font-black text-white truncate">{shownName}</span>
+                <span className="shrink-0 rounded-full px-2 py-px font-display font-black text-[0.72rem]" style={{ background: lv.color.bg, color: lv.color.ink }}>
+                  ⭐ مستوى <bdi className="font-mono-ar">{lv.n}</bdi>
+                </span>
               </span>
-              <span className="font-display font-black text-white truncate max-w-[9rem]">{shownName}</span>
-              <ChevronLeft className="w-4 h-4 text-white/70 shrink-0" strokeWidth={2.8} />
-            </button>
-            <div className="flex items-center gap-1.5 rounded-full px-3.5 py-2 font-display font-black text-[#4a2400] shrink-0"
-              style={{ background: '#fde047', boxShadow: '0 3px 0 #ca8a04' }}>
-              <Star className="w-4 h-4" fill="currentColor" strokeWidth={0} />
-              <bdi className="font-mono-ar">{pts.points ?? 0}</bdi>
-            </div>
-          </div>
+              <span className="block mt-1.5 h-1.5 rounded-full bg-black/20 overflow-hidden">
+                <span className="block h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(4, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
+              </span>
+            </span>
+            <ChevronLeft className="w-4 h-4 text-white/70 shrink-0" strokeWidth={2.8} />
+          </button>
 
           {/* الشعار */}
           <div className="text-center mb-4">
@@ -1719,7 +1724,7 @@ export default function Game() {
               </span>
             </span>
 
-            {/* أول ٣ */}
+            {/* أول 3 */}
             {weekTop.length > 0 ? (
               <span className="shrink-0 flex items-center" dir="ltr">
                 {weekTop.map((r, i) => (
@@ -1918,7 +1923,7 @@ export default function Game() {
               <div>
                 <Label>مدة السباق</Label>
                 <div className="grid grid-cols-3 gap-2.5">
-                  {[{ s: 30, label: '٣٠', sub: 'ثانية' }, { s: 60, label: '١', sub: 'دقيقة' }, { s: 90, label: '١.٥', sub: 'دقيقة' }].map(({ s, label, sub }) => (
+                  {[{ s: 30, label: '30', sub: 'ثانية' }, { s: 60, label: '1', sub: 'دقيقة' }, { s: 90, label: '1.5', sub: 'دقيقة' }].map(({ s, label, sub }) => (
                     <Choice key={s} selected={selectedRaceDuration === s} onClick={() => setSelectedRaceDuration(s)} className="py-2.5">
                       <span className="font-mono-ar font-bold text-xl">{label}</span>
                       <span className="text-xs opacity-75 mr-1">{sub}</span>
@@ -1927,7 +1932,7 @@ export default function Game() {
                 </div>
                 <p className="text-xs text-dim mt-2.5 leading-relaxed">
                   {soloTime
-                    ? 'كل سؤال نهاية مختلفة. اكتب أكبر عدد كلمات قبل ما يخلص الوقت، والتجاوز يكلّفك ٣ ثواني.'
+                    ? 'كل سؤال نهاية مختلفة. اكتب أكبر عدد كلمات قبل ما يخلص الوقت، والتجاوز يكلّفك 3 ثواني.'
                     : 'كل سؤال نهاية مختلفة، وأول من يجاوب ياخذ النقطة. تقدر تجمّد خصمك أو تتجاوز السؤال مقابل نقاط.'}
                 </p>
               </div>
@@ -1953,7 +1958,7 @@ export default function Game() {
 
             {isGuess && guessCustom && (
               <div>
-                <Label>الكلمة السرية (٣ أو ٥ أحرف)</Label>
+                <Label>الكلمة السرية (3 أو 5 أحرف)</Label>
                 <input
                   type="text"
                   value={secretWord}
@@ -2015,19 +2020,34 @@ export default function Game() {
           <Title sub={joinPreview ? 'تأكد من التفاصيل واكتب اسمك' : 'اكتب الكود اللي وصلك'}>دخول غرفة</Title>
           {!joinPreview ? (
             <div className="space-y-4">
-              <input
-                type="tel"
-                inputMode="numeric"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 4 && checkJoinCode()}
-                placeholder="0000"
-                maxLength={4}
-                dir="ltr"
-                autoComplete="one-time-code"
-                style={{ textIndent: '0.5em' }}
-                className="w-full rounded-2xl py-4 bg-[#f5f3ff] border-[3px] border-[#ede9fe] focus:border-[#22d3ee] focus:bg-white focus:outline-none transition-all text-center font-mono-ar text-5xl font-black tracking-[0.5em] text-[#2e1065] placeholder:text-[#d9d0fb]"
-              />
+              {/* 4 مربعات: الكتابة في خانة مخفية فوقها، والمربع اللي عليه الدور يتلوّن */}
+              <label className="group relative flex justify-center gap-2.5 cursor-text" dir="ltr">
+                {[0, 1, 2, 3].map(i => {
+                  const ch = joinCode[i] || '';
+                  const active = i === Math.min(joinCode.length, 3);
+                  return (
+                    <span key={i}
+                      className={`w-[60px] h-[72px] rounded-2xl flex items-center justify-center font-mono-ar text-[2.4rem] font-black text-[#2e1065] border-[3px] transition-all ${
+                        ch ? 'bg-white border-[#a78bfa]' : 'bg-[#faf8ff] border-dashed border-[#d9d0fb]'
+                      } ${active ? 'group-focus-within:border-solid group-focus-within:border-[#22d3ee] group-focus-within:shadow-[0_0_0_4px_rgba(34,211,238,0.25)]' : ''}`}
+                      style={ch ? { boxShadow: '0 4px 0 #c4b5fd' } : undefined}>
+                      {ch}
+                    </span>
+                  );
+                })}
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onKeyDown={(e) => e.key === 'Enter' && joinCode.length === 4 && checkJoinCode()}
+                  maxLength={4}
+                  autoFocus
+                  autoComplete="one-time-code"
+                  aria-label="كود الغرفة"
+                  className="absolute inset-0 w-full h-full opacity-0 text-[16px]"
+                />
+              </label>
               <ErrorNote>{globalError}</ErrorNote>
               <Btn variant="teal" icon={LogIn} busy={busy} disabled={joinCode.length !== 4} onClick={checkJoinCode}>
                 بحث عن الغرفة
@@ -2135,7 +2155,7 @@ export default function Game() {
           <Card className="p-3">
             {roomState.pendingWord && pendingByOpp ? (
               <div className="text-center slide-in">
-                <div className="text-xs text-muted font-display font-bold">{oppName} يقترح كلمة مو موجودة في القاموس · تنقبل تلقائياً بعد ٢٠ ثانية</div>
+                <div className="text-xs text-muted font-display font-bold">{oppName} يقترح كلمة مو موجودة في القاموس · تنقبل تلقائياً بعد 20 ثانية</div>
                 <div className="font-display font-black my-1.5 text-[#7c3aed]" style={{ fontSize: 'clamp(2rem, 10vw, 2.6rem)', lineHeight: 1.25 }}>
                   {roomState.pendingWord.word}
                 </div>

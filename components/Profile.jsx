@@ -7,32 +7,17 @@ import { ArcadeBg, Num, inputClass, ErrorNote } from '@/components/ui';
 import BadgeArt from '@/components/BadgeArt';
 import { fetchProfile, cachedPoints } from '@/lib/points';
 import { LENGTHS, PLAYABLE_LENGTHS } from '@/lib/guess';
+import { levelFor } from '@/lib/levels';
+import { readProgress, computeBadges } from '@/lib/badges';
+import { getSetting, setSetting } from '@/lib/settings';
+import { playAccept } from '@/lib/sounds';
+import { haptic } from '@/lib/native';
 
 const ENDING_TIMES = [
   { s: 30, label: '30 ثانية' },
   { s: 60, label: 'دقيقة' },
   { s: 90, label: 'دقيقة ونص' },
 ];
-
-// المستوى حسب مجموع النقاط: مستوى ١ من الصفر، وكل مستوى يحتاج ٢٠ نقطة أكثر من اللي قبله
-// (٢: 50 · ٣: 120 · ٤: 210 · ٥: 320 · ١٠: 1170 · ٢٠: 4370)
-const levelStart = (n) => 50 * (n - 1) + 10 * (n - 1) * (n - 2);
-// لون شارة المستوى يتغير كل ٥ مستويات
-const LEVEL_COLORS = [
-  { bg: '#e0f2fe', ink: '#075985' },
-  { bg: '#fef9c3', ink: '#854d0e' },
-  { bg: '#ffedd5', ink: '#9a3412' },
-  { bg: '#ede9fe', ink: '#5b21b6' },
-  { bg: '#fde047', ink: '#713f12' },
-  { bg: '#22c55e', ink: '#ffffff' },
-];
-function levelFor(points) {
-  let n = 1;
-  while (points >= levelStart(n + 1)) n++;
-  const from = levelStart(n), to = levelStart(n + 1);
-  const color = LEVEL_COLORS[Math.min(LEVEL_COLORS.length - 1, Math.floor((n - 1) / 5))];
-  return { n, to, left: to - points, pct: Math.min(100, ((points - from) / (to - from)) * 100), color };
-}
 
 // كسر يطلع بالترتيب الصح داخل النص العربي (٤/٩ مو ٩/٤)
 const Frac = ({ a, b }) => <span dir="ltr" className="inline-block"><Num>{a}</Num>/<Num>{b}</Num></span>;
@@ -53,9 +38,19 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [err, setErr] = useState('');
+  const [settings, setSettings] = useState({ sound: true, haptics: true });
+  const toggle = (k) => {
+    const on = !settings[k];
+    setSetting(k, on);
+    setSettings(v => ({ ...v, [k]: on }));
+    // تجربة فورية لما يشغّلها
+    if (on && k === 'sound') playAccept();
+    if (on && k === 'haptics') haptic('medium');
+  };
 
   useEffect(() => {
     setCache(cachedPoints());
+    setSettings({ sound: getSetting('sound'), haptics: getSetting('haptics') });
     const gs = {};
     for (const l of PLAYABLE_LENGTHS) gs[l] = readJSON(`wg:guess-stats:${l}`, null);
     setGuessStats(gs);
@@ -76,24 +71,10 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const since = prof?.since ? new Date(prof.since) : null;
   const lv = levelFor(points);
 
-  // مجاميع من الجهاز
-  const g3 = guessStats[3] || {}, g5 = guessStats[5] || {};
-  const localWins = (g3.wins || 0) + (g5.wins || 0);
-  const wins = prof?.wins ?? localWins;
-  const bestStreak = Math.max(g3.best || 0, g5.best || 0);
-  const firstTry = (g3.dist?.[0] || 0) + (g5.dist?.[0] || 0);
-  const bestEnding = Math.max(0, ...Object.values(endBest));
-
-  // الأوسمة
-  const BADGES = [
-    { name: 'أول فوز',       have: wins,         need: 1,  art: { shape: 'circle',   glyph: 'check',      color: 'green',  ribbon: true } },
-    { name: 'ستريك 5',       have: bestStreak,   need: 5,  art: { shape: 'shield',   glyph: 'flame',      color: 'orange', tag: '5' } },
-    { name: 'ستريك 10',      have: bestStreak,   need: 10, art: { shape: 'shield',   glyph: 'bolt',       color: 'red',    tag: '10' } },
-    { name: 'من أول محاولة', have: firstTry,     need: 1,  art: { shape: 'hex',      glyph: 'target',     color: 'blue' } },
-    { name: 'بطل الخمسة',    have: g5.wins || 0, need: 10, art: { shape: 'squircle', glyph: 'five',       color: 'purple', tag: '5' } },
-    { name: 'ملك النهايات',  have: bestEnding,   need: 15, art: { shape: 'seal',     glyph: 'crownClock', color: 'gold' } },
-  ];
-  const earnedCount = BADGES.filter(b => b.have >= b.need).length;
+  // الأوسمة (نفس تعريفها في بطاقة «وسام جديد!»)
+  const BADGES = computeBadges({ ...readProgress(), g3: guessStats[3] || {}, g5: guessStats[5] || {}, endBest }, prof?.wins);
+  const wins = Math.max(prof?.wins ?? 0, readProgress().localWins);
+  const earnedCount = BADGES.filter(b => b.earned).length;
 
   const save = () => {
     const e = onSaveName(draft);
@@ -295,6 +276,24 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 </div>
                 <div className="text-[0.72rem] font-display font-bold text-[#6d5b95]">{label}</div>
               </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* ===== الإعدادات ===== */}
+        <Section title="⚙️ الإعدادات">
+          <div className="divide-y-2 divide-[#f5f3ff] -my-1">
+            {[['sound', '🔊 الأصوات', 'أصوات اللعب والفوز'], ['haptics', '📳 الاهتزاز', 'داخل تطبيق الآيفون']].map(([k, label, sub]) => (
+              <button key={k} role="switch" aria-checked={settings[k]} onClick={() => toggle(k)}
+                className="w-full flex items-center justify-between gap-3 py-2.5 text-right">
+                <span>
+                  <span className="block font-display font-black">{label}</span>
+                  <span className="block text-[0.72rem] font-display font-bold text-[#6d5b95]">{sub}</span>
+                </span>
+                <span className="relative shrink-0 w-[52px] h-[30px] rounded-full transition-colors" style={{ background: settings[k] ? '#22c55e' : '#d4cdea' }}>
+                  <span className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow transition-all" style={settings[k] ? { right: 25 } : { right: 3 }} />
+                </span>
+              </button>
             ))}
           </div>
         </Section>
