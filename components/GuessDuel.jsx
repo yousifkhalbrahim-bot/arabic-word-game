@@ -20,6 +20,8 @@ const solvedAt = (guesses) => {
 // مدة التحدي (ثواني) — الغرف القديمة بدون مدة تاخذ الافتراضي
 export const DUEL_SECONDS = { 3: 180, 4: 180, 5: 240 };
 export const duelDuration = (state) => state.settings?.duration || DUEL_SECONDS[state.settings?.len] || 180;
+// في المباراة (10 جولات) كل جولة دقيقتين
+export const ROUND_SECONDS = 120;
 
 // أفضل تقدّم: عدد الحروف الخضراء ثم البرتقالية في أحسن محاولة
 const bestProgress = (guesses) => (guesses || []).reduce((best, g) => {
@@ -52,6 +54,14 @@ export function settleGuessDuel(state, timeUp = false) {
   };
   const a = info(1), b = info(2);
   let winner = null;
+  // المباراة: أول من يحلها يفوز بالجولة فوراً (بدون انتظار الثاني)
+  if (state.match) {
+    if (a.solved && b.solved) winner = a.ts <= b.ts ? 1 : 2;
+    else if (a.solved) winner = 1;
+    else if (b.solved) winner = 2;
+    else if (a.done && b.done) winner = 0;
+    if (winner !== null) return { ...state, status: 'finished', winner };
+  }
   // حسم مبكر: واحد حلها، والثاني استهلك نفس العدد أو أكثر بدون ما يحلها
   if (a.solved && !b.solved && (b.done || b.used >= a.n)) winner = 1;
   else if (b.solved && !a.solved && (a.done || a.used >= b.n)) winner = 2;
@@ -386,7 +396,7 @@ function RoundBreak({ roomState, myRole, oppName, onNextRound }) {
     onNextRound();
   }, [left, onNextRound]);
   const w = m.last;
-  const title = w === 0 ? '🤝 تعادل في هالجولة' : w === myRole ? '🏆 الجولة لك!' : 'الجولة لـ ' + oppName;
+  const title = w === 0 ? '🤝 تعادل في هالجولة' : w === myRole ? '🏆 حليتها أول!' : '⚡ ' + oppName + ' حلّها أول';
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in">
       <div className="w-full max-w-sm rounded-3xl p-5 text-center slide-in" style={{ background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 6px 0 var(--edge)' }}>

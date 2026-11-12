@@ -29,7 +29,7 @@ import { applyTheme, watchSystemTheme } from '@/lib/settings';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
 import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
-import GuessDuel, { settleRound, DUEL_SECONDS, newMatch, isRoundBreak } from '@/components/GuessDuel';
+import GuessDuel, { settleRound, DUEL_SECONDS, ROUND_SECONDS, newMatch, isRoundBreak } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
@@ -100,7 +100,7 @@ const createGuessState = (code, hostName, len, customWord = null, clue = '') => 
   mode: 'guess',
   status: 'waiting',
   players: { 1: { name: hostName, joined: true }, 2: { name: '', joined: false } },
-  settings: { len, duration: DUEL_SECONDS[len], ...(customWord ? { custom: true } : {}) },
+  settings: { len, duration: ROUND_SECONDS, ...(customWord ? { custom: true } : {}) },
   ...(customWord ? { setter: 1, clue: (clue || '').trim().slice(0, 40) } : {}),
   answer: customWord || randomAnswer(len),
   guesses_p1: [],
@@ -1266,7 +1266,7 @@ export default function Game() {
     if (!base || base.status !== 'choosing' || base.setter !== myRole) return null;
     if (base.players?.[myRole === 1 ? 2 : 1]?.left) return null;
     const len = [...word].length;
-    return { ...base, status: 'playing', answer: word, clue: (clue || '').trim().slice(0, 40), settings: { ...base.settings, len, duration: DUEL_SECONDS[len] }, turnStartedAt: now() };
+    return { ...base, status: 'playing', answer: word, clue: (clue || '').trim().slice(0, 40), settings: { ...base.settings, len, duration: base.match ? ROUND_SECONDS : DUEL_SECONDS[len] }, turnStartedAt: now() };
   }, 'turnStartedAt'), [casRetry, myRole]);
 
   // انتهى وقت التحدي → يتحسم الفائز
@@ -2049,7 +2049,7 @@ export default function Game() {
                   ))}
                 </div>
                 <p className="text-xs text-dim mt-2.5 leading-relaxed">
-                  الاثنين يخمّنون نفس الكلمة بنفس الوقت (بدون أدوار)، وعندكم <bdi className="font-mono-ar">{DUEL_SECONDS[selectedGuessLen] / 60}</bdi> دقائق. تشوف تقدّم صاحبك بالألوان، واللي يحلها بمحاولات أقل يفوز.
+                  مباراة من <bdi className="font-mono-ar">10</bdi> جولات. الاثنين يخمّنون نفس الكلمة بنفس الوقت، وكل جولة <bdi className="font-mono-ar">2</bdi> دقيقة. أول واحد يحلها ياخذ الجولة وتبدأ اللي بعدها على طول.
                 </p>
               </div>
             )}
