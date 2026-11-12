@@ -1736,8 +1736,8 @@ export default function Game() {
 
           {homeTab === 'solo' ? (
             <div key="solo" className="space-y-4 slide-in">
-              {gameCard({ key: 'e', ...ENDINGS, desc: 'كلمات تنتهي بحروف معيّنة — ضد الكمبيوتر أو ضد الوقت', cta: 'العب',
-                onClick: () => { setSelectedMode('chess'); setMyRoleState('bot'); setGlobalError(null); setScreen('create-setup'); } })}
+              {gameCard({ key: 'e', ...ENDINGS, desc: 'اكتب أكبر عدد كلمات قبل ما يخلص الوقت ⏱', cta: 'العب',
+                onClick: () => { setSoloStartDuration(null); setGlobalError(null); setScreen('solo'); } })}
               {gameCard({ key: 'g', ...GUESS, desc: 'اكتشف الكلمة المخفية بالألوان', cta: 'العب', badge: 'جديد',
                 onClick: () => setScreen('guess') })}
             </div>

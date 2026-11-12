@@ -78,7 +78,7 @@ export default function Leaderboard({ onExit }) {
             <div>🟩 خمّن الكلمة لحالك: ١٠ (٣ أحرف) أو ٢٠ (٥ أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · كل تلميح −٣</div>
             <div>⚔️ فوز أونلاين مع صاحبك: <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
             <div>🎯 «أنت تختار الكلمة»: اللي يحلها <Num>{POINTS.customGuesserWin}</Num> · اللي يصعّبها <Num>{POINTS.customSetterWin}</Num></div>
-            <div>🤖 فوز ضد الكمبيوتر: <Num>{POINTS.botWin}</Num> · ⏱ ضد الوقت: ٢ لكل كلمة</div>
+            <div>⏱ تحدي النهايات ضد الوقت: ٢ لكل كلمة</div>
             <div className="text-xs text-[#6d5b95] mt-1">ترتيب «هذا الأسبوع» يبدأ من جديد كل إثنين.</div>
           </div>
         )}
