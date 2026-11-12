@@ -13,21 +13,24 @@ const ENDING_TIMES = [
   { s: 90, label: 'دقيقة ونص' },
 ];
 
-// المستويات حسب مجموع النقاط
-const LEVELS = [
-  { min: 0,    name: 'مبتدئ',   icon: '🌱', bg: '#e0f2fe', ink: '#075985' },
-  { min: 100,  name: 'هاوي',    icon: '⭐', bg: '#fef9c3', ink: '#854d0e' },
-  { min: 300,  name: 'شاطر',    icon: '🔥', bg: '#ffedd5', ink: '#9a3412' },
-  { min: 700,  name: 'محترف',   icon: '💎', bg: '#ede9fe', ink: '#5b21b6' },
-  { min: 1500, name: 'أسطورة',  icon: '👑', bg: '#fde047', ink: '#713f12' },
-  { min: 3000, name: 'خرافي',   icon: '🏆', bg: '#22c55e', ink: '#ffffff' },
+// المستوى حسب مجموع النقاط: مستوى ١ من الصفر، وكل مستوى يحتاج ٢٠ نقطة أكثر من اللي قبله
+// (٢: 50 · ٣: 120 · ٤: 210 · ٥: 320 · ١٠: 1170 · ٢٠: 4370)
+const levelStart = (n) => 50 * (n - 1) + 10 * (n - 1) * (n - 2);
+// لون شارة المستوى يتغير كل ٥ مستويات
+const LEVEL_COLORS = [
+  { bg: '#e0f2fe', ink: '#075985' },
+  { bg: '#fef9c3', ink: '#854d0e' },
+  { bg: '#ffedd5', ink: '#9a3412' },
+  { bg: '#ede9fe', ink: '#5b21b6' },
+  { bg: '#fde047', ink: '#713f12' },
+  { bg: '#22c55e', ink: '#ffffff' },
 ];
 function levelFor(points) {
-  let i = 0;
-  while (i + 1 < LEVELS.length && points >= LEVELS[i + 1].min) i++;
-  const cur = LEVELS[i], next = LEVELS[i + 1] || null;
-  const pct = next ? Math.min(100, ((points - cur.min) / (next.min - cur.min)) * 100) : 100;
-  return { cur, next, pct, idx: i };
+  let n = 1;
+  while (points >= levelStart(n + 1)) n++;
+  const from = levelStart(n), to = levelStart(n + 1);
+  const color = LEVEL_COLORS[Math.min(LEVEL_COLORS.length - 1, Math.floor((n - 1) / 5))];
+  return { n, to, left: to - points, pct: Math.min(100, ((points - from) / (to - from)) * 100), color };
 }
 
 // كسر يطلع بالترتيب الصح داخل النص العربي (٤/٩ مو ٩/٤)
@@ -164,8 +167,8 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                   </button>
                 )}
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  <span className="rounded-full px-2.5 py-0.5 font-display font-black text-[0.78rem]" style={{ background: lv.cur.bg, color: lv.cur.ink }}>
-                    {lv.cur.icon} {lv.cur.name}
+                  <span className="rounded-full px-2.5 py-0.5 font-display font-black text-[0.78rem]" style={{ background: lv.color.bg, color: lv.color.ink }}>
+                    ⭐ مستوى <Num>{lv.n}</Num>
                   </span>
                   {since && <span className="text-[0.72rem] font-display font-bold text-white/75">من {MONTHS[since.getMonth()]} <Num>{since.getFullYear()}</Num></span>}
                 </div>
@@ -179,9 +182,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(4, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
               </div>
               <div className="flex justify-between mt-1 text-[0.7rem] font-display font-bold text-white/80">
-                {lv.next
-                  ? <><span>باقي <Num>{lv.next.min - points}</Num> نقطة وتصير {lv.next.icon} {lv.next.name}</span><Frac a={points} b={lv.next.min} /></>
-                  : <span>وصلت أعلى مستوى! 🏆</span>}
+                <span>باقي <Num>{lv.left}</Num> نقطة للمستوى <Num>{lv.n + 1}</Num></span><Frac a={points} b={lv.to} />
               </div>
             </div>
           </div>
