@@ -79,7 +79,7 @@ export default function GuessGame({ onExit }) {
   const [bulbs, setBulbsState] = useState(3);
   const [showHints, setShowHints] = useState(false);
   const [earned, setEarned] = useState(0);
-  // «مختلط»: كل جولة 3 أو 5 عشوائي، وله ستريك خاص فيه
+  // «عشوائي»: كل جولة 3 أو 5 عشوائي، وله ستريك خاص فيه
   const [mixed, setMixed] = useState(false);
   const mixedRef = useRef(false);
   mixedRef.current = mixed;
@@ -418,7 +418,7 @@ export default function GuessGame({ onExit }) {
               </Choice>
             ))}
             <Choice selected={mixed} onClick={() => setMixed(true)} className="py-2.5 px-1">
-              <div className="font-display font-black text-xl leading-tight">🎲 مختلط</div>
+              <div className="font-display font-black text-xl leading-tight">🎲 عشوائي</div>
               <div className="text-xs opacity-75"><Num>3</Num> أو <Num>5</Num></div>
               <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">مفاجأة كل جولة</div>
             </Choice>
