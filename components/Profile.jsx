@@ -166,7 +166,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
               </div>
               <div className="flex justify-between mt-1 text-[0.76rem] font-display font-bold text-white/80">
                 <span>باقي <Num>{lv.left}</Num> نقطة للمستوى <Num>{lv.n + 1}</Num></span>
-                <span>كل مستوى هنا <Num>{lv.cost}</Num> نقطة</span>
+                <span>المستوى هذا يحتاج <Num>{lv.cost}</Num> نقطة</span>
               </div>
             </div>
           </div>

@@ -145,7 +145,7 @@ export default function Leaderboard({ onExit }) {
             <div>🟩 خمّن الكلمة لحالك: 10 (3 أحرف) أو 20 (5 أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −2 · 🔍 −5)</div>
             <div>⚔️ فوز مع صاحبك (مباراة أو لعبة): <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
             <div>⏱ تحدي النهايات: 2 لكل كلمة (أقصى <Num>40</Num>)</div>
-            <div className="mt-1.5 pt-1.5 border-t-2 border-[var(--line)]">⭐ المستويات: كل مستوى <Num>100</Num> نقطة لين مستوى <Num>10</Num>، بعدها <Num>200</Num> لين <Num>20</Num>، <Num>300</Num> لين <Num>30</Num>، وبعدها <Num>500</Num></div>
+            <div className="mt-1.5 pt-1.5 border-t-2 border-[var(--line)]">⭐ المستويات: أول مستوى يحتاج <Num>100</Num> نقطة، وكل مستوى بعده يحتاج <Num>25</Num> نقطة زيادة (<Num>125</Num>، <Num>150</Num>، <Num>175</Num>…)</div>
           </div>
         )}
       </div>
