@@ -67,7 +67,7 @@ export default function Leaderboard({ onExit }) {
             <div className="flex items-center gap-1 font-display font-black text-[0.95rem]" style={{ color: r.me ? '#b45309' : '#fde047' }}>
               <Star className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} /><Num>{r.score}</Num>
             </div>
-            <div className="text-[0.7rem] font-display font-bold" style={{ color: r.me ? '#6d5b95' : 'rgba(255,255,255,0.7)' }}>
+            <div className="text-[0.76rem] font-display font-bold" style={{ color: r.me ? '#6d5b95' : 'rgba(255,255,255,0.7)' }}>
               🏆 <Num>{r.wins}</Num> فوز
             </div>
           </>
@@ -93,7 +93,7 @@ export default function Leaderboard({ onExit }) {
           <div className="font-display font-black truncate">
             {r.name || 'أنت'}{highlight && r.name && <span className="text-xs opacity-75 mr-1">(أنت)</span>}
           </div>
-          {r.wins != null && <div className="text-[0.72rem] font-bold opacity-70">🏆 <Num>{r.wins}</Num> فوز</div>}
+          {r.wins != null && <div className="text-[0.78rem] font-bold opacity-70">🏆 <Num>{r.wins}</Num> فوز</div>}
         </div>
         <div className="shrink-0 flex items-center gap-1 font-display font-black text-lg">
           <Num>{r.score}</Num>
@@ -185,7 +185,7 @@ export default function Leaderboard({ onExit }) {
               style={{ boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)' }}>
               <span className="text-right">
                 <span className="block">{scope === 'week' ? 'ما عندك نقاط هالأسبوع' : 'ما عندك نقاط للحين'}</span>
-                <span className="block text-[0.72rem] font-bold text-[var(--muted-c)]">العب وادخل المنافسة 🔥</span>
+                <span className="block text-[0.78rem] font-bold text-[var(--muted-c)]">العب وادخل المنافسة 🔥</span>
               </span>
               <span className="text-[#7c3aed] text-sm">العب ←</span>
             </button>

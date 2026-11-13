@@ -150,7 +150,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                   <span className="rounded-full px-2.5 py-0.5 font-display font-black text-[0.78rem]" style={{ background: lv.color.bg, color: lv.color.ink }}>
                     ⭐ مستوى <Num>{lv.n}</Num>
                   </span>
-                  {since && <span className="text-[0.72rem] font-display font-bold text-white/75">من {MONTHS[since.getMonth()]} <Num>{since.getFullYear()}</Num></span>}
+                  {since && <span className="text-[0.78rem] font-display font-bold text-white/75">من {MONTHS[since.getMonth()]} <Num>{since.getFullYear()}</Num></span>}
                 </div>
               </div>
             </div>
@@ -160,11 +160,11 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             <div className="relative mt-3.5">
               <div className="relative h-[18px] rounded-full bg-black/20 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(6, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
-                <div className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.7rem] text-white" dir="ltr" style={{ textShadow: '0 1px 2px rgba(0,0,0,.45)' }}>
+                <div className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.76rem] text-white" dir="ltr" style={{ textShadow: '0 1px 2px rgba(0,0,0,.45)' }}>
                   {lv.into} / {lv.cost}
                 </div>
               </div>
-              <div className="flex justify-between mt-1 text-[0.7rem] font-display font-bold text-white/80">
+              <div className="flex justify-between mt-1 text-[0.76rem] font-display font-bold text-white/80">
                 <span>باقي <Num>{lv.left}</Num> نقطة للمستوى <Num>{lv.n + 1}</Num></span>
                 <span>كل مستوى هنا <Num>{lv.cost}</Num> نقطة</span>
               </div>
@@ -180,7 +180,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             ].map(c => (
               <div key={c.label} className="py-3 text-center">
                 <div className="font-display font-black text-[1.45rem] leading-none"><Num>{c.value}</Num></div>
-                <div className="text-[0.7rem] font-display font-bold text-[var(--muted-c)] mt-1">{c.icon} {c.label}</div>
+                <div className="text-[0.76rem] font-display font-bold text-[var(--muted-c)] mt-1">{c.icon} {c.label}</div>
               </div>
             ))}
           </div>
@@ -194,7 +194,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
               <span className="block font-display font-black text-[0.95rem]">
                 {rank ? <>مركزك في الترتيب{prof?.players ? <> من <Num>{prof.players}</Num></> : null}</> : 'العب عشان تدخل الترتيب'}
               </span>
-              <span className="block text-[0.72rem] font-display font-bold text-[var(--muted-c)]">
+              <span className="block text-[0.78rem] font-display font-bold text-[var(--muted-c)]">
                 {weekRank ? <>هالأسبوع: المركز <Num>{weekRank}</Num></> : 'ما لعبت هالأسبوع'}
               </span>
             </span>
@@ -213,7 +213,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                   <BadgeArt {...b.art} on={ok} className={`w-[60px] h-[66px] ${ok ? 'word-pop' : ''}`} />
                   <div className="text-[0.74rem] font-display font-black mt-1" style={{ color: ok ? 'var(--ink)' : '#9c8cc4' }}>{b.name}</div>
                   {!ok && (
-                    <div className="text-[0.64rem] font-display font-bold text-[#b9a8f0]">
+                    <div className="text-[0.72rem] font-display font-bold text-[#b9a8f0]">
                       <Frac a={Math.min(b.have, b.need)} b={b.need} />
                     </div>
                   )}
@@ -241,7 +241,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 {[['لعبت', gs.played], ['فوز %', winPct], ['ستريك', gs.streak], ['أعلى', gs.best]].map(([l, v]) => (
                   <div key={l}>
                     <div className="font-display font-black text-[1.35rem] leading-tight"><Num>{v}</Num></div>
-                    <div className="text-[0.68rem] font-display font-bold text-[var(--muted-c)]">{l}</div>
+                    <div className="text-[0.75rem] font-display font-bold text-[var(--muted-c)]">{l}</div>
                   </div>
                 ))}
               </div>
@@ -276,7 +276,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 <div className="font-display font-black text-2xl leading-tight" style={{ color: endBest[s] ? 'var(--gold-ink)' : 'var(--edge)' }}>
                   {endBest[s] ? <Num>{endBest[s]}</Num> : '—'}
                 </div>
-                <div className="text-[0.72rem] font-display font-bold text-[var(--muted-c)]">{label}</div>
+                <div className="text-[0.78rem] font-display font-bold text-[var(--muted-c)]">{label}</div>
               </div>
             ))}
           </div>
@@ -304,7 +304,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                 className="w-full flex items-center justify-between gap-3 py-2.5 text-right">
                 <span>
                   <span className="block font-display font-black">{label}</span>
-                  <span className="block text-[0.72rem] font-display font-bold text-[var(--muted-c)]">{sub}</span>
+                  <span className="block text-[0.78rem] font-display font-bold text-[var(--muted-c)]">{sub}</span>
                 </span>
                 <span className="relative shrink-0 w-[52px] h-[30px] rounded-full transition-colors" style={{ background: settings[k] ? '#22c55e' : '#d4cdea' }}>
                   <span className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow transition-all" style={settings[k] ? { right: 25 } : { right: 3 }} />

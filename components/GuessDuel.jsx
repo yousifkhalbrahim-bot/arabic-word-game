@@ -314,7 +314,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
           <div className={`shrink-0 rounded-2xl px-2.5 py-1 text-center ${urgent && !myDone ? 'animate-pulse' : ''}`}
             style={{ background: myDone ? 'var(--soft)' : 'rgba(255,255,255,0.28)' }}>
             <div className="font-mono-ar font-black text-[1.45rem] leading-none"><bdi>{clock}</bdi></div>
-            <div className="text-[0.6rem] font-black opacity-80">الوقت</div>
+            <div className="text-[0.7rem] font-black opacity-80">الوقت</div>
           </div>
         </div>
       </div>
@@ -340,7 +340,7 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
             <div className="text-xs font-display font-bold text-white/80">{oppStatus}</div>
           </div>
           <div className="text-center rounded-xl px-2.5 py-1" style={{ background: PLAYER_COLORS[myRole], color: PLAYER_ON[myRole], boxShadow: `0 3px 0 ${PLAYER_DEEP[myRole]}` }}>
-            <div className="text-[0.6rem] font-black">أنت</div>
+            <div className="text-[0.7rem] font-black">أنت</div>
             <div className="font-display font-black leading-none text-sm"><Num>{myGuesses.length}</Num> من <Num>{tries}</Num></div>
           </div>
         </div>

@@ -481,7 +481,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
     const color = mine ? myColor : oppColor, deep = mine ? myDeep : oppDeep, on = mine ? myOn : oppOn;
     return (
       <div className="glass flex flex-col rounded-2xl overflow-hidden" style={{ width: '27%' }}>
-        <div className="shrink-0 py-1.5 px-1 text-center font-display font-black truncate" style={{ fontSize: '0.72rem', color: '#fff', background: 'rgba(255,255,255,0.12)' }}>
+        <div className="shrink-0 py-1.5 px-1 text-center font-display font-black truncate" style={{ fontSize: '0.78rem', color: '#fff', background: 'rgba(255,255,255,0.12)' }}>
           {mine ? 'كلماتك' : `كلمات ${oppName}`}
         </div>
         <div className="flex-1 overflow-y-auto no-scrollbar p-1.5 space-y-1.5">
@@ -494,7 +494,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
               <div className="font-display font-black truncate" style={{ fontSize: i === 0 ? '0.98rem' : '0.86rem' }}>{wordStr(w)}</div>
             </div>
           ))}
-          {!words.length && <div className="text-center text-white/45 font-display text-[0.7rem] pt-2">لا شيء بعد</div>}
+          {!words.length && <div className="text-center text-white/45 font-display text-[0.76rem] pt-2">لا شيء بعد</div>}
         </div>
       </div>
     );
@@ -547,7 +547,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           {/* السؤال */}
           <div className="wood-card shrink-0 w-full text-center rounded-2xl px-2 pt-2 pb-3">
             <div className="kb-hide inline-block font-display font-black rounded-full px-2.5 py-0.5 mb-1.5"
-              style={{ fontSize: '0.65rem', background: '#ede9fe', color: '#6d28d9' }}>
+              style={{ fontSize: '0.72rem', background: '#ede9fe', color: '#6d28d9' }}>
               السؤال <bdi>{currentEndingIndex + 1}</bdi>
             </div>
             <div className="kb-hide font-display font-bold text-muted mb-2" style={{ fontSize: '0.75rem' }}>اكتب كلمة تنتهي بـ</div>
@@ -566,7 +566,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
                 ? <>مجمّد <bdi>{Math.ceil(((roomState.frozenUntil?.[oppRole] ?? 0) - displayNow) / 1000)}</bdi>ث</>
                 : 'تجميد'}
             </span>
-            <span className="shrink-0 rounded-full bg-white/25 px-1.5" style={{ fontSize: '0.72rem' }}>💎 3</span>
+            <span className="shrink-0 rounded-full bg-white/25 px-1.5" style={{ fontSize: '0.78rem' }}>💎 3</span>
           </button>
 
           {/* تجاوز السؤال */}
@@ -575,7 +575,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
             className="btn-3d min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 font-display font-black"
             style={{ background: 'var(--card)', color: 'var(--ink-2)', boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)', fontSize: '0.75rem' }}>
             <span>تجاوز</span>
-            <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.72rem' }}>💎 1</span>
+            <span className="shrink-0 rounded-full bg-[#ede9fe] px-1.5" style={{ fontSize: '0.78rem' }}>💎 1</span>
           </button>
           </div>
 
@@ -588,7 +588,7 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
                   {lastAnswer.word}
                 </div>
                 <div className="font-display font-black mt-1.5 rounded-full px-2.5 py-0.5"
-                  style={{ fontSize: '0.72rem', background: lastAnswer.color, color: lastAnswer.color === myColor ? myOn : oppOn }}>
+                  style={{ fontSize: '0.78rem', background: lastAnswer.color, color: lastAnswer.color === myColor ? myOn : oppOn }}>
                   +1 · {lastAnswer.name}
                 </div>
               </>
@@ -1599,13 +1599,13 @@ export default function Game() {
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-2">
           <span className="font-display font-black text-[1.05rem] text-[var(--ink)]">{title}</span>
-          {badge && <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.62rem] font-display font-black text-white">{badge}</span>}
+          {badge && <span className="rounded-full bg-[#ff4d6d] px-2 py-[1px] text-[0.72rem] font-display font-black text-white">{badge}</span>}
         </span>
         <span className="block text-[0.78rem] font-bold text-[var(--muted-c)] truncate">{desc}</span>
         {chips && (
           <span className="flex gap-1.5 mt-1">
             {chips.map(c => (
-              <span key={c} className="rounded-full bg-[var(--soft)] border border-[var(--line)] px-2 py-[1px] text-[0.62rem] font-display font-bold text-[#6d28d9]">{c}</span>
+              <span key={c} className="rounded-full bg-[var(--soft)] border border-[var(--line)] px-2 py-[1px] text-[0.72rem] font-display font-bold text-[#6d28d9]">{c}</span>
             ))}
           </span>
         )}
@@ -1675,7 +1675,7 @@ export default function Game() {
         <span className="absolute left-20 -top-8 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }} />
         <span className="relative flex-1 min-w-0">
           {badge && (
-            <span className="inline-block mb-1 rounded-full bg-white px-2.5 py-0.5 text-[0.72rem] font-display font-black" style={{ color: sh }}>{badge}</span>
+            <span className="inline-block mb-1 rounded-full bg-white px-2.5 py-0.5 text-[0.78rem] font-display font-black" style={{ color: sh }}>{badge}</span>
           )}
           <span className="block font-display font-black text-white leading-tight" style={{ fontSize: '1.65rem', textShadow: `0 3px 0 ${sh}` }}>{title}</span>
           <span className="block text-white/95 font-display font-bold text-[0.85rem] mt-1 leading-snug">{desc}</span>
@@ -1701,20 +1701,20 @@ export default function Game() {
             {/* شارة المستوى */}
             <span className="w-[50px] h-[50px] rounded-2xl flex flex-col items-center justify-center font-display font-black shrink-0 leading-none"
               style={{ background: lv.color.bg, color: lv.color.ink, boxShadow: `0 4px 0 ${lv.color.deep}`, border: '2px solid rgba(255,255,255,0.6)' }}>
-              <span className="text-[0.6rem] opacity-80">مستوى</span>
+              <span className="text-[0.7rem] opacity-80">مستوى</span>
               <bdi className="font-mono-ar text-[1.45rem] mt-0.5">{lv.n}</bdi>
             </span>
             <span className="flex-1 min-w-0">
               <span className="flex items-baseline justify-between gap-2">
                 <span className="font-display font-black truncate">{shownName}</span>
-                <span className="shrink-0 font-display font-bold text-[0.72rem] text-[var(--muted-c)]">
+                <span className="shrink-0 font-display font-bold text-[0.78rem] text-[var(--muted-c)]">
                   باقي <bdi className="font-mono-ar">{lv.left}</bdi> للمستوى <bdi className="font-mono-ar">{lv.n + 1}</bdi>
                 </span>
               </span>
               {/* البار: نقاطك داخل المستوى من تكلفته */}
               <span className="relative block mt-1.5 h-[18px] rounded-full bg-[var(--soft)] overflow-hidden">
                 <span className="block h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(6, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
-                <span className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.7rem] text-[var(--ink)]" dir="ltr">
+                <span className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.76rem] text-[var(--ink)]" dir="ltr">
                   {lv.into} / {lv.cost}
                 </span>
               </span>
@@ -1758,7 +1758,7 @@ export default function Game() {
               {pts.week > 0 && pts.weekRank && <Trophy className="absolute -top-2 -left-2 w-6 h-6 text-[#ca8a04] rotate-[-14deg]" fill="#fde047" strokeWidth={2} />}
               {pts.week > 0 && pts.weekRank ? (
                 <>
-                  <span className="text-[0.6rem] font-display font-black text-[#713f12] leading-none">ترتيبك</span>
+                  <span className="text-[0.7rem] font-display font-black text-[#713f12] leading-none">ترتيبك</span>
                   <span className="font-display font-black text-[1.7rem] text-[#4a2400] leading-none mt-0.5">#<bdi className="font-mono-ar">{pts.weekRank}</bdi></span>
                 </>
               ) : (
@@ -1926,7 +1926,7 @@ export default function Game() {
                       <Choice key={id} selected={sel} onClick={() => (isBot ? setSoloStyle(id) : setSelectedMode(id))} className="p-3">
                         <Icon className="w-6 h-6 mx-auto mb-1" style={{ color: sel ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
                         <div className="font-display font-black">{label}</div>
-                        <div className="text-[0.72rem] opacity-75 leading-snug">{sub}</div>
+                        <div className="text-[0.78rem] opacity-75 leading-snug">{sub}</div>
                       </Choice>
                     );
                   })}
@@ -1987,7 +1987,7 @@ export default function Game() {
                     <Choice key={String(id)} selected={guessCustom === id} onClick={() => setGuessCustom(id)} className="p-3">
                       <Icon className="w-6 h-6 mx-auto mb-1" style={{ color: guessCustom === id ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
                       <div className="font-display font-black">{label}</div>
-                      <div className="text-[0.72rem] opacity-75 leading-snug">{sub}</div>
+                      <div className="text-[0.78rem] opacity-75 leading-snug">{sub}</div>
                     </Choice>
                   ))}
                 </div>

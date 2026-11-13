@@ -25,7 +25,7 @@ export default function TabBar({ active, onNav }) {
           return (
             <button key={id} onClick={() => { if (!on) { haptic('light'); onNav(id); } }}
               aria-current={on ? 'page' : undefined}
-              className="flex-1 flex flex-col items-center justify-center gap-1 font-display font-black text-[0.72rem] transition-all active:scale-90"
+              className="flex-1 flex flex-col items-center justify-center gap-1 font-display font-black text-[0.78rem] transition-all active:scale-90"
               style={{ color: on ? 'var(--tab-on)' : 'var(--tab-off)' }}>
               <span className="w-12 h-7 rounded-full flex items-center justify-center transition-all"
                 style={{ background: on ? 'var(--tab-pill)' : 'transparent' }}>

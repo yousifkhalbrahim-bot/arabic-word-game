@@ -311,7 +311,7 @@ ${url}`;
           </div>
           {/* رقمك القياسي قدامك */}
           {best > 0 && (
-            <div className="font-display font-black text-[0.68rem] text-[#4a2400] leading-tight">
+            <div className="font-display font-black text-[0.75rem] text-[#4a2400] leading-tight">
               {words.length > best ? '🔥 رقم قياسي!'
                 : best - words.length < 3 ? <>باقي <Num>{best - words.length + 1}</Num> وتكسره!</>
                 : <>🏆 رقمك <Num>{best}</Num></>}
@@ -441,7 +441,7 @@ function HelpSheet({ onClose, paused }) {
             <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">🚫 الكلمة ما تتكرر</div>
             <div className="rounded-xl bg-[var(--soft)] px-2.5 py-2">⭐ <Num>2</Num> نقطة لكل كلمة</div>
           </div>
-          <p className="text-[0.72rem] text-muted font-bold mt-3 leading-relaxed">
+          <p className="text-[0.78rem] text-muted font-bold mt-3 leading-relaxed">
             الهمزات تُحسب ألف (أ إ آ = ا)، والألف المقصورة ياء (ى = ي).
           </p>
 
@@ -456,7 +456,7 @@ function Stat({ label, value }) {
   return (
     <div className="wood-card rounded-2xl py-2">
       <div className="font-display font-black text-xl text-parchment"><Num>{value}</Num></div>
-      <div className="text-[0.7rem] font-bold text-muted">{label}</div>
+      <div className="text-[0.76rem] font-bold text-muted">{label}</div>
     </div>
   );
 }

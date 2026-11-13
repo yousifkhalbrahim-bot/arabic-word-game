@@ -28,13 +28,13 @@ export function ChessClock({ name, isMe, player, time, active, words }) {
       <div className="flex items-center justify-center gap-1 font-display font-black text-[0.85rem] truncate"
         style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.85)' }}>
         <span className="truncate">{name}</span>
-        {isMe && <span className="text-[0.65rem] opacity-80 shrink-0">· أنت</span>}
+        {isMe && <span className="text-[0.72rem] opacity-80 shrink-0">· أنت</span>}
       </div>
       <div className={`font-mono-ar font-black ${active && low ? 'animate-pulse' : ''}`}
         style={{ fontSize: 'clamp(1.6rem, 8vw, 2.2rem)', lineHeight: 1.1, color: active ? '#fff' : 'rgba(255,255,255,0.6)', textShadow: active ? `0 2px 0 ${low ? '#b3123a' : deep}` : 'none' }}>
         {formatTime(time)}
       </div>
-      <div className="kb-hide text-[0.65rem] font-display font-bold" style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.65)' }}>
+      <div className="kb-hide text-[0.72rem] font-display font-bold" style={{ color: active ? (low ? '#fff' : on) : 'rgba(255,255,255,0.65)' }}>
         <bdi>{words}</bdi> كلمة
       </div>
     </div>
@@ -81,7 +81,7 @@ function TurnBanner({ state, myRole, activeRole, turnLeft, turnTotal }) {
         <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${urgent ? 'animate-pulse' : ''}`}
           style={{ background: 'rgba(255,255,255,0.3)' }}>
           <span className="font-mono-ar font-black text-2xl leading-none"><bdi>{secs}</bdi></span>
-          <span className="text-[0.6rem] font-black opacity-80">ثانية</span>
+          <span className="text-[0.7rem] font-black opacity-80">ثانية</span>
         </div>
       )}
     </div>
@@ -151,7 +151,7 @@ export function ChessTable({ state, order, myRole, activeRole, displayTimes, tur
               time={displayTimes[order[0]]} active={activeRole === order[0]} words={wordCounts[order[0]]} />
           </div>
           <div className="shrink-0 text-center">
-            <div className="kb-hide text-[0.6rem] font-display font-bold text-white/80 mb-0.5">تنتهي بـ</div>
+            <div className="kb-hide text-[0.7rem] font-display font-bold text-white/80 mb-0.5">تنتهي بـ</div>
             <LetterTiles text={state.settings.ending} size={34} />
           </div>
           <div className="flex-1 min-w-0">
@@ -232,13 +232,13 @@ export function ResultHeader({ isDraw, winnerName, winnerPlayer, subtitle, sides
                 {i === 1 && <span className="font-display font-black text-[#c4b5fd] text-xl px-1">VS</span>}
                 <div className="min-w-0">
                   <div className="font-display font-black truncate text-sm" style={{ color: PLAYER_INK[s.player] }}>
-                    {s.name}{s.tag && <span className="text-[0.65rem] text-muted font-bold mr-1">{s.tag}</span>}
+                    {s.name}{s.tag && <span className="text-[0.72rem] text-muted font-bold mr-1">{s.tag}</span>}
                   </div>
                   <div className="font-display font-black leading-none mt-1"
                     style={{ fontSize: '2.6rem', color: lost ? '#d4ccf0' : PLAYER_COLORS[s.player], textShadow: lost ? 'none' : `0 3px 0 ${PLAYER_DEEP[s.player]}` }}>
                     <bdi>{s.score}</bdi>
                   </div>
-                  <div className="text-[0.72rem] text-muted font-bold mt-1">{unit}</div>
+                  <div className="text-[0.78rem] text-muted font-bold mt-1">{unit}</div>
                 </div>
               </React.Fragment>
             );

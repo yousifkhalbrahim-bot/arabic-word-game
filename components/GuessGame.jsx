@@ -414,13 +414,13 @@ export default function GuessGame({ onExit }) {
               <Choice key={l} selected={!mixed && len === l} onClick={() => { setMixed(false); setLen(l); }} className="py-2.5 px-1">
                 <div className="font-display font-black text-xl leading-tight"><Num>{l}</Num> أحرف</div>
                 <div className="text-xs opacity-75"><Num>{LENGTHS[l].tries}</Num> محاولات</div>
-                <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل' : 'أصعب'}</div>
+                <div className="text-[0.75rem] font-bold opacity-75 mt-0.5">{l === 3 ? 'أسهل' : 'أصعب'}</div>
               </Choice>
             ))}
             <Choice selected={mixed} onClick={() => setMixed(true)} className="py-2.5 px-1">
               <div className="font-display font-black text-xl leading-tight">🎲 عشوائي</div>
               <div className="text-xs opacity-75"><Num>3</Num> أو <Num>5</Num></div>
-              <div className="text-[0.68rem] font-bold opacity-75 mt-0.5">مفاجأة كل جولة</div>
+              <div className="text-[0.75rem] font-bold opacity-75 mt-0.5">مفاجأة كل جولة</div>
             </Choice>
           </div>
 
@@ -448,12 +448,12 @@ export default function GuessGame({ onExit }) {
       {mode === 'rush' && (
         <div className="shrink-0 px-4 pt-1 flex items-stretch gap-2.5">
           <div className="flex-1 rounded-2xl px-3 py-1 text-center" style={{ background: '#ffb020', boxShadow: '0 4px 0 #b86b00', color: '#4a2400' }}>
-            <div className="text-[0.7rem] font-display font-black">حليت</div>
+            <div className="text-[0.76rem] font-display font-black">حليت</div>
             <div key={rushScore} className="score-bump font-display font-black text-2xl leading-none text-white" style={{ textShadow: '0 2px 0 #b86b00' }}><Num>{rushScore}</Num></div>
           </div>
           <div className={`flex-1 rounded-2xl px-3 py-1 text-center ${rushLeft <= 15 ? 'animate-pulse' : ''}`}
             style={rushLeft <= 15 ? { background: '#ff4d6d', boxShadow: '0 4px 0 #b3123a', color: '#fff' } : { background: 'var(--card)', boxShadow: '0 4px 0 var(--edge)', color: 'var(--ink-3)' }}>
-            <div className="text-[0.7rem] font-display font-black opacity-80">الوقت</div>
+            <div className="text-[0.76rem] font-display font-black opacity-80">الوقت</div>
             <div className="font-mono-ar font-black text-2xl leading-none"><bdi>{Math.floor(rushLeft / 60)}:{String(Math.floor(rushLeft % 60)).padStart(2, '0')}</bdi></div>
           </div>
         </div>
@@ -497,13 +497,13 @@ export default function GuessGame({ onExit }) {
             <div className="flex items-center gap-1.5">
               <span key={shown.streak} className="score-bump font-display font-black text-xl text-white"><Num>{shown.streak}</Num></span>
               <span className="text-lg">🔥</span>
-              <span className="text-[0.7rem] font-display font-bold text-white/75">ستريك حالي</span>
+              <span className="text-[0.76rem] font-display font-bold text-white/75">ستريك حالي</span>
             </div>
             <div className="w-px h-6 bg-white/20" />
             <div className="flex items-center gap-1.5">
               <span className="font-display font-black text-xl text-white"><Num>{shown.best}</Num></span>
               <Trophy className="w-4 h-4 text-[#fde047]" strokeWidth={2.6} />
-              <span className="text-[0.7rem] font-display font-bold text-white/75">أعلى ستريك</span>
+              <span className="text-[0.76rem] font-display font-bold text-white/75">أعلى ستريك</span>
             </div>
           </div>
         )}
@@ -593,7 +593,7 @@ function MiniStat({ label, value }) {
   return (
     <div className="rounded-xl py-1.5 bg-[var(--soft)] border-2 border-[var(--line)]">
       <div className="font-display font-black text-lg text-[var(--ink)] leading-tight"><Num>{value}</Num></div>
-      <div className="text-[0.65rem] font-bold text-[var(--muted-c)]">{label}</div>
+      <div className="text-[0.72rem] font-bold text-[var(--muted-c)]">{label}</div>
     </div>
   );
 }
@@ -607,7 +607,7 @@ function Distribution({ dist, highlight }) {
         <div key={i} className="flex items-center gap-2" dir="rtl">
           <span className="w-3 text-xs font-display font-black text-[var(--muted-c)] text-center"><Num>{i + 1}</Num></span>
           <div className="flex-1">
-            <div className="h-5 rounded-md flex items-center justify-end px-1.5 text-[0.7rem] font-black transition-all"
+            <div className="h-5 rounded-md flex items-center justify-end px-1.5 text-[0.76rem] font-black transition-all"
               style={{
                 width: `${Math.max(8, (n / max) * 100)}%`,
                 background: highlight === i + 1 ? '#22c55e' : '#ede9fe',
@@ -675,13 +675,13 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
         <span className="text-2xl">{icon}</span>
         <span className="flex-1 min-w-0">
           <span className="block font-display font-black text-[var(--ink)]">{title}</span>
-          <span className="block text-[0.72rem] font-bold text-[var(--muted-c)]">
+          <span className="block text-[0.78rem] font-bold text-[var(--muted-c)]">
             {left <= 0 ? 'استخدمته هالجولة' : short ? `تحتاج ${cost} 💡` : desc}
           </span>
         </span>
         <span className="shrink-0 text-center">
           <span className="block rounded-full px-2 py-0.5 font-display font-black text-sm" style={{ background: '#fde047', color: '#713f12' }}><Num>{cost}</Num>💡</span>
-          <span className="block text-[0.65rem] font-bold text-[#b45309] mt-0.5">−<Num>{penalty}</Num>⭐</span>
+          <span className="block text-[0.72rem] font-bold text-[#b45309] mt-0.5">−<Num>{penalty}</Num>⭐</span>
         </span>
       </button>
     );
@@ -702,7 +702,7 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
           <Option icon="🔍" title="اكشف حرف" desc="نحط لك حرف بمكانه الصح"
             cost={HINT_TYPES.reveal.cost} penalty={HINT_TYPES.reveal.penalty} left={revealLeft} onClick={onReveal} />
         </div>
-        <div className="text-center text-[0.72rem] font-bold text-[var(--muted-c)] mt-2.5 leading-relaxed">
+        <div className="text-center text-[0.78rem] font-bold text-[var(--muted-c)] mt-2.5 leading-relaxed">
           اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل 5 ستريك 🔥
         </div>
       </div>
