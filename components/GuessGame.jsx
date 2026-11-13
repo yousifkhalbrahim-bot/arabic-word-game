@@ -16,7 +16,7 @@ import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints, reportStreak } from '@/lib/points';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { phraseFor, abuSay } from '@/lib/abu';
-import { getBulbs, syncBulbs, spendBulbs, earnBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
+import { getBulbs, syncBulbs, spendBulbs, queueBulbs, claimDailyWin, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
 const KEY_ROWS = [
@@ -113,7 +113,10 @@ export default function GuessGame({ onExit }) {
     setBulbsState(getBulbs());
     setMixStats(load(MIX_KEY, { streak: 0, best: 0 }));
     syncBulbs().then(setBulbsState);
+    const onB = (e) => setBulbsState(e.detail);
+    window.addEventListener('wg:bulbs', onB);
     try { if (!localStorage.getItem('wg:guess-seen-help')) { setShowHelp(true); localStorage.setItem('wg:guess-seen-help', '1'); } } catch {}
+    return () => window.removeEventListener('wg:bulbs', onB);
   }, [day, phase]);
 
   const flash = useCallback((text, ms = 1400) => {
@@ -199,9 +202,8 @@ export default function GuessGame({ onExit }) {
       const pts = guessPoints({ len, triesUsed: finalGuesses.length, tries: LENGTHS[len].tries, penalty, streak: s.streak });
       setGain(pts);
       awardPoints(pts, true);
-      const want = bulbsEarned({ usedHints: hints.length + elimUses > 0, streak: s.streak });
-      setEarned(Math.min(want, BULB_MAX - getBulbs()));
-      earnBulbs(want).then(r => setBulbsState(r.bulbs));
+      const want = bulbsEarned({ usedHints: hints.length + elimUses > 0, streak: s.streak, triesUsed: finalGuesses.length }) + claimDailyWin();
+      setEarned(queueBulbs(want));
     } else {
       setLostStreak(s.streak);
       s.streak = 0;
@@ -655,7 +657,7 @@ function HelpSheet({ onClose }) {
             <div className="font-display font-black text-sm mb-0.5">💡 التلميحات</div>
             يفتح التلميح بعد أول محاولة، وتدفع له لمبات:<br />
             🧹 شيل حروف غلط = 1 💡 · 🔍 اكشف حرف = 2 💡<br />
-            تكسب لمبة مع كل فوز بدون تلميح، ولمبة زيادة كل 5 ستريك 🔥
+            تكسبها باللعب: فوز بدون تلميح +1 · كل 5 ستريك +1 · من أول محاولة +2 · أول فوز في اليوم +1 · تطلع مستوى +2 · وسام جديد +1
           </div>
           <Btn size="md" onClick={onClose}>يلا نلعب</Btn>
         </div>
@@ -704,7 +706,7 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
             cost={HINT_TYPES.reveal.cost} penalty={HINT_TYPES.reveal.penalty} left={revealLeft} onClick={onReveal} />
         </div>
         <div className="text-center text-[0.78rem] font-bold text-[var(--muted-c)] mt-2.5 leading-relaxed">
-          اكسب 💡 مع كل فوز بدون تلميح · ولمبة زيادة كل 5 ستريك 🔥
+          اكسب 💡: فوز بدون تلميح · ستريك 5 · من أول محاولة · أول فوز اليوم · مستوى جديد · وسام
         </div>
       </div>
     </div>

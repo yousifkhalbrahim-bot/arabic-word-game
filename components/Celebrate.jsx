@@ -10,6 +10,7 @@ import { levelFor } from '@/lib/levels';
 import { readProgress, computeBadges } from '@/lib/badges';
 import { playStreak } from '@/lib/sounds';
 import { haptic } from '@/lib/native';
+import { queueBulbs, EARN } from '@/lib/bulbs';
 
 const SEEN_LEVEL = 'wg:seen-level';
 const SEEN_BADGES = 'wg:seen-badges';
@@ -39,7 +40,7 @@ export default function Celebrate() {
       const fresh = all.filter(b => b.earned && !seen.has(b.id));
       if (!fresh.length) return [];
       write(SEEN_BADGES, [...seen, ...fresh.map(b => b.id)]);
-      return fresh.map(b => ({ kind: 'badge', key: b.id, badge: b }));
+      return fresh.map(b => ({ kind: 'badge', key: b.id, badge: b, bulbs: queueBulbs(EARN.badge) }));
     };
 
     const onPoints = (e) => {
@@ -52,7 +53,7 @@ export default function Celebrate() {
       }
       later(() => {
         const items = checkBadges();
-        if (!Number.isNaN(seen) && n > seen) items.push({ kind: 'level', key: `lv${n}`, level: n });
+        if (!Number.isNaN(seen) && n > seen) items.push({ kind: 'level', key: `lv${n}`, level: n, bulbs: queueBulbs(EARN.level * (n - seen)) });
         if (n > (Number.isNaN(seen) ? 0 : seen)) write(SEEN_LEVEL, String(n));
         if (items.length) setQueue(q => [...q, ...items]);
       });
@@ -102,6 +103,7 @@ export default function Celebrate() {
             {cur.kind === 'badge' ? '🎉 وسام جديد!' : '⬆️ مستوى جديد!'}
           </span>
           <span className="block font-display font-bold text-[0.85rem] text-[var(--muted-c)] truncate">
+            {cur.bulbs > 0 && <span className="font-black text-[#b45309]">+<bdi className="font-mono-ar">{cur.bulbs}</bdi> 💡 · </span>}
             {cur.kind === 'badge' ? cur.badge.name : <>وصلت مستوى <bdi className="font-mono-ar">{cur.level}</bdi> — كمّل!</>}
           </span>
         </span>

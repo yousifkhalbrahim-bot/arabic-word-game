@@ -8,6 +8,7 @@ import { awardPoints, racePoints } from '@/lib/points';
 import { haptic, publicUrl, shareContent } from '@/lib/native';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { WordKeyboard, WordBox, useWordTyping } from '@/components/WordKeys';
+import { queueBulbs, EARN } from '@/lib/bulbs';
 import { abuSay, phraseFor } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
@@ -129,7 +130,8 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       try { window.dispatchEvent(new Event('wg:stats')); } catch {}
       setBests(b => ({ ...b, [duration]: score }));
     }
-    setResult({ score, prevBest, isRecord, pts: racePoints(score), line: isRecord ? phraseFor('record') : '' });
+    const recBulbs = isRecord && prevBest > 0 ? queueBulbs(EARN.record) : 0;   // رقم قياسي (مو أول جولة)
+    setResult({ score, prevBest, isRecord, recBulbs, pts: racePoints(score), line: isRecord ? phraseFor('record') : '' });
     if (score > 0) awardPoints(racePoints(score), false);
     setPhase('done');
   }, [phase, timeLeft, words.length, duration]);
@@ -263,7 +265,7 @@ ${url}`;
           <div className="text-white/85 font-display font-bold text-sm mb-3">كلمة في دقيقتين</div>
           {result.pts > 0 && (
             <div className="inline-block mb-4 rounded-full px-4 py-1 font-display font-black text-[#4a2400]" style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>
-              ⭐ +<Num>{result.pts}</Num> نقطة
+              ⭐ +<Num>{result.pts}</Num> نقطة{result.recBulbs > 0 && <> · +<Num>{result.recBulbs}</Num> 💡</>}
             </div>
           )}
 
