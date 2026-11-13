@@ -223,9 +223,10 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     const ch = normalizeGuess(k);
     if (!LETTER_SET.has(ch)) return;
     if (bank && !bank.has(ch)) { flash('🔒 هذا الحرف مو في الكلمة'); return; }
+    if (keyStates[ch] === 'absent') return;   // حرف طلع مو في الكلمة
     playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
-  }, [myDone, roomState.status, submit, len, bank]);
+  }, [myDone, roomState.status, submit, len, bank, keyStates]);
 
   usePhysicalKeys(roomState.status === 'playing' && !(roomState.settings?.custom && roomState.setter === myRole), typeKey);
 
