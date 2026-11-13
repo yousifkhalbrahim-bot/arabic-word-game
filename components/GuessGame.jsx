@@ -810,7 +810,7 @@ export function MiniBoard({ guesses, len, tries, size = 12 }) {
 // - كل زر مساحة اللمس فيه تغطي الفراغ اللي حوله (مثل الآيفون، الضغطة بين زرين تروح لأقرب واحد)
 // - الحرف ينكتب أول ما تلمس (pointerdown) عشان الكتابة السريعة ما تضيع حروف
 // - المسح لو ضغطته مطوّل يمسح ورا بعض
-export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null }) {
+export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null, extraKeys = null }) {
   const repeat = useRef(null);
   const stopRepeat = () => { clearTimeout(repeat.current); clearInterval(repeat.current); repeat.current = null; };
   useEffect(() => stopRepeat, []);
@@ -827,7 +827,10 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = nu
   return (
     <div className={`kb-tray shrink-0 pt-1.5 pb-1 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr"
       onPointerUp={stopRepeat} onPointerCancel={stopRepeat} onPointerLeave={stopRepeat}>
-      {KEY_ROWS.map((row, ri) => (
+      {KEY_ROWS.map((baseRow, ri) => {
+        // صف التأكيد: حروف إضافية (الهمزات) قبل زر التأكيد لو انطلبت
+        const row = extraKeys && baseRow[0] === 'ENTER' ? [...extraKeys, 'ENTER'] : baseRow;
+        return (
         <div key={ri} className="flex justify-center px-[2px]">
           {row.map(k => {
             const isEnter = k === 'ENTER', isBack = k === 'BACK';
@@ -842,7 +845,7 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = nu
                 aria-disabled={off || undefined}
                 aria-label={isEnter ? 'إدخال' : isBack ? 'حذف' : k}
                 className="kb-hit"
-                style={{ flex: isEnter ? '1 1 100%' : isBack ? '1.45 1 0' : '1 1 0', maxWidth: isEnter ? 460 : isBack ? 62 : 44 }}>
+                style={{ flex: isEnter ? (extraKeys ? '2.6 1 0' : '1 1 100%') : isBack ? '1.45 1 0' : '1 1 0', maxWidth: isEnter ? 460 : isBack ? 62 : 44 }}>
                 <span data-ch={!isEnter && !isBack && !off && !dead ? k : undefined}
                   className={`kb-key ${look}`} style={{ height: isEnter ? 'min(11vw, 44px)' : 'min(11.6vw, 46px)' }}>
                   {isEnter ? <span className="flex items-center gap-2 text-[1.05rem] font-display font-black">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={2.6} /></span>
@@ -853,7 +856,8 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = nu
             );
           })}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

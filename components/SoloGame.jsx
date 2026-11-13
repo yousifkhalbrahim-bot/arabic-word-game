@@ -7,6 +7,7 @@ import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
 import { haptic, publicUrl, shareContent } from '@/lib/native';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
+import { WordKeyboard, WordBox, useWordTyping } from '@/components/WordKeys';
 import { abuSay, phraseFor } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
@@ -108,7 +109,6 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setShareNote('');
     hurriedRef.current = false;
     setPhase('playing');
-    setTimeout(() => inputRef.current?.focus(), 50);
   }, [endings, duration]);
 
   // جاي من صفحة "تحدي النهايات" بمدة جاهزة → يبدأ على طول
@@ -175,7 +175,6 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setSkips(s => s + 1);
     setStreak(0);
     setInput('');
-    inputRef.current?.focus();
   }, [phase, timeLeft]);
 
   // مشاركة النتيجة (واتساب وغيره)
@@ -190,6 +189,8 @@ ${url}`;
     try { await navigator.clipboard.writeText(text); setShareNote('تم نسخ النتيجة 📋'); }
     catch { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener'); }
   };
+
+  const onKey = useWordTyping({ active: phase === 'playing' && timeLeft > 0 && !showHelp, setValue: setInput, onSubmit: submit });
 
   const shell = (children) => (
     <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
@@ -301,7 +302,8 @@ ${url}`;
   const recent = [...words].reverse().slice(0, 14);
 
   return shell(
-    <div className="flex-1 flex flex-col px-4 pb-3 min-h-0">
+    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col px-4 pb-2 min-h-0">
       {/* النقاط + الوقت */}
       <div className="shrink-0 flex items-stretch gap-2.5 mb-3">
         <div className="flex-1 rounded-2xl px-3 py-1.5 text-center" style={{ background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid rgba(255,255,255,0.4)' }}>
@@ -342,7 +344,16 @@ ${url}`;
         <AbuCorner size={44} className="absolute left-2 bottom-1 z-20" />
       </div>
 
-      {/* الإدخال */}
+      {/* آخر الكلمات */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+        <div className="flex flex-wrap gap-2 justify-center pb-1">
+          {recent.map((w, i) => (
+            <WordChip key={words.length - i} player={1} fresh={i === 0}>{w.w}</WordChip>
+          ))}
+        </div>
+      </div>
+
+      {/* مكان الإجابة: يعرض اللي تكتبه بكيبورد اللعبة */}
       <div className="shrink-0">
         <div className="h-8 flex items-center justify-center">
           {feedback && (
@@ -353,40 +364,17 @@ ${url}`;
           )}
         </div>
         <div className="flex items-stretch gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
-            placeholder="اكتب كلمة..."
-            enterKeyHint="send"
-            autoComplete="off"
-            autoCorrect="off"
-            className={`flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none ${feedback && !feedback.ok ? 'shake' : ''}`}
-            style={{ background: 'var(--card)', color: 'var(--ink)', border: '3px solid var(--line)', boxShadow: '0 5px 0 var(--edge)' }}
-          />
-          <button onClick={submit} onPointerDown={e => e.preventDefault()} disabled={!input.trim()} aria-label="إرسال"
-            className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
-            style={{ background: '#22c55e', color: '#fff', boxShadow: '0 5px 0 #15803d', border: '2px solid #4ade80' }}>
-            <Check className="w-7 h-7" strokeWidth={3.2} />
+          <WordBox value={input} placeholder={`كلمة تنتهي بـ ${ending}`} shake={!!feedback && !feedback.ok} />
+          <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS} aria-label="تجاوز"
+            className="btn-3d shrink-0 rounded-2xl px-3 flex flex-col items-center justify-center font-display font-black text-[0.78rem]"
+            style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', boxShadow: '0 4px 0 rgba(0,0,0,0.18)', border: '2px solid rgba(255,255,255,0.25)' }}>
+            <SkipForward className="w-5 h-5" strokeWidth={2.6} />
+            <span>تجاوز <span className="opacity-75">−<Num>{SKIP_COST_SECONDS}</Num>ث</span></span>
           </button>
         </div>
-        <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS}
-          className="kb-hide btn-3d mx-auto mt-4 flex items-center gap-1.5 rounded-full px-4 py-1.5 font-display font-black text-sm"
-          style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', boxShadow: '0 3px 0 rgba(0,0,0,0.15)' }}>
-          <SkipForward className="w-4 h-4" strokeWidth={2.8} /> تجاوز <span className="opacity-75">(−<Num>{SKIP_COST_SECONDS}</Num>ث)</span>
-        </button>
       </div>
-
-      {/* آخر الكلمات */}
-      <div className="flex-1 min-h-0 overflow-y-auto mt-4">
-        <div className="flex flex-wrap gap-2 justify-center pb-1">
-          {recent.map((w, i) => (
-            <WordChip key={words.length - i} player={1} fresh={i === 0}>{w.w}</WordChip>
-          ))}
-        </div>
-      </div>
+    </div>
+      <WordKeyboard onKey={onKey} disabled={timeLeft <= 0} />
     </div>
   );
 }

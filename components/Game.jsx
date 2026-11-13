@@ -23,6 +23,7 @@ import Leaderboard from '@/components/Leaderboard';
 import Profile from '@/components/Profile';
 import { levelFor } from '@/lib/levels';
 import TabBar, { TABBAR_SPACE } from '@/components/TabBar';
+import { WordKeyboard, WordBox, useWordTyping } from '@/components/WordKeys';
 import { AbuShmagh } from '@/components/AbuShmagh';
 import { phraseFor } from '@/lib/abu';
 import { applyTheme, watchSystemTheme } from '@/lib/settings';
@@ -356,8 +357,8 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
     runServer(() => raceResign(roomCode, myRole));
   }, [confirmResign, runServer, roomCode, myRole]);
 
-  const handleKey = useCallback((e) => { if (e.key === 'Enter') submitWord(); }, [submitWord]);
-  useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
+  // كيبورد اللعبة دايم ظاهر — ما يحتاج تضغط على خانة
+  const onRaceKey = useWordTyping({ active: timeLeft > 0 && !isFrozen, setValue: setInput, onSubmit: submitWord });
   useEffect(() => () => { clearTimeout(feedbackTimer.current); clearTimeout(confirmTimer.current); }, []);
 
   const lastAnswerTsRef = useRef(undefined);
@@ -614,26 +615,8 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           )}
         </div>
         <div className="flex items-stretch gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder={isFrozen ? `❄ مجمّد ${freezeSecsLeft}ث` : 'اكتب كلمة...'}
-            readOnly={timeLeft <= 0 || isFrozen}
-            enterKeyHint="send"
-            autoComplete="off"
-            autoCorrect="off"
-            className="flex-1 min-w-0 rounded-2xl px-4 py-3 font-display font-bold text-lg focus:outline-none"
-            style={{
-              direction: 'rtl',
-              background: isFrozen ? '#e0f2fe' : '#fff',
-              color: 'var(--ink)',
-              border: `3px solid ${isFrozen ? '#7dd3fc' : '#ede9fe'}`,
-              boxShadow: `0 5px 0 ${isFrozen ? '#38bdf8' : '#c4b5fd'}`,
-            }}
-          />
+          <WordBox value={input} tone={isFrozen ? 'frozen' : 'normal'}
+            placeholder={isFrozen ? `❄ مجمّد ${freezeSecsLeft}ث` : 'اكتب كلمة...'} />
           <button onClick={submitWord} onPointerDown={e => e.preventDefault()} disabled={!input.trim() || timeLeft <= 0 || isFrozen} aria-label="إرسال"
             className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
             style={{ background: isFrozen ? '#38bdf8' : '#22c55e', color: '#fff', boxShadow: `0 5px 0 ${isFrozen ? '#0369a1' : '#15803d'}`, border: `2px solid ${isFrozen ? '#7dd3fc' : '#4ade80'}` }}>
@@ -643,12 +626,8 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
           </button>
         </div>
 
-        <button onClick={handleResign}
-          className="kb-hide w-full mt-3 font-display font-bold flex items-center justify-center gap-1.5 py-1 transition-all active:scale-95"
-          style={{ fontSize: '0.8rem', color: confirmResign ? '#fff' : 'rgba(255,255,255,0.6)' }}>
-          <Flag className="w-3.5 h-3.5" /> {confirmResign ? 'اضغط مرة ثانية للتأكيد' : 'استسلام'}
-        </button>
       </div>
+      <WordKeyboard onKey={onRaceKey} disabled={timeLeft <= 0 || isFrozen} />
     </div>
   );
 }
@@ -1229,6 +1208,11 @@ export default function Game() {
       }, 'pendingAt');
     }
   }, [roomState, myRole, currentInput, commitChess]);
+  // بالدور: كيبورد اللعبة دايم ظاهر (تقدر تجهّز كلمتك قبل دورك)
+  const onChessKey = useWordTyping({
+    active: screen === 'playing' && !!roomState && roomState.mode !== 'race' && roomState.mode !== 'guess' && roomState.status === 'playing' && !roomState.pendingWord,
+    setValue: setCurrentInput, onSubmit: submitWord,
+  });
 
   // كتابة مشروطة مع إعادة محاولة: لو تعارضت مع كتابة الخصم بنفس اللحظة نعيد على أحدث نسخة
   const casRetry = useCallback(async (build, stamp = null) => {
@@ -2184,6 +2168,7 @@ export default function Game() {
           turnSkipSecs={turnSkipSecs}
           wordCounts={wordCounts}
           onResign={resign}
+          bottom={roomState.pendingWord ? null : <WordKeyboard onKey={onChessKey} />}
           topInfo={<>
             <span className={`w-2 h-2 rounded-full shrink-0 ${connected ? 'bg-emerald-400' : 'bg-rose-400 animate-pulse'}`} title={connected ? 'متصل' : 'غير متصل'} />
             <bdi className="font-mono-ar">#{roomCode}</bdi>
@@ -2210,18 +2195,8 @@ export default function Game() {
             ) : (
               <>
                 <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={currentInput}
-                    onChange={(e) => setCurrentInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && submitWord()}
-                    placeholder={isMyTurn ? `كلمة تنتهي بـ ${roomState.settings.ending}` : 'جهّز كلمتك هنا…'}
-                    enterKeyHint="send"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    className={`${inputClass} flex-1 min-w-0 font-display text-xl text-center ${isMyTurn ? '!border-[#22c55e] !bg-[var(--card)]' : ''} ${feedback?.type === 'error' ? 'shake !border-[#ff4d6d]' : ''}`}
-                  />
+                  <WordBox value={currentInput} tone={isMyTurn ? 'active' : 'normal'} shake={feedback?.type === 'error'}
+                    placeholder={isMyTurn ? `كلمة تنتهي بـ ${roomState.settings.ending}` : 'جهّز كلمتك هنا…'} />
                   <button
                     onClick={submitWord} onPointerDown={e => e.preventDefault()}
                     disabled={!currentInput.trim() || !isMyTurn}

@@ -111,7 +111,7 @@ export function UsedWords({ words }) {
 // ============== طاولة ساعة الشطرنج (أونلاين + جهاز واحد + الكمبيوتر) ==============
 // شاشة ثابتة بطول الجوال: شريط الدور + الساعات + النهاية + الإدخال دايماً ظاهرين،
 // والكلمات المستخدمة تتمرر تحت (وتختفي لما الكيبورد مفتوح).
-export function ChessTable({ state, order, myRole, activeRole, displayTimes, turnTimeLeft, turnSkipSecs, wordCounts, topInfo, onResign, children }) {
+export function ChessTable({ state, order, myRole, activeRole, displayTimes, turnTimeLeft, turnSkipSecs, wordCounts, topInfo, onResign, children, bottom = null }) {
   const [confirm, setConfirm] = useState(false);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -166,6 +166,7 @@ export function ChessTable({ state, order, myRole, activeRole, displayTimes, tur
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-3 pt-3 pb-3">
         <UsedWords words={state.usedWords || []} />
       </div>
+      {bottom}
     </div>
   );
 }

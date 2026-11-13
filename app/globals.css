@@ -603,3 +603,7 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
 .abu-bubble.abu-bubble-side { bottom: 62%; left: 92%; margin: 0; transform: none; transform-origin: 0% 100%; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-side; }
 .abu-bubble.abu-bubble-side::after { display: none; }
 @keyframes abu-pop-side { from { transform: scale(0) } to { transform: scale(1) } }
+
+/* مؤشر الكتابة في مكان الإجابة */
+.word-caret { display: inline-block; width: 2px; height: 1.1em; margin-inline-start: 3px; vertical-align: middle; background: currentColor; animation: caret-blink 1s steps(1) infinite; }
+@keyframes caret-blink { 50% { opacity: 0; } }
