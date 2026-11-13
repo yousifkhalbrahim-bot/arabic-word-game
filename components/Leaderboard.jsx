@@ -143,9 +143,9 @@ export default function Leaderboard({ onExit }) {
         {showHow && (
           <div className="mt-2 rounded-2xl bg-[var(--card)] text-[var(--ink)] p-3 text-sm font-display font-bold leading-relaxed slide-in" style={{ boxShadow: '0 4px 0 var(--edge)' }}>
             <div>🟩 خمّن الكلمة لحالك: 10 (3 أحرف) أو 20 (5 أحرف) + بونص لكل محاولة ما استخدمتها + بونص الستريك · التلميح ينقص (🧹 −2 · 🔍 −5)</div>
-            <div>⚔️ فوز أونلاين مع صاحبك: <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
-            <div>🎯 «أنت تختار الكلمة»: اللي يحلها <Num>{POINTS.customGuesserWin}</Num> · اللي يصعّبها <Num>{POINTS.customSetterWin}</Num></div>
-            <div>⏱ تحدي النهايات ضد الوقت: 2 لكل كلمة</div>
+            <div>⚔️ فوز مع صاحبك (مباراة أو لعبة): <Num>{POINTS.onlineWin}</Num> · تعادل: <Num>{POINTS.onlineDraw}</Num></div>
+            <div>⏱ تحدي النهايات: 2 لكل كلمة (أقصى <Num>40</Num>)</div>
+            <div className="mt-1.5 pt-1.5 border-t-2 border-[var(--line)]">⭐ المستويات: كل مستوى <Num>100</Num> نقطة لين مستوى <Num>10</Num>، بعدها <Num>200</Num> لين <Num>20</Num>، <Num>300</Num> لين <Num>30</Num>، وبعدها <Num>500</Num></div>
           </div>
         )}
       </div>

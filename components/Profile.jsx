@@ -158,11 +158,15 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
             {/* شريط المستوى */}
             <div className="relative mt-3.5">
-              <div className="h-2.5 rounded-full bg-black/20 overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(4, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
+              <div className="relative h-[18px] rounded-full bg-black/20 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(6, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
+                <div className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.7rem] text-white" dir="ltr" style={{ textShadow: '0 1px 2px rgba(0,0,0,.45)' }}>
+                  {lv.into} / {lv.cost}
+                </div>
               </div>
               <div className="flex justify-between mt-1 text-[0.7rem] font-display font-bold text-white/80">
-                <span>باقي <Num>{lv.left}</Num> نقطة للمستوى <Num>{lv.n + 1}</Num></span><Frac a={points} b={lv.to} />
+                <span>باقي <Num>{lv.left}</Num> نقطة للمستوى <Num>{lv.n + 1}</Num></span>
+                <span>كل مستوى هنا <Num>{lv.cost}</Num> نقطة</span>
               </div>
             </div>
           </div>

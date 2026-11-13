@@ -1696,23 +1696,30 @@ export default function Game() {
         <div className="fade-in">
           {/* الشريط العلوي: اسمك + مستواك (يفتح ملفي) */}
           <button onClick={() => setScreen('profile')} aria-label="ملفي"
-            className="w-full flex items-center gap-2.5 rounded-2xl bg-white/15 hover:bg-white/20 pl-2.5 pr-1.5 py-1.5 mb-3 min-h-[54px] transition-all active:scale-[0.98] text-right">
-            <span className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-lg text-[#4a2400] shrink-0"
-              style={{ background: 'linear-gradient(160deg, #ffd166, #ffb020)', boxShadow: '0 3px 0 #b86b00', paddingBottom: 2 }}>
-              {(hostName.trim() || '؟').slice(0, 1)}
+            className="btn-3d w-full flex items-center gap-3 rounded-2xl bg-[var(--card)] text-[var(--ink)] pl-2.5 pr-2 py-2 mb-3 text-right"
+            style={{ boxShadow: '0 5px 0 var(--edge)', border: '2px solid var(--line)' }}>
+            {/* شارة المستوى */}
+            <span className="w-[50px] h-[50px] rounded-2xl flex flex-col items-center justify-center font-display font-black shrink-0 leading-none"
+              style={{ background: lv.color.bg, color: lv.color.ink, boxShadow: `0 4px 0 ${lv.color.deep}`, border: '2px solid rgba(255,255,255,0.6)' }}>
+              <span className="text-[0.6rem] opacity-80">مستوى</span>
+              <bdi className="font-mono-ar text-[1.45rem] mt-0.5">{lv.n}</bdi>
             </span>
             <span className="flex-1 min-w-0">
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-display font-black text-white truncate">{shownName}</span>
-                <span className="shrink-0 rounded-full px-2 py-px font-display font-black text-[0.72rem]" style={{ background: lv.color.bg, color: lv.color.ink }}>
-                  ⭐ مستوى <bdi className="font-mono-ar">{lv.n}</bdi>
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="font-display font-black truncate">{shownName}</span>
+                <span className="shrink-0 font-display font-bold text-[0.72rem] text-[var(--muted-c)]">
+                  باقي <bdi className="font-mono-ar">{lv.left}</bdi> للمستوى <bdi className="font-mono-ar">{lv.n + 1}</bdi>
                 </span>
               </span>
-              <span className="block mt-1.5 h-1.5 rounded-full bg-black/20 overflow-hidden">
-                <span className="block h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(4, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
+              {/* البار: نقاطك داخل المستوى من تكلفته */}
+              <span className="relative block mt-1.5 h-[18px] rounded-full bg-[var(--soft)] overflow-hidden">
+                <span className="block h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(6, lv.pct)}%`, background: 'linear-gradient(90deg, #fde047, #ffb020)' }} />
+                <span className="absolute inset-0 flex items-center justify-center font-mono-ar font-black text-[0.7rem] text-[var(--ink)]" dir="ltr">
+                  {lv.into} / {lv.cost}
+                </span>
               </span>
             </span>
-            <ChevronLeft className="w-4 h-4 text-white/70 shrink-0" strokeWidth={2.8} />
+            <ChevronLeft className="w-4 h-4 text-[var(--muted-c)] shrink-0" strokeWidth={2.8} />
           </button>
 
           {/* الشعار */}
