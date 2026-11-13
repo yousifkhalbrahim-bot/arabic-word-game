@@ -39,6 +39,9 @@ import { ChessTable, MatchSummary, ResultHeader, Confetti, Thinking } from '@/co
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze, playYourTurn } from '@/lib/sounds';
 
 // ============== الثوابت ==============
+// السباق أونلاين: مدة ثابتة دقيقتين
+const RACE_SECONDS = 120;
+
 const TIME_CONTROLS = [
   { id: 'bullet', name: 'بوليت', icon: Zap, minutes: 1, desc: 'دقيقة' },
   { id: 'blitz', name: 'بليتز', icon: Flame, minutes: 3, desc: '3 دقائق' },
@@ -1100,7 +1103,7 @@ export default function Game() {
     try {
       const rid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
       const build = (code) => selectedMode === 'race'
-        ? createRaceState(code, hostName.trim(), { duration: selectedRaceDuration })
+        ? createRaceState(code, hostName.trim(), { duration: RACE_SECONDS })
         : selectedMode === 'guess'
         ? (guessCustom ? createGuessState(code, hostName.trim(), [...secret].length, secret, secretClue) : createGuessState(code, hostName.trim(), selectedGuessLen))
         : createInitialState(code, hostName.trim(), { timeControl: selectedTime, ending: finalEnding, turnSkipSeconds: selectedTurnSkip });
@@ -1942,6 +1945,7 @@ export default function Game() {
 
             {isRace && (
               <div>
+                {soloTime ? <>
                 <Label>مدة السباق</Label>
                 <div className="grid grid-cols-3 gap-2.5">
                   {[{ s: 30, label: '30', sub: 'ثانية' }, { s: 60, label: '1', sub: 'دقيقة' }, { s: 90, label: '1.5', sub: 'دقيقة' }].map(({ s, label, sub }) => (
@@ -1951,6 +1955,12 @@ export default function Game() {
                     </Choice>
                   ))}
                 </div>
+                </> : (
+                <div className="rounded-2xl bg-[var(--soft)] border-2 border-[var(--line)] px-4 py-3 text-center font-display">
+                  <div className="font-black text-lg text-[var(--ink)]">⚡ <bdi className="font-mono-ar">2</bdi> دقيقة</div>
+                  <div className="text-xs font-bold text-[var(--muted-c)]">مدة السباق</div>
+                </div>
+                )}
                 <p className="text-xs text-dim mt-2.5 leading-relaxed">
                   {soloTime
                     ? 'كل سؤال نهاية مختلفة. اكتب أكبر عدد كلمات قبل ما يخلص الوقت، والتجاوز يكلّفك 3 ثواني.'
