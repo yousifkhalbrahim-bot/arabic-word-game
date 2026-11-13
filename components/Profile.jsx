@@ -13,11 +13,7 @@ import { getSetting, setSetting, getTheme, setTheme } from '@/lib/settings';
 import { playAccept } from '@/lib/sounds';
 import { haptic } from '@/lib/native';
 
-const ENDING_TIMES = [
-  { s: 30, label: '30 ثانية' },
-  { s: 60, label: 'دقيقة' },
-  { s: 90, label: 'دقيقة ونص' },
-];
+const ENDING_TIMES = [{ s: 120, label: 'دقيقتين' }];
 
 // كسر يطلع بالترتيب الصح داخل النص العربي (٤/٩ مو ٩/٤)
 const Frac = ({ a, b }) => <span dir="ltr" className="inline-block"><Num>{a}</Num>/<Num>{b}</Num></span>;
@@ -270,7 +266,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
         {/* ===== تحدي النهايات ===== */}
         <Section title="⏱ تحدي النهايات" aside={<span className="text-[0.75rem] font-display font-bold text-white/75">أفضل نتيجة</span>}>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-1 gap-2 text-center">
             {ENDING_TIMES.map(({ s, label }) => (
               <div key={s} className="rounded-2xl py-2.5" style={endBest[s] ? { background: 'var(--gold-soft)', border: '2px solid var(--gold-line)' } : { background: 'var(--soft)', border: '2px solid transparent' }}>
                 <div className="font-display font-black text-2xl leading-tight" style={{ color: endBest[s] ? 'var(--gold-ink)' : 'var(--edge)' }}>

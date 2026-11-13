@@ -11,11 +11,9 @@ import { abuSay, phraseFor } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
-const DURATIONS = [
-  { s: 30, label: '30', sub: 'ثانية' },
-  { s: 60, label: '1', sub: 'دقيقة' },
-  { s: 90, label: '1.5', sub: 'دقيقة' },
-];
+// مدة ثابتة: دقيقتين
+const SOLO_SECONDS = 120;
+const DURATIONS = [{ s: SOLO_SECONDS }];
 const SKIP_COST_SECONDS = 3;
 const STREAK_EVERY = 5;
 const ACCENT = '#fbbf24';
@@ -30,7 +28,7 @@ function writeBest(d, v) {
 
 export default function SoloGame({ endings, onExit, startDuration }) {
   const [phase, setPhase] = useState('setup'); // setup | playing | done
-  const [duration, setDuration] = useState(startDuration || 60);
+  const duration = SOLO_SECONDS;
   const [bests, setBests] = useState({});
   const [queue, setQueue] = useState([]);
   const [index, setIndex] = useState(0);
@@ -183,7 +181,7 @@ export default function SoloGame({ endings, onExit, startDuration }) {
   // مشاركة النتيجة (واتساب وغيره)
   const shareResult = async () => {
     if (!result) return;
-    const label = duration === 30 ? '30 ثانية' : duration === 60 ? 'دقيقة' : 'دقيقة ونص';
+    const label = 'دقيقتين';
     const url = publicUrl('/');
     const text = `⏱ حليت ${result.score} كلمة في ${label} بتحدي النهايات 🔥
 تقدر تغلبني؟
@@ -228,16 +226,10 @@ ${url}`;
             أكبر عدد من الكلمات قبل ما يخلص الوقت.<br />
             <span className="text-dim">كل سؤال نهاية مختلفة · التجاوز يكلّفك <Num>{SKIP_COST_SECONDS}</Num> ثوانٍ</span>
           </p>
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
-            {DURATIONS.map(({ s, label, sub }) => (
-              <Choice key={s} selected={duration === s} onClick={() => setDuration(s)} className="py-3 px-1">
-                <div className="font-mono-ar font-bold text-2xl leading-tight">{label}</div>
-                <div className="text-xs opacity-75">{sub}</div>
-                <div className="text-[0.72rem] mt-2 flex items-center justify-center gap-1 font-bold opacity-80">
-                  <Trophy className="w-3 h-3" /> <Num>{bests[s] || 0}</Num>
-                </div>
-              </Choice>
-            ))}
+          <div className="rounded-2xl bg-[var(--soft)] border-2 border-[var(--line)] px-4 py-3 mb-5 flex items-center justify-around text-center font-display">
+            <div><div className="font-black text-lg text-[var(--ink)]">⏱ <Num>2</Num> دقيقة</div><div className="text-xs font-bold text-[var(--muted-c)]">الوقت</div></div>
+            <div className="w-px h-8 bg-[var(--line)]" />
+            <div><div className="font-black text-lg text-[var(--ink)] flex items-center justify-center gap-1"><Trophy className="w-4 h-4 text-[#ca8a04]" /> <Num>{bests[SOLO_SECONDS] || 0}</Num></div><div className="text-xs font-bold text-[var(--muted-c)]">أفضل نتيجة</div></div>
           </div>
           <Btn icon={Play} onClick={start}>ابدأ</Btn>
         </Card>
@@ -267,7 +259,7 @@ ${url}`;
           <div className="font-display font-black text-white" style={{ fontSize: '4rem', lineHeight: 1.1, textShadow: '0 5px 0 rgba(46,16,101,0.45)' }}>
             <Num>{result.score}</Num>
           </div>
-          <div className="text-white/85 font-display font-bold text-sm mb-3">كلمة في <Num>{duration}</Num> ثانية</div>
+          <div className="text-white/85 font-display font-bold text-sm mb-3">كلمة في دقيقتين</div>
           {result.pts > 0 && (
             <div className="inline-block mb-4 rounded-full px-4 py-1 font-display font-black text-[#4a2400]" style={{ background: '#fde047', boxShadow: '0 4px 0 #ca8a04' }}>
               ⭐ +<Num>{result.pts}</Num> نقطة
@@ -290,7 +282,7 @@ ${url}`;
 
           <div className="flex gap-3">
             <div className="flex-[1.4]"><Btn icon={RotateCcw} onClick={start}>مرة ثانية</Btn></div>
-            <div className="flex-1"><Btn variant="wood" onClick={() => setPhase('setup')}>تغيير المدة</Btn></div>
+            <div className="flex-1"><Btn variant="wood" onClick={() => setPhase('setup')}>رجوع</Btn></div>
           </div>
           {result.score > 0 && (
             <div className="mt-3"><Btn variant="green" size="md" icon={Share2} onClick={shareResult}>شارك نتيجتك</Btn></div>
