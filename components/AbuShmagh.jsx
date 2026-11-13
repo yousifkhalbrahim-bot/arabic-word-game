@@ -9,12 +9,12 @@ import { MOOD_OF } from '@/lib/abu';
 const OUT = '#3a2131';
 const SKIN = '#f2d1a6';
 
-export function AbuShmagh({ mood = 'idle', say = '', size = 120, className = '', bubbleSide = 'top' }) {
+export function AbuShmagh({ mood = 'idle', say = '', sub = '', size = 120, className = '', bubbleSide = 'top' }) {
   const pid = `smg${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
     <div className={`abu st-${mood} relative inline-block ${className}`} style={{ width: size, height: size * 1.07 }}>
       {say && (
-        <div className={`abu-bubble ${bubbleSide === 'side' ? 'abu-bubble-side' : ''}`}>{say}</div>
+        <div className={`abu-bubble ${bubbleSide === 'side' ? 'abu-bubble-side' : bubbleSide === 'up-left' ? 'abu-bubble-upleft' : ''}`}>{say}{sub && <div className="abu-say-sub">{sub}</div>}</div>
       )}
       <svg viewBox="0 0 120 128" width={size} height={size * 1.07} aria-label="أبو شماغ" role="img" style={{ overflow: 'visible' }}>
         <defs>
@@ -56,15 +56,17 @@ export function AbuShmagh({ mood = 'idle', say = '', size = 120, className = '',
             <path d="M54 92 Q62 89 67 91" fill="none" stroke={OUT} strokeWidth="3.2" strokeLinecap="round" />
           </g>
           <path className="abu-tear" d="M80 84 q4 7 0 11 q-4 -4 0 -11" fill="#5ec8f2" stroke={OUT} strokeWidth="1.6" />
+          {/* العقال من ورا — يغطيه الراس */}
+          <g className="abu-agal-back"><path d="M27 40 Q60 25 93 40" fill="none" stroke={OUT} strokeWidth="8" strokeLinecap="round" /><path d="M27 40 Q60 25 93 40" fill="none" stroke="#26262b" strokeWidth="5" strokeLinecap="round" /></g>
           {/* الشماغ */}
           <path className="abu-shmagh" d="M60 22 C82 22 94 40 96 64 L102 96 Q92 86 88 70 Q86 54 60 50 Q34 54 32 70 Q28 86 18 96 L24 64 C26 40 38 22 60 22Z" fill={`url(#${pid})`} stroke={OUT} strokeWidth="3.6" strokeLinejoin="round" />
           {/* اليد اليمين قدّام الشماغ عشان تبين وهي ترمي */}
           <g className="abu-armR"><path d="M89 82 Q100 88 98 97" fill="none" stroke={OUT} strokeWidth="10.6" strokeLinecap="round" /><path d="M89 82 Q100 88 98 97" fill="none" stroke={SKIN} strokeWidth="7" strokeLinecap="round" /></g>
           {/* العقال (ينرمي على الشاشة وقت الفوز) */}
           <g className="abu-agal">
-            <ellipse cx="60" cy="40" rx="31" ry="9" fill="none" stroke={OUT} strokeWidth="6.5" />
-            <ellipse cx="60" cy="40" rx="31" ry="9" fill="none" stroke="#2a2a2a" strokeWidth="3.5" />
-            <ellipse cx="60" cy="38.4" rx="29" ry="7.6" fill="none" stroke="#5a5a5a" strokeWidth="1" opacity=".6" />
+            <path d="M27 40 Q60 55 93 40" fill="none" stroke={OUT} strokeWidth="8" strokeLinecap="round" /><path d="M27 40 Q60 55 93 40" fill="none" stroke="#26262b" strokeWidth="5" strokeLinecap="round" />
+            <path d="M28 45 Q60 60 92 45" fill="none" stroke={OUT} strokeWidth="8" strokeLinecap="round" /><path d="M28 45 Q60 60 92 45" fill="none" stroke="#26262b" strokeWidth="5" strokeLinecap="round" />
+            <path d="M34 41.5 Q60 52 86 41.5" fill="none" stroke="#8a8a92" strokeWidth="1.2" strokeLinecap="round" opacity=".8" />
           </g>
         </g>
       </svg>
@@ -80,6 +82,7 @@ export function AbuToast() {
   useEffect(() => {
     let t;
     const on = (e) => {
+      if (window.__abuCorners > 0) return;
       const d = e.detail || {};
       n.current += 1;
       setCur({ ...d, mood: d.mood || MOOD_OF[d.kind] || 'hi', key: n.current });
@@ -96,6 +99,31 @@ export function AbuToast() {
         <AbuShmagh mood={cur.mood} size={74} />
         <div className="abu-say-card">{cur.text}{cur.sub && <div className="abu-say-sub">{cur.sub}</div>}</div>
       </div>
+    </div>
+  );
+}
+
+// -------- واقف في زاوية الشاشة وقت اللعب، والكلام فوق راسه --------
+export function AbuCorner({ size = 54, hidden = false, className = '', style }) {
+  const [cur, setCur] = useState(null);
+  const n = useRef(0);
+  useEffect(() => {
+    window.__abuCorners = (window.__abuCorners || 0) + 1;
+    let t;
+    const on = (e) => {
+      const d = e.detail || {};
+      n.current += 1;
+      setCur({ ...d, mood: d.mood || MOOD_OF[d.kind] || 'hi', key: n.current });
+      clearTimeout(t);
+      t = setTimeout(() => setCur(null), d.sub ? 3600 : SHOW_MS);
+    };
+    window.addEventListener('abu:say', on);
+    return () => { window.__abuCorners -= 1; window.removeEventListener('abu:say', on); clearTimeout(t); };
+  }, []);
+  if (hidden) return null;
+  return (
+    <div className={`pointer-events-none ${className}`} style={style}>
+      <AbuShmagh key={cur?.key || 0} mood={cur ? cur.mood : 'idle'} say={cur?.text} sub={cur?.sub} size={size} bubbleSide="up-left" />
     </div>
   );
 }

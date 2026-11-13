@@ -6,7 +6,7 @@ import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/compo
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
 import { haptic, publicUrl, shareContent } from '@/lib/native';
-import { AbuShmagh } from '@/components/AbuShmagh';
+import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { abuSay, phraseFor } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
@@ -339,6 +339,7 @@ ${url}`;
         )}
         <div className="kb-hide font-display font-bold text-muted mb-2.5" style={{ fontSize: '0.85rem' }}>اكتب كلمة تنتهي بـ</div>
         <LetterTiles key={index} text={ending} size={58} />
+        <AbuCorner size={44} className="absolute left-2 bottom-1 z-20" />
       </div>
 
       {/* الإدخال */}

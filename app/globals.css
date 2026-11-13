@@ -621,6 +621,14 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
   padding: 6px 14px 8px; border-radius: 18px 18px 4px 18px; border: 3px solid #3a2131; box-shadow: 0 4px 0 #c4b5fd; max-width: 62vw; }
 
 @media (prefers-reduced-motion: reduce) { .abu *, .abu-toast, .abu-bubble { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
+/* فقاعة فوق راسه وهو في الزاوية اليسار */
+.abu-bubble.abu-bubble-upleft { left: 0; transform: none; transform-origin: 18px 100%; margin-bottom: 4px; white-space: normal; width: max-content; max-width: min(62vw, 250px);
+  font-size: .95rem; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-up; }
+.abu-bubble.abu-bubble-upleft::after { left: 20px; margin-left: 0; }
+@keyframes abu-pop-up { from { transform: scale(0) } to { transform: scale(1) } }
+/* وقت رمية العقال نخفي الجهة الورا */
+.abu.st-win .abu-agal-back { opacity: 0; }
+.abu.st-sad .abu-agal-back { animation: abu-droop .8s ease-out 1 both; }
 .abu-say-sub { font-size: .72rem; font-weight: 700; color: #6d5b95; margin-top: 2px; }
 /* فقاعة جنب أبو شماغ (في الرئيسية) */
 .abu-bubble.abu-bubble-side { bottom: 62%; left: 92%; margin: 0; transform: none; transform-origin: 0% 100%; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-side; }

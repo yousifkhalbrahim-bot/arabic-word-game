@@ -14,7 +14,7 @@ import {
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints } from '@/lib/points';
-import { AbuShmagh } from '@/components/AbuShmagh';
+import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { phraseFor, abuSay } from '@/lib/abu';
 import { getBulbs, syncBulbs, spendBulbs, earnBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
@@ -490,6 +490,8 @@ export default function GuessGame({ onExit }) {
           </div>
         )}
         <GuessBoard rows={rows} len={len} revealing={revealing} shakeRow={shakeRow} compact={mode === 'rush' || len === 5} winRow={winRow} />
+        {/* أبو شماغ في الزاوية — يختفي وقت احتفال الفوز ونافذة الخسارة */}
+        <AbuCorner size={52} hidden={!!burst || showResult || !!rushOver} className="absolute left-2 bottom-1 z-20" />
         {mode !== 'rush' && (
           <div className="streak-bar mt-2.5 w-full max-w-[300px] rounded-2xl px-3 py-1 flex items-center justify-around glass" dir="rtl">
             <div className="flex items-center gap-1.5">
