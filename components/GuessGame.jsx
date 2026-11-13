@@ -804,30 +804,48 @@ export function MiniBoard({ guesses, len, tries, size = 12 }) {
   );
 }
 
+// كيبورد بشكل كيبورد الآيفون:
+// - كل زر مساحة اللمس فيه تغطي الفراغ اللي حوله (مثل الآيفون، الضغطة بين زرين تروح لأقرب واحد)
+// - الحرف ينكتب أول ما تلمس (pointerdown) عشان الكتابة السريعة ما تضيع حروف
+// - المسح لو ضغطته مطوّل يمسح ورا بعض
 export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = null }) {
-  const press = (k) => { haptic('light'); onKey(k); };
+  const repeat = useRef(null);
+  const stopRepeat = () => { clearTimeout(repeat.current); clearInterval(repeat.current); repeat.current = null; };
+  useEffect(() => stopRepeat, []);
+  const down = (e, k) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    haptic('light');
+    onKey(k);
+    if (k === 'BACK') {
+      stopRepeat();
+      repeat.current = setTimeout(() => { repeat.current = setInterval(() => onKey('BACK'), 90); }, 420);
+    }
+  };
   return (
-    <div className={`kb-tray shrink-0 px-[5px] pt-2.5 pb-2 space-y-[9px] ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr">
+    <div className={`kb-tray shrink-0 pt-1.5 pb-1 ${disabled ? 'opacity-60 pointer-events-none' : ''}`} dir="ltr"
+      onPointerUp={stopRepeat} onPointerCancel={stopRepeat} onPointerLeave={stopRepeat}>
       {KEY_ROWS.map((row, ri) => (
-        <div key={ri} className="flex justify-center gap-[5px]">
+        <div key={ri} className="flex justify-center px-[2px]">
           {row.map(k => {
             const isEnter = k === 'ENTER', isBack = k === 'BACK';
             const st = keyStates[normalizeGuess(k)];
             const off = !!allowed && k.length === 1 && !allowed.has(normalizeGuess(k));
             const look = isEnter ? 'kb-enter' : isBack ? 'kb-back' : off ? 'kb-off' : st ? `kb-${st}` : 'kb-plain';
             return (
-              <button key={k} onClick={() => press(k)} aria-disabled={off || undefined}
-                data-ch={!isEnter && !isBack && !off ? k : undefined}
-                className={`kb-key ${look} flex items-center justify-center font-display font-black`}
-                style={{
-                  height: isEnter ? 'min(11.5vw, 46px)' : 'min(12.4vw, 50px)',
-                  flex: isEnter ? '1 1 100%' : isBack ? '1.55 1 0' : '1 1 0',
-                  maxWidth: isEnter ? 440 : isBack ? 64 : 42,
-                }}
-                aria-label={isEnter ? 'إدخال' : isBack ? 'حذف' : k}>
-                {isEnter ? <span className="flex items-center gap-2 text-[1.1rem]">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={3} /></span>
-                  : isBack ? <Delete className="w-[22px] h-[22px]" strokeWidth={2.4} />
-                  : <span className="kb-glyph">{k}</span>}
+              <button key={k} type="button"
+                onPointerDown={(e) => down(e, k)}
+                onClick={(e) => { if (e.detail === 0) onKey(k); }}   // تفعيل من كيبورد خارجي / قارئ الشاشة
+                aria-disabled={off || undefined}
+                aria-label={isEnter ? 'إدخال' : isBack ? 'حذف' : k}
+                className="kb-hit"
+                style={{ flex: isEnter ? '1 1 100%' : isBack ? '1.45 1 0' : '1 1 0', maxWidth: isEnter ? 460 : isBack ? 62 : 44 }}>
+                <span data-ch={!isEnter && !isBack && !off ? k : undefined}
+                  className={`kb-key ${look}`} style={{ height: isEnter ? 'min(11vw, 44px)' : 'min(11.6vw, 46px)' }}>
+                  {isEnter ? <span className="flex items-center gap-2 text-[1.05rem] font-display font-black">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={2.6} /></span>
+                    : isBack ? <Delete className="w-[22px] h-[22px]" strokeWidth={2} />
+                    : <span className="kb-glyph">{k}</span>}
+                </span>
               </button>
             );
           })}

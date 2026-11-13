@@ -398,83 +398,56 @@ html { background: #4f46e5; }
 }
 .tile-pop { animation: tile-pop 0.14s ease-out; }
 
-/* ============== كيبورد خمّن الكلمة ============== */
+/* ============== كيبورد خمّن الكلمة (بشكل كيبورد الآيفون) ============== */
 .kb-tray {
-  background: rgba(30, 12, 90, 0.32);
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px 22px 0 0;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 -10px 30px -18px rgba(20, 5, 60, 0.7);
+  --kb-bg: #d1d3da; --kb-key: #ffffff; --kb-ink: #111114; --kb-shadow: #898a8e; --kb-func: #abb0bc;
+  background: var(--kb-bg);
+  padding-bottom: 4px;
+  touch-action: manipulation;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+html[data-theme="dark"] .kb-tray { --kb-bg: #2b2a33; --kb-key: #6b6a73; --kb-ink: #ffffff; --kb-shadow: #1a1920; --kb-func: #47464f; }
+/* مساحة اللمس: الزر كامل بدون فراغات بينه وبين جيرانه */
+.kb-hit {
+  position: relative; display: flex; padding: 5px 2.5px 6px; min-width: 0;
+  background: none; border: 0; margin: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .kb-key {
-  position: relative;
-  border-radius: 11px;
-  font-size: 1.32rem;
-  line-height: 1;
-  transition: transform 0.06s ease, box-shadow 0.06s ease, background-color 0.25s ease, color 0.25s ease;
-  -webkit-user-select: none;
-  user-select: none;
+  position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  font-family: -apple-system, 'SF Arabic', 'Geeza Pro', system-ui, sans-serif;
+  font-size: 1.45rem; font-weight: 500; line-height: 1;
+  transition: background-color .2s ease, color .2s ease;
 }
-.kb-glyph { display: block; padding-bottom: 3px; }
-.kb-key:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18) !important; }
-
-.kb-plain   { background: linear-gradient(180deg, #ffffff 0%, #f3efff 100%); color: #2e1065; box-shadow: 0 3px 0 #b8a6f5, 0 6px 10px -6px rgba(20, 5, 60, 0.55); }
-.kb-correct { background: linear-gradient(180deg, #34d77a 0%, #22c55e 100%); color: #fff; box-shadow: 0 3px 0 #15803d, 0 6px 10px -6px rgba(10, 60, 30, 0.6); }
-.kb-present { background: linear-gradient(180deg, #ffc040 0%, #ffb020 100%); color: #4a2400; box-shadow: 0 3px 0 #b86b00, 0 6px 10px -6px rgba(90, 40, 0, 0.6); }
-.kb-absent  { background: #2f1866; color: rgba(255, 255, 255, 0.38); box-shadow: 0 3px 0 #1d0d45; }
-.kb-off     { background: transparent; color: rgba(255, 255, 255, 0.28); box-shadow: none; border: 1.5px dashed rgba(255, 255, 255, 0.22); cursor: not-allowed; }
-.kb-back    { background: linear-gradient(180deg, #c9b8ff 0%, #b39dfc 100%); color: #2e1065; box-shadow: 0 3px 0 #7c5fd6, 0 6px 10px -6px rgba(20, 5, 60, 0.55); }
-.kb-enter   { background: linear-gradient(180deg, #34d77a 0%, #22c55e 100%); color: #fff; box-shadow: 0 4px 0 #15803d, 0 8px 14px -8px rgba(10, 60, 30, 0.7); border-radius: 14px; }
+.kb-glyph { display: block; padding-bottom: 2px; }
+.kb-plain   { background: var(--kb-key); color: var(--kb-ink); box-shadow: 0 1px 0 var(--kb-shadow); }
+.kb-correct { background: #22c55e; color: #fff; box-shadow: 0 1px 0 #15803d; font-weight: 700; }
+.kb-present { background: #ffb020; color: #3d1f00; box-shadow: 0 1px 0 #b86b00; font-weight: 700; }
+.kb-absent  { background: #8e8d96; color: rgba(255,255,255,.6); box-shadow: 0 1px 0 #6b6a73; }
+html[data-theme="dark"] .kb-absent { background: #3a3941; color: rgba(255,255,255,.35); box-shadow: 0 1px 0 #1a1920; }
+.kb-off     { background: transparent; color: rgba(0,0,0,.22); box-shadow: none; border: 1.5px dashed rgba(0,0,0,.16); }
+html[data-theme="dark"] .kb-off { color: rgba(255,255,255,.22); border-color: rgba(255,255,255,.16); }
+.kb-back    { background: var(--kb-func); color: var(--kb-ink); box-shadow: 0 1px 0 var(--kb-shadow); }
+.kb-enter   { background: #22c55e; color: #fff; box-shadow: 0 1px 0 #15803d; border-radius: 8px; }
+.kb-hit:active > .kb-back, .kb-hit:active > .kb-enter { filter: brightness(.9); }
 
 /* فقاعة الحرف فوق الزر وقت الضغط (مثل الآيفون) */
-.kb-key[data-ch]:active::after {
+.kb-hit:active > .kb-key[data-ch]::after {
   content: attr(data-ch);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 6px);
-  transform: translateX(-50%);
-  min-width: 52px;
-  height: 58px;
-  padding: 0 8px 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: var(--card);
-  color: var(--ink);
-  font-size: 2.1rem;
-  box-shadow: 0 8px 22px -6px rgba(20, 5, 60, 0.6);
-  z-index: 30;
-  pointer-events: none;
+  position: absolute; left: 50%; bottom: calc(100% - 2px); transform: translateX(-50%);
+  min-width: 48px; height: 58px; padding: 0 6px 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px 10px 8px 8px;
+  background: var(--kb-key); color: var(--kb-ink);
+  font-size: 2rem; font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  z-index: 30; pointer-events: none;
 }
-
-/* ============== احتفال الفوز ============== */
-@keyframes tile-win {
-  0%   { transform: translateY(0) scale(1); }
-  35%  { transform: translateY(-26px) scale(1.1) rotate(-4deg); }
-  60%  { transform: translateY(5px) scale(0.96); }
-  80%  { transform: translateY(-6px) scale(1.02); }
-  100% { transform: translateY(0) scale(1); }
-}
-.tile-win { animation: tile-win 0.7s cubic-bezier(.3,.7,.3,1.3) both; }
-
-@keyframes win-pop {
-  0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
-  55%  { transform: scale(1.18) rotate(4deg); opacity: 1; }
-  75%  { transform: scale(0.95) rotate(-2deg); }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
-}
-@keyframes win-glow {
-  0%   { opacity: 0; transform: scale(0.4); }
-  40%  { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.8); }
-}
-@keyframes win-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes ray-spin { to { transform: rotate(360deg); } }
-.win-burst { animation: win-fade 1.9s ease forwards; }
-.win-burst .win-text { animation: win-pop 0.7s cubic-bezier(.2,.8,.3,1.4) both; }
-.win-burst .win-glow { animation: win-glow 1.2s ease-out forwards; }
+.kb-hit:active > .kb-key.kb-correct[data-ch]::after { background: #22c55e; color: #fff; }
+.kb-hit:active > .kb-key.kb-present[data-ch]::after { background: #ffb020; color: #3d1f00; }
+.kb-hit:active > .kb-key.kb-absent[data-ch]::after { background: #8e8d96; color: #fff; }
 .win-burst .win-rays { animation: ray-spin 6s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .tile-win, .win-burst .win-text, .win-burst .win-glow, .win-burst .win-rays { animation: none !important; }
@@ -535,10 +508,6 @@ html[data-theme="dark"] .wood-card { border-color: #2f2760; box-shadow: 0 7px 0 
 html[data-theme="dark"] .choice-tile { background: var(--soft); border-color: var(--line); color: var(--ink-2); box-shadow: 0 4px 0 #1a1440; }
 html[data-theme="dark"] .letter-tile,
 html[data-theme="dark"] .ending-badge { background: #2d255c; color: #f3f0ff; border-color: #3d3378; box-shadow: 0 6px 0 var(--edge); }
-html[data-theme="dark"] .kb-plain { background: linear-gradient(180deg, #3b3275 0%, #322a66 100%); color: #f3f0ff; box-shadow: 0 3px 0 #17113a, 0 6px 10px -6px rgba(0,0,0,0.6); }
-html[data-theme="dark"] .kb-back { background: linear-gradient(180deg, #5b4aa8 0%, #4c3d96 100%); color: #f3f0ff; box-shadow: 0 3px 0 #241a5c; }
-html[data-theme="dark"] .kb-absent { background: #1a1338; color: rgba(255,255,255,0.3); box-shadow: 0 3px 0 #0d0924; }
-html[data-theme="dark"] .kb-tray { background: rgba(10, 6, 30, 0.45); }
 
 /* شريط التنقل */
 .tabbar { background: var(--tab-bg); box-shadow: 0 -6px 24px -10px rgba(20, 5, 60, 0.45); border-top: 1px solid var(--line); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
