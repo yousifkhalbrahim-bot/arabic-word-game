@@ -607,3 +607,12 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
 /* مؤشر الكتابة في مكان الإجابة */
 .word-caret { display: inline-block; width: 2px; height: 1.1em; margin-inline-start: 3px; vertical-align: middle; background: currentColor; animation: caret-blink 1s steps(1) infinite; }
 @keyframes caret-blink { 50% { opacity: 0; } }
+
+/* أبو شماغ لما تضغط عليه: ينضغط ويهتز */
+.abu.st-poke .f-sad { opacity: 1; }
+.abu.st-poke .abu-whole { animation: abu-poke .55s cubic-bezier(.3,1.6,.5,1) 1; }
+.abu.st-poke .abu-armL, .abu.st-poke .abu-armR { animation: abu-wave .14s ease-in-out 4 alternate; }
+@keyframes abu-poke {
+  0% { transform: scale(1, 1) } 20% { transform: scale(1.18, .78) } 40% { transform: scale(.9, 1.12) rotate(-6deg) }
+  60% { transform: scale(1.04, .96) rotate(5deg) } 80% { transform: rotate(-2deg) } 100% { transform: none }
+}

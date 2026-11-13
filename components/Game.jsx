@@ -1709,8 +1709,8 @@ export default function Game() {
           {/* الشعار */}
           <div className="relative text-center mb-4">
             {/* أبو شماغ واقف جنب العنوان — اضغطه ويتكلم */}
-            <button onClick={() => setAbuLine({ text: phraseFor('hi'), n: Date.now() })} aria-label="أبو شماغ" className="absolute left-0 -bottom-1 z-10 active:scale-95 transition-transform">
-              <AbuShmagh key={abuLine?.n || 0} mood={abuLine ? 'hi' : 'idle'} say={abuLine?.text} size={58} bubbleSide="side" />
+            <button onClick={() => setAbuLine({ text: phraseFor('poke'), n: Date.now(), poke: true })} aria-label="أبو شماغ" className="absolute left-0 -bottom-1 z-10 active:scale-95 transition-transform">
+              <AbuShmagh key={abuLine?.n || 0} mood={abuLine ? (abuLine.poke ? 'poke' : 'hi') : 'idle'} say={abuLine?.text} size={58} bubbleSide="side" />
             </button>
             <div className="flex justify-center gap-1.5 mb-2" dir="rtl">
               {logo.map((t, i) => (
