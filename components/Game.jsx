@@ -201,7 +201,7 @@ function RoomInfo({ state }) {
       : isRace
       ? [['المدة', <span key="d"><bdi className="font-mono-ar">{state.settings.duration}</bdi> ثانية</span>]]
       : [
-          ['السرعة', TIME_CONTROLS.find(t => t.id === state.settings.timeControlId)?.name],
+          ['وقت كل لاعب', <span key="s"><bdi className="font-mono-ar">{Math.round((state.settings.initialSeconds || 180) / 60)}</bdi> دقائق</span>],
           ['وقت الدور', <span key="t"><bdi className="font-mono-ar">{state.settings.turnSkipSeconds ?? 10}</bdi> ثانية</span>],
           ['النهاية', <span key="e" className="font-black text-2xl leading-none text-[#7c3aed]">{state.settings.ending}</span>],
         ]),
@@ -690,8 +690,8 @@ export default function Game() {
   const [moreOpts, setMoreOpts] = useState(false);
   const [soloStyle, setSoloStyle] = useState('bot'); // لحالك: bot = ضد الكمبيوتر، time = ضد الوقت
   const [soloStartDuration, setSoloStartDuration] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(TIME_CONTROLS[1]);
-  const [selectedTurnSkip, setSelectedTurnSkip] = useState(20);
+  const [selectedTime] = useState(TIME_CONTROLS[1]);   // بالدور: ثابت 3 دقائق لكل لاعب
+  const [selectedTurnSkip] = useState(10);   // بالدور: ثابت 10 ثواني لكل دور
   const [selectedRaceDuration, setSelectedRaceDuration] = useState(60);
   const [selectedGuessLen, setSelectedGuessLen] = useState(3);
   const [guessCustom, setGuessCustom] = useState(false);
@@ -1933,45 +1933,11 @@ export default function Game() {
             )}
 
             {isChess && (
-              <>
-                <div>
-                  <Label>وقت كل لاعب</Label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {TIME_CONTROLS.map(tc => {
-                      const Icon = tc.icon;
-                      const sel = selectedTime.id === tc.id;
-                      return (
-                        <Choice key={tc.id} selected={sel} onClick={() => setSelectedTime(tc)} className="py-3 px-1">
-                          <Icon className="w-5 h-5 mx-auto mb-1" style={{ color: sel ? '#4a2400' : '#8b5cf6' }} strokeWidth={2.4} />
-                          <div className="font-display font-bold">{tc.name}</div>
-                          <div className="text-[0.72rem] opacity-75">{tc.desc}</div>
-                        </Choice>
-                      );
-                    })}
-                  </div>
-                </div>
-                <button onClick={() => setMoreOpts(v => !v)}
-                  className="w-full flex items-center justify-between rounded-2xl bg-[var(--soft)] border-2 border-[var(--line)] px-4 min-h-[48px] font-display font-bold text-sm text-[var(--ink-2)]">
-                  <span>وقت الدور</span>
-                  <span className="flex items-center gap-2 text-[var(--muted-c)]">
-                    <span>الدور <bdi className="font-mono-ar">{selectedTurnSkip}</bdi>ث</span>
-                    <ChevronLeft className={`w-4 h-4 transition-transform ${moreOpts ? '-rotate-90' : ''}`} strokeWidth={3} />
-                  </span>
-                </button>
-                {moreOpts && <>
-                <div>
-                  <Label>وقت الدور الواحد</Label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {[15, 20, 30].map(sec => (
-                      <Choice key={sec} selected={selectedTurnSkip === sec} onClick={() => setSelectedTurnSkip(sec)} className="py-2.5">
-                        <span className="font-mono-ar font-bold text-xl">{sec}</span>
-                        <span className="text-xs opacity-75 mr-1">ثانية</span>
-                      </Choice>
-                    ))}
-                  </div>
-                </div>
-                </>}
-              </>
+              <div className="rounded-2xl bg-[var(--soft)] border-2 border-[var(--line)] px-4 py-3 flex items-center justify-around text-center font-display">
+                <div><div className="font-black text-lg text-[var(--ink)]">⏱ <bdi className="font-mono-ar">3</bdi> دقائق</div><div className="text-xs font-bold text-[var(--muted-c)]">لكل لاعب</div></div>
+                <div className="w-px h-8 bg-[var(--line)]" />
+                <div><div className="font-black text-lg text-[var(--ink)]">⚡ <bdi className="font-mono-ar">10</bdi> ثواني</div><div className="text-xs font-bold text-[var(--muted-c)]">لكل دور</div></div>
+              </div>
             )}
 
             {isRace && (
