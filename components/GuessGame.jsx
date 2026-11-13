@@ -13,7 +13,7 @@ import {
 } from '@/lib/guess';
 import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, playWin, playLose } from '@/lib/sounds';
 import { publicUrl, shareContent, haptic } from '@/lib/native';
-import { awardPoints, guessPoints } from '@/lib/points';
+import { awardPoints, guessPoints, reportStreak } from '@/lib/points';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { phraseFor, abuSay } from '@/lib/abu';
 import { getBulbs, syncBulbs, spendBulbs, earnBulbs, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
@@ -207,6 +207,7 @@ export default function GuessGame({ onExit }) {
       s.streak = 0;
     }
     save(statsKey(len), s);
+    reportStreak(s.streak);
     if (mixedRef.current) {
       const ms = load(MIX_KEY, { streak: 0, best: 0 });
       if (won) { ms.streak += 1; ms.best = Math.max(ms.best, ms.streak); }

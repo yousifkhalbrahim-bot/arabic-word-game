@@ -66,8 +66,8 @@ export default function Leaderboard({ onExit }) {
             <div className="flex items-center gap-1 font-display font-black text-[0.95rem]" style={{ color: r.me ? '#b45309' : '#fde047' }}>
               <Star className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} /><Num>{r.score}</Num>
             </div>
-            <div className="text-[0.76rem] font-display font-bold" style={{ color: r.me ? '#6d5b95' : 'rgba(255,255,255,0.7)' }}>
-              🏆 <Num>{r.wins}</Num> فوز
+            <div className="text-[0.76rem] font-display font-bold" style={{ color: r.me ? '#6d5b95' : 'rgba(255,255,255,0.75)' }}>
+              {r.streak > 0 ? <>🔥 <Num>{r.streak}</Num> ستريك</> : <>🏆 <Num>{r.wins}</Num> فوز</>}
             </div>
           </>
         )}
@@ -75,27 +75,34 @@ export default function Leaderboard({ onExit }) {
     );
   };
 
-  // -------- سطر في القائمة (من الرابع وتحت) — لون واحد للكل --------
-  const row = (r, rank, mine) => (
-    <div key={`${rank}-${r.name}`} className="flex items-center gap-3 px-3 min-h-[60px]"
-      style={mine ? { background: 'var(--gold-soft)' } : undefined}>
-      <div className="w-8 shrink-0 text-center font-display font-black text-[1.05rem] text-[var(--muted-c)]"><Num>{rank}</Num></div>
-      <div className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-display font-black"
-        style={mine ? { background: '#ffb020', color: '#4a2400' } : { background: 'var(--soft)', color: 'var(--ink-2)' }}>
-        {((r.name || 'أنت').trim() || '؟').slice(0, 1)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-display font-black truncate text-[var(--ink)]">
-          {r.name || 'أنت'}{mine && r.name && <span className="text-xs font-bold text-[var(--muted-c)] mr-1">(أنت)</span>}
+  // -------- سطر في القائمة --------
+  const row = (r, rank, highlight) => {
+    return (
+      <div key={`${rank}-${r.name}`}
+        className="flex items-center gap-3 rounded-2xl px-3 min-h-[58px]"
+        style={highlight
+          ? { background: '#ffb020', color: '#4a2400', boxShadow: '0 4px 0 #b86b00', border: '2px solid #ffc95c' }
+          : { background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)' }}>
+        <div className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-display font-black text-lg"
+          style={highlight ? { background: 'rgba(255,255,255,0.45)' } : { background: 'var(--soft)', color: 'var(--ink-2)', boxShadow: '0 2px 0 var(--edge)' }}>
+          <Num>{rank}</Num>
         </div>
-        {r.wins != null && <div className="text-[0.76rem] font-bold text-[var(--muted-c)]">🏆 <Num>{r.wins}</Num> فوز</div>}
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-black truncate">
+            {r.name || 'أنت'}{highlight && r.name && <span className="text-xs opacity-75 mr-1">(أنت)</span>}
+          </div>
+          <div className="text-[0.78rem] font-bold opacity-70 flex items-center gap-2">
+            {r.streak > 0 && <span>🔥 <Num>{r.streak}</Num> ستريك</span>}
+            {r.wins != null && <span>🏆 <Num>{r.wins}</Num> فوز</span>}
+          </div>
+        </div>
+        <div className="shrink-0 flex items-center gap-1 font-display font-black text-lg">
+          <Num>{r.score}</Num>
+          <Star className="w-4 h-4" fill="currentColor" strokeWidth={0} style={{ color: highlight ? '#4a2400' : '#ffb020' }} />
+        </div>
       </div>
-      <div className="shrink-0 flex items-center gap-1 font-display font-black text-lg text-[var(--ink)]">
-        <Num>{r.score}</Num>
-        <Star className="w-4 h-4 text-[#ffb020]" fill="currentColor" strokeWidth={0} />
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app-fixed flex flex-col" style={{ color: '#fff' }}>
@@ -162,12 +169,9 @@ export default function Leaderboard({ onExit }) {
               {podiumSlot(1)}
               {podiumSlot(3)}
             </div>
-            {rest.length > 0 && (
-              <div className="rounded-3xl bg-[var(--card)] overflow-hidden divide-y-2 divide-[var(--soft)]"
-                style={{ boxShadow: '0 5px 0 var(--edge)', border: '2px solid var(--line)' }}>
-                {rest.map((r, i) => row(r, i + 4, r.me))}
-              </div>
-            )}
+            <div className="space-y-2.5">
+              {rest.map((r, i) => row(r, i + 4, r.me))}
+            </div>
           </>
         )}
       </div>
@@ -175,11 +179,7 @@ export default function Leaderboard({ onExit }) {
       {/* ترتيبك (لو مو ظاهر فوق) */}
       {me && !meInTop && cur && !cur.error && (
         <div className="shrink-0 px-4 pb-3 pt-1">
-          {me.score > 0 ? (
-            <div className="rounded-2xl bg-[var(--card)] overflow-hidden" style={{ boxShadow: '0 4px 0 var(--edge)', border: '2px solid #fde68a' }}>
-              {row({ name: me.name || '', score: me.score }, me.rank, true)}
-            </div>
-          ) : (
+          {me.score > 0 ? row({ name: me.name || '', score: me.score, streak: me.streak }, me.rank, true) : (
             // ما عنده نقاط: لا نطلّع له مركز
             <button onClick={onExit}
               className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 min-h-[58px] bg-[var(--card)] text-[var(--ink)] font-display font-black active:scale-[0.98] transition-all"
