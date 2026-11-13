@@ -82,7 +82,8 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
 
   const gs = guessStats[len];
   const tries = LENGTHS[len].tries;
-  const dist = gs?.dist || Array(tries).fill(0);
+  // الإحصائيات القديمة لـ5 أحرف كانت 7 محاولات: نجمع الزيادة في آخر خانة
+  const dist = (() => { const d = [...(gs?.dist || [])]; const out = Array(tries).fill(0); d.forEach((n, i) => { out[Math.min(i, tries - 1)] += n || 0; }); return out; })();
   const maxDist = Math.max(1, ...dist);
   const winPct = gs?.played ? Math.round((gs.wins / gs.played) * 100) : 0;
 
