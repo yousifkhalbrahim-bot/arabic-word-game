@@ -357,11 +357,9 @@ export default function GuessGame({ onExit }) {
     const ch = normalizeGuess(k);
     if (!LETTER_SET.has(ch)) return;
     if (bank && !bank.has(ch)) { flash('🔒 هذا الحرف مو في الكلمة'); return; }
-    // حرف جرّبته وطلع مو في الكلمة (رمادي غامق) — ما ينكتب
-    if (shownKeys[ch] === 'absent') { haptic('error'); return; }
     playKey();
     setCurrent(c => ([...c].length < len ? c + ch : c));
-  }, [busy, status, submit, len, bank, shownKeys]);
+  }, [busy, status, submit, len, bank]);
 
   usePhysicalKeys(phase === 'playing', typeKey);
 
@@ -838,16 +836,15 @@ export function GuessKeyboard({ keyStates, onKey, disabled = false, allowed = nu
             const st = keyStates[normalizeGuess(k)];
             const off = !!allowed && k.length === 1 && !allowed.has(normalizeGuess(k));
             const look = isEnter ? 'kb-enter' : isBack ? 'kb-back' : off ? 'kb-off' : st ? `kb-${st}` : 'kb-plain';
-            const dead = st === 'absent' && !isEnter && !isBack;   // مو في الكلمة
             return (
-              <button key={k} type="button" disabled={dead}
-                onPointerDown={(e) => { if (!dead) down(e, k); }}
+              <button key={k} type="button"
+                onPointerDown={(e) => down(e, k)}
                 onClick={(e) => { if (e.detail === 0) onKey(k); }}   // تفعيل من كيبورد خارجي / قارئ الشاشة
                 aria-disabled={off || undefined}
                 aria-label={isEnter ? 'إدخال' : isBack ? 'حذف' : k}
                 className="kb-hit"
                 style={{ flex: isEnter ? (extraKeys ? '2.6 1 0' : '1 1 100%') : isBack ? '1.45 1 0' : '1 1 0', maxWidth: isEnter ? 460 : isBack ? 62 : 44 }}>
-                <span data-ch={!isEnter && !isBack && !off && !dead ? k : undefined}
+                <span data-ch={!isEnter && !isBack && !off ? k : undefined}
                   className={`kb-key ${look}`} style={{ height: isEnter ? 'min(11vw, 44px)' : 'min(11.6vw, 46px)' }}>
                   {isEnter ? <span className="flex items-center gap-2 text-[1.05rem] font-display font-black">تأكيد <CornerDownLeft className="w-5 h-5" strokeWidth={2.6} /></span>
                     : isBack ? <Delete className="w-[22px] h-[22px]" strokeWidth={2} />
