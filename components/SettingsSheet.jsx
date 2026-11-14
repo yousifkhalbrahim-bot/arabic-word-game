@@ -95,10 +95,7 @@ export default function SettingsSheet({ name, onClose, onRename }) {
               <span className="flex items-center gap-1 text-sm text-[var(--muted-c)] min-w-0"><span className="truncate max-w-[8rem]">{name}</span><ChevronLeft className="w-4 h-4 shrink-0" /></span>
             </button>
             <button onClick={() => setHelp(true)} className={row}><span>❓ طريقة اللعب</span><ChevronLeft className="w-4 h-4 text-[var(--muted-c)]" /></button>
-            <div className="flex gap-2.5">
-              <button onClick={share} className={row}><span>↗️ شارك اللعبة</span></button>
-              <a href={publicUrl('/privacy')} target="_blank" rel="noopener" className={row}><span>🔒 الخصوصية</span></a>
-            </div>
+            <button onClick={share} className={row}><span>↗️ شارك اللعبة</span><ChevronLeft className="w-4 h-4 text-[var(--muted-c)]" /></button>
             {note && <div className="text-center text-sm font-display font-bold text-[var(--muted-c)]">{note}</div>}
           </div>
         )}
