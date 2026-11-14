@@ -12,6 +12,8 @@ import { readProgress, computeBadges } from '@/lib/badges';
 import { getSetting, setSetting, getTheme, setTheme } from '@/lib/settings';
 import { playAccept } from '@/lib/sounds';
 import { haptic } from '@/lib/native';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { OUTFIT_ITEMS, outfitProgress, isUnlocked, reqLabel, toggleOutfit, useOutfit } from '@/lib/wardrobe';
 
 const ENDING_TIMES = [{ s: 120, label: 'دقيقتين' }];
 
@@ -37,6 +39,9 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const [err, setErr] = useState('');
   const [settings, setSettings] = useState({ sound: true, haptics: true });
   const [themePref, setThemePref] = useState('auto');
+  const worn = useOutfit();
+  const [outfitP, setOutfitP] = useState(null);
+  const [lockTip, setLockTip] = useState(null);
   const toggle = (k) => {
     const on = !settings[k];
     setSetting(k, on);
@@ -59,8 +64,10 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
     setEndBest(eb);
     if ((gs[5]?.played || 0) > (gs[3]?.played || 0)) setLen(5);
 
+    setOutfitP(outfitProgress());
     fetchProfile().then(r => {
       if (r) setProf(r);
+      setOutfitP(outfitProgress());
     });
   }, []);
 
@@ -225,6 +232,43 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
             })}
           </div>
         </Section>
+
+        {/* ===== خزانة أبو شماغ ===== */}
+        {outfitP && (() => {
+          const open = OUTFIT_ITEMS.filter(i => isUnlocked(i, outfitP));
+          return (
+            <Section title="👕 خزانة أبو شماغ" aside={<span className="text-[0.8rem] font-display font-black text-white/85"><Frac a={open.length} b={OUTFIT_ITEMS.length} /></span>}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="shrink-0 w-[96px] h-[100px] rounded-2xl flex items-center justify-center" style={{ background: 'var(--soft)' }}>
+                  <AbuShmagh mood="idle" size={80} />
+                </div>
+                <p className="flex-1 text-[0.82rem] font-display font-bold text-[var(--muted-c)] leading-relaxed">
+                  {open.length ? 'اضغط على القطعة يلبسها، واضغط مرة ثانية يشيلها. يلبسها في كل مكان باللعبة.' : 'العب وطلّع مستوى عشان تفتح لبس لأبو شماغ. أول قطعة تنفتح بمستوى ٣.'}
+                </p>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {OUTFIT_ITEMS.map(item => {
+                  const ok = isUnlocked(item, outfitP);
+                  const on = worn.includes(item.id);
+                  return (
+                    <button key={item.id} aria-pressed={on} aria-label={ok ? item.name : `${item.name} — ${reqLabel(item)}`}
+                      onClick={() => {
+                        if (!ok) { setLockTip(item.id); setTimeout(() => setLockTip(null), 450); haptic('light'); return; }
+                        toggleOutfit(item.id); haptic('light');
+                      }}
+                      className={`relative rounded-2xl pt-1 pb-1.5 flex flex-col items-center active:scale-95 transition-all ${lockTip === item.id && !ok ? 'shake' : ''}`}
+                      style={on ? { background: 'var(--gold-soft)', border: '2px solid var(--gold-line)', boxShadow: '0 0 0 2px #ffb020 inset' }
+                        : ok ? { background: 'var(--soft)', border: '2px solid var(--line)' } : { background: 'var(--soft)', border: '2px dashed var(--line)' }}>
+                      <span style={ok ? undefined : { opacity: 0.3, filter: 'grayscale(1)' }}><AbuShmagh outfit={[item.id]} size={52} /></span>
+                      <span className="text-[0.68rem] font-display font-black leading-tight mt-0.5" style={{ color: ok ? 'var(--ink)' : '#9c8cc4' }}>{item.name}</span>
+                      {!ok && <span className="text-[0.62rem] font-display font-bold text-[#b9a8f0] leading-tight">🔒 {reqLabel(item)}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
+          );
+        })()}
 
         {/* ===== خمّن الكلمة ===== */}
         <Section title="🟩 خمّن الكلمة" aside={

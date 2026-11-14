@@ -5,12 +5,21 @@
 // <AbuToast /> — يطلع فوق الشاشة لما أي مكان ينادي abuSay(...)
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { MOOD_OF } from '@/lib/abu';
+import { useOutfit } from '@/lib/wardrobe';
 
 const OUT = '#3a2131';
 const SKIN = '#f2d1a6';
+// حبات المسبحة (دائرة تحت يده اليمين)
+const BEADS = Array.from({ length: 11 }, (_, i) => {
+  const a = (i / 11) * Math.PI * 2 + Math.PI / 2;
+  return [+(101 + Math.cos(a) * 5.5).toFixed(1), +(107 + Math.sin(a) * 8).toFixed(1)];
+});
 
-export function AbuShmagh({ mood = 'idle', say = '', sub = '', size = 120, className = '', bubbleSide = 'top' }) {
+export function AbuShmagh({ mood = 'idle', say = '', sub = '', size = 120, className = '', bubbleSide = 'top', outfit }) {
   const pid = `smg${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const mine = useOutfit();
+  const wear = outfit || mine;
+  const has = (k) => wear.includes(k);
   return (
     <div className={`abu st-${mood} relative inline-block ${className}`} style={{ width: size, height: size * 1.07 }}>
       {say && (
@@ -18,9 +27,15 @@ export function AbuShmagh({ mood = 'idle', say = '', sub = '', size = 120, class
       )}
       <svg viewBox="0 0 120 128" width={size} height={size * 1.07} aria-label="أبو شماغ" role="img" style={{ overflow: 'visible' }}>
         <defs>
-          <pattern id={pid} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="7" height="7" fill="#fff" /><rect width="3.5" height="3.5" fill="#e0384f" /><rect x="3.5" y="3.5" width="3.5" height="3.5" fill="#e0384f" />
-          </pattern>
+          {has('white') ? (
+            <pattern id={pid} width="8" height="8" patternUnits="userSpaceOnUse">
+              <rect width="8" height="8" fill="#fff" /><path d="M0 7.5H8" stroke="#e7e3f2" strokeWidth="1" />
+            </pattern>
+          ) : (
+            <pattern id={pid} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="7" height="7" fill="#fff" /><rect width="3.5" height="3.5" fill="#e0384f" /><rect x="3.5" y="3.5" width="3.5" height="3.5" fill="#e0384f" />
+            </pattern>
+          )}
         </defs>
         <ellipse cx="60" cy="121" rx="32" ry="5.5" fill="#000" opacity=".18" />
         <g className="abu-spark" fill="#ffcf3f" stroke={OUT} strokeWidth="1.6" strokeLinejoin="round">
@@ -56,12 +71,45 @@ export function AbuShmagh({ mood = 'idle', say = '', sub = '', size = 120, class
             <path d="M54 92 Q62 89 67 91" fill="none" stroke={OUT} strokeWidth="3.2" strokeLinecap="round" />
           </g>
           <path className="abu-tear" d="M80 84 q4 7 0 11 q-4 -4 0 -11" fill="#5ec8f2" stroke={OUT} strokeWidth="1.6" />
+          {/* ===== الخزانة: جسم ووجه ===== */}
+          {has('bisht') && <g className="abu-bisht">
+            <g stroke={OUT} strokeWidth="3.2" strokeLinejoin="round">
+              <path d="M31 80 C24 92 22 104 25 114 L49 114 Q46 102 45 92 Q41 85 31 80Z" fill="#2a1d1a" />
+              <path d="M89 80 C96 92 98 104 95 114 L71 114 Q74 102 75 92 Q79 85 89 80Z" fill="#2a1d1a" />
+            </g>
+            <path d="M33 82 Q41 86 45 93 Q46 103 48 112 M87 82 Q79 86 75 93 Q74 103 72 112" fill="none" stroke="#e8b84a" strokeWidth="2.6" strokeLinecap="round" />
+            <path d="M45 97 l2 2 M46 103 l2 2 M75 97 l-2 2 M74 103 l-2 2" stroke="#e8b84a" strokeWidth="1.6" strokeLinecap="round" />
+          </g>}
+          {has('stache') && <path className="abu-stache" d="M60 87 C56 80 46 79 40 85 C45 84 49 89 60 89 C71 89 75 84 80 85 C74 79 64 80 60 87Z" fill={OUT} />}
+          {has('shades') && <g className="abu-shades">
+            <g stroke={OUT} strokeWidth="2.6" strokeLinejoin="round">
+              <path d="M36 67 H57 Q58 84 46.5 85 Q35 84 36 67Z" fill="#17151f" /><path d="M63 67 H84 Q85 84 73.5 85 Q62 84 63 67Z" fill="#17151f" />
+              <path d="M57 70 Q60 67 63 70 M36 68 L31 66 M84 68 L89 66" fill="none" />
+            </g>
+            <path d="M40 71 L45 71 M67 71 L72 71" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".7" />
+          </g>}
           {/* العقال من ورا — يغطيه الراس */}
           <g className="abu-agal-back"><path d="M27 40 Q60 25 93 40" fill="none" stroke={OUT} strokeWidth="8" strokeLinecap="round" /><path d="M27 40 Q60 25 93 40" fill="none" stroke="#26262b" strokeWidth="5" strokeLinecap="round" /></g>
           {/* الشماغ */}
           <path className="abu-shmagh" d="M60 22 C82 22 94 40 96 64 L102 96 Q92 86 88 70 Q86 54 60 50 Q34 54 32 70 Q28 86 18 96 L24 64 C26 40 38 22 60 22Z" fill={`url(#${pid})`} stroke={OUT} strokeWidth="3.6" strokeLinejoin="round" />
+          {has('crown') && <g className="abu-crown">
+            <path d="M43 27 L40 9 L51 18 L60 5 L69 18 L80 9 L77 27 Z" fill="#ffcf3f" stroke={OUT} strokeWidth="3" strokeLinejoin="round" />
+            <circle cx="60" cy="19" r="2.6" fill="#e0384f" stroke={OUT} strokeWidth="1.4" /><circle cx="48" cy="22" r="1.8" fill="#3aa0ff" /><circle cx="72" cy="22" r="1.8" fill="#3aa0ff" />
+          </g>}
+          {/* الفنجال يتحرك مع اليد اليسار (نفس حدود اليد عشان يلف معها) */}
+          {has('finjan') && <g className="abu-armL">
+            <path d="M31 82 Q20 88 22 97" fill="none" stroke="none" />
+            <path d="M11 92 H31 L28.5 103 Q21 108 13.5 103 Z" fill="#fff" stroke={OUT} strokeWidth="2.6" strokeLinejoin="round" />
+            <path d="M12.5 96.5 H29.5" stroke="#22a36b" strokeWidth="2.4" />
+            <path d="M17 88 q-2 -3 1 -5 M23 88 q-2 -3 1 -5" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".85" />
+          </g>}
           {/* اليد اليمين قدّام الشماغ عشان تبين وهي ترمي */}
-          <g className="abu-armR"><path d="M89 82 Q100 88 98 97" fill="none" stroke={OUT} strokeWidth="10.6" strokeLinecap="round" /><path d="M89 82 Q100 88 98 97" fill="none" stroke={SKIN} strokeWidth="7" strokeLinecap="round" /></g>
+          <g className="abu-armR"><path d="M89 82 Q100 88 98 97" fill="none" stroke={OUT} strokeWidth="10.6" strokeLinecap="round" /><path d="M89 82 Q100 88 98 97" fill="none" stroke={SKIN} strokeWidth="7" strokeLinecap="round" />
+            {has('beads') && <g className="abu-beads">
+              {BEADS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.2" fill="#d98b2b" stroke={OUT} strokeWidth="1" />)}
+              <path d="M101 115 L99 122 M101 115 L103 122" stroke="#d98b2b" strokeWidth="2" strokeLinecap="round" />
+            </g>}
+          </g>
           {/* العقال الطاير: دائرة كاملة (يطلع بس وقت الرمية) */}
           <g className="abu-agal-ring">
             <ellipse cx="60" cy="40" rx="33" ry="10" fill="none" stroke={OUT} strokeWidth="8" /><ellipse cx="60" cy="40" rx="33" ry="10" fill="none" stroke="#26262b" strokeWidth="5" />

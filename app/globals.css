@@ -599,7 +599,8 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
   font-size: .95rem; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-up; }
 .abu-bubble.abu-bubble-upleft::after { left: 20px; margin-left: 0; }
 @keyframes abu-pop-up { from { transform: scale(0) } to { transform: scale(1) } }
-.abu.st-sad .abu-agal-back { animation: abu-droop .8s ease-out 1 both; }
+.abu.st-sad .abu-agal-back, .abu.st-sad .abu-crown { animation: abu-droop .8s ease-out 1 both; }
+.abu .abu-crown { transform-origin: center; }
 .abu-say-sub { font-size: .72rem; font-weight: 700; color: #6d5b95; margin-top: 2px; }
 /* فقاعة جنب أبو شماغ (في الرئيسية) */
 .abu-bubble.abu-bubble-side { bottom: 62%; left: 92%; margin: 0; transform: none; transform-origin: 0% 100%; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-side; }

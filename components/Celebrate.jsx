@@ -11,9 +11,12 @@ import { readProgress, computeBadges } from '@/lib/badges';
 import { playStreak } from '@/lib/sounds';
 import { haptic } from '@/lib/native';
 import { queueBulbs, EARN } from '@/lib/bulbs';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { OUTFIT_ITEMS, unlockedIds, wearOutfit } from '@/lib/wardrobe';
 
 const SEEN_LEVEL = 'wg:seen-level';
 const SEEN_BADGES = 'wg:seen-badges';
+const SEEN_OUTFIT = 'wg:seen-outfit';
 const DELAY_MS = 1500;   // بعد احتفال الفوز
 const SHOW_MS = 3400;
 
@@ -30,6 +33,7 @@ export default function Celebrate() {
   useEffect(() => {
     // أول مرة: نعتبر كل اللي عنده الحين «شافه» عشان ما نطلّع له سيل بطاقات
     if (readList(SEEN_BADGES) === null) write(SEEN_BADGES, earnedIds());
+    if (readList(SEEN_OUTFIT) === null) write(SEEN_OUTFIT, unlockedIds());
     if (Number.isNaN(readNum(SEEN_LEVEL))) write(SEEN_LEVEL, String(levelFor(cachedPoints()?.points || 0).n));
 
     const later = (fn) => { const t = setTimeout(fn, DELAY_MS); timers.current.push(t); };
@@ -43,23 +47,37 @@ export default function Celebrate() {
       return fresh.map(b => ({ kind: 'badge', key: b.id, badge: b, bulbs: queueBulbs(EARN.badge) }));
     };
 
+    // لبس جديد لأبو شماغ: يطلع بطاقة ويلبسه على طول
+    const checkOutfit = () => {
+      const seen = new Set(readList(SEEN_OUTFIT) || []);
+      const fresh = unlockedIds().filter(id => !seen.has(id));
+      if (!fresh.length) return [];
+      write(SEEN_OUTFIT, [...seen, ...fresh]);
+      fresh.forEach(wearOutfit);
+      return fresh.map(id => ({ kind: 'outfit', key: 'o-' + id, item: OUTFIT_ITEMS.find(i => i.id === id) }));
+    };
+
     const onPoints = (e) => {
       const n = levelFor(e.detail?.points || 0).n;
       const seen = readNum(SEEN_LEVEL);
       if (!e.detail?.award) {
         // تحديث من السيرفر: نحدّث المرجع بدون احتفال
         if (Number.isNaN(seen) || n > seen) write(SEEN_LEVEL, String(n));
+        // (التاج ينفتح من تحديث السيرفر لما يصير الأول بالأسبوع)
+        const o = checkOutfit();
+        if (o.length) later(() => setQueue(q => [...q, ...o]));
         return;
       }
       later(() => {
         const items = checkBadges();
         if (!Number.isNaN(seen) && n > seen) items.push({ kind: 'level', key: `lv${n}`, level: n, bulbs: queueBulbs(EARN.level * (n - seen)) });
         if (n > (Number.isNaN(seen) ? 0 : seen)) write(SEEN_LEVEL, String(n));
+        items.push(...checkOutfit());
         if (items.length) setQueue(q => [...q, ...items]);
       });
     };
     const onStats = () => later(() => {
-      const items = checkBadges();
+      const items = [...checkBadges(), ...checkOutfit()];
       if (items.length) setQueue(q => [...q, ...items]);
     });
 
@@ -92,6 +110,8 @@ export default function Celebrate() {
         style={{ boxShadow: '0 5px 0 var(--edge), 0 18px 30px -12px rgba(20,5,60,0.7)', border: '2px solid var(--line)' }}>
         {cur.kind === 'badge' ? (
           <BadgeArt {...cur.badge.art} className="w-[54px] h-[60px] shrink-0 word-pop" />
+        ) : cur.kind === 'outfit' ? (
+          <span className="w-[54px] h-[58px] shrink-0 flex items-center justify-center word-pop"><AbuShmagh mood="hi" outfit={[cur.item.id]} size={52} /></span>
         ) : (
           <span className="w-[54px] h-[54px] shrink-0 rounded-2xl flex items-center justify-center font-display font-black text-[1.7rem] word-pop"
             style={{ background: 'linear-gradient(160deg, #c4b5fd, #7c3aed)', color: '#fff', boxShadow: '0 4px 0 #4c1d95', border: '3px solid rgba(255,255,255,0.7)' }}>
@@ -100,11 +120,11 @@ export default function Celebrate() {
         )}
         <span className="flex-1 min-w-0">
           <span className="block font-display font-black text-[1.05rem] text-[var(--ink)]">
-            {cur.kind === 'badge' ? '🎉 وسام جديد!' : '⬆️ مستوى جديد!'}
+            {cur.kind === 'badge' ? '🎉 وسام جديد!' : cur.kind === 'outfit' ? '👕 لبس جديد لأبو شماغ!' : '⬆️ مستوى جديد!'}
           </span>
           <span className="block font-display font-bold text-[0.85rem] text-[var(--muted-c)] truncate">
             {cur.bulbs > 0 && <span className="font-black text-[#b45309]">+<bdi className="font-mono-ar">{cur.bulbs}</bdi> 💡 · </span>}
-            {cur.kind === 'badge' ? cur.badge.name : <>وصلت مستوى <bdi className="font-mono-ar">{cur.level}</bdi> — كمّل!</>}
+            {cur.kind === 'badge' ? cur.badge.name : cur.kind === 'outfit' ? <>{cur.item.name} — لبسه الحين</> : <>وصلت مستوى <bdi className="font-mono-ar">{cur.level}</bdi> — كمّل!</>}
           </span>
         </span>
       </button>
