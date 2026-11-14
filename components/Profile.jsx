@@ -336,7 +336,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
                   <span className="block text-[0.78rem] font-display font-bold text-[var(--muted-c)]">{sub}</span>
                 </span>
                 <span className="relative shrink-0 w-[52px] h-[30px] rounded-full transition-colors" style={{ background: settings[k] ? '#22c55e' : '#d4cdea' }}>
-                  <span className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow transition-all" style={settings[k] ? { right: 25 } : { right: 3 }} />
+                  <span className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow transition-all" style={settings[k] ? { right: 3 } : { right: 25 }} />
                 </span>
               </button>
             ))}

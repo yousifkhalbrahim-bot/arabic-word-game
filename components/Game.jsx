@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Trophy, RotateCcw, Play, Plus, Check, X, Flag, Zap, Flame,
   Hourglass, BookOpen, Sparkles, Users, Copy, ArrowLeft, Wifi, WifiOff,
-  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User, Star, Pencil,
+  Loader2, Smartphone, UserPlus, LogIn, Snowflake, Share2, Link2, Target, ChevronLeft, Bot, User, Star, Pencil, Settings,
 } from 'lucide-react';
 import {
   supabase, getRoom, saveRoom, deleteRoom, getMyRole, setMyRole, clearMyRole, roomCreate, roomCancel,
@@ -21,6 +21,7 @@ import { checkRaceWord, shuffledEndingQueue, endingAt, raceScore } from '@/lib/r
 import SoloGame from '@/components/SoloGame';
 import Leaderboard from '@/components/Leaderboard';
 import Profile from '@/components/Profile';
+import SettingsSheet from '@/components/SettingsSheet';
 import { levelFor } from '@/lib/levels';
 import TabBar, { TABBAR_SPACE } from '@/components/TabBar';
 import { WordKeyboard, WordBox, useWordTyping } from '@/components/WordKeys';
@@ -665,6 +666,7 @@ export default function Game() {
   const [myPoints, setMyPoints] = useState(null);
   const [pointsGain, setPointsGain] = useState(0);
   const [nameOpen, setNameOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [nameErr, setNameErr] = useState('');
   const [editName, setEditName] = useState(false);
@@ -1690,11 +1692,17 @@ export default function Game() {
                 <span className="block font-display font-bold text-white/70 text-[0.72rem]">مستوى <bdi className="font-mono-ar">{lv.n}</bdi></span>
               </span>
             </button>
+            <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => setScreen('profile')} aria-label="نقاطي"
               className="flex items-center gap-1.5 rounded-full px-3.5 min-h-[42px] font-display font-black text-white bg-white/15 hover:bg-white/25 shrink-0 transition-all active:scale-95">
               <Star className="w-4 h-4 text-[#fde047]" fill="currentColor" strokeWidth={0} />
               <bdi className="font-mono-ar">{pts.points ?? 0}</bdi>
             </button>
+            <button onClick={() => setSettingsOpen(true)} aria-label="الإعدادات"
+              className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-white bg-white/15 hover:bg-white/25 shrink-0 transition-all active:scale-90">
+              <Settings className="w-5 h-5" strokeWidth={2.4} />
+            </button>
+            </div>
           </div>
 
           {/* الشعار */}
@@ -1778,6 +1786,12 @@ export default function Game() {
             </div>
           )}
         </div>
+
+        {/* الإعدادات */}
+        {settingsOpen && (
+          <SettingsSheet name={hostName} onClose={() => setSettingsOpen(false)}
+            onRename={() => { setSettingsOpen(false); setNameDraft(hostName); setNameErr(''); setNameOpen(true); }} />
+        )}
 
         {/* تغيير الاسم */}
         {nameOpen && (
