@@ -82,12 +82,12 @@ export function Label({ children, aside }) {
 
 // -------- الأزرار --------
 const BTN = {
-  gold:  { color: '#4a2400', background: '#ffb020', boxShadow: '0 6px 0 #b86b00', border: '2px solid #ffc95c' },
-  teal:  { color: '#083344', background: '#22d3ee', boxShadow: '0 6px 0 #0e7490', border: '2px solid #67e8f9' },
-  green: { color: '#ffffff', background: '#16a34a', boxShadow: '0 6px 0 #166534', border: '2px solid #4ade80' },
-  red:   { color: '#ffffff', background: '#ff4d6d', boxShadow: '0 6px 0 #b3123a', border: '2px solid #ff7d93' },
-  grape: { color: '#ffffff', background: '#7c3aed', boxShadow: '0 6px 0 #4c1d95', border: '2px solid #a78bfa' },
-  wood:  { color: 'var(--ink-2)', background: 'var(--card)', boxShadow: '0 6px 0 var(--edge)', border: '2px solid var(--line)' },
+  gold:  { color: '#4a2400', background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '2px solid #ffc95c' },
+  teal:  { color: '#083344', background: '#22d3ee', boxShadow: '0 5px 0 #0e7490', border: '2px solid #67e8f9' },
+  green: { color: '#ffffff', background: '#16a34a', boxShadow: '0 5px 0 #166534', border: '2px solid #4ade80' },
+  red:   { color: '#ffffff', background: '#ff4d6d', boxShadow: '0 5px 0 #b3123a', border: '2px solid #ff7d93' },
+  grape: { color: '#ffffff', background: '#7c3aed', boxShadow: '0 5px 0 #4c1d95', border: '2px solid #a78bfa' },
+  wood:  { color: 'var(--ink-2)', background: 'var(--card)', boxShadow: '0 5px 0 var(--edge)', border: '2px solid var(--line)' },
 };
 
 export function Btn({ variant = 'gold', size = 'lg', icon: Icon, busy, children, className = '', disabled, ...rest }) {
@@ -175,4 +175,16 @@ export function WordChip({ children, player, color, fresh }) {
 // رقم بدون لخبطة اتجاه
 export function Num({ children }) {
   return <bdi className="font-mono-ar">{children}</bdi>;
+}
+
+// -------- رسالة القبول/الرفض الموحّدة (فوق مكان الإجابة في كل الألعاب) --------
+export function FeedbackPill({ ok, text }) {
+  if (!text) return null;
+  return (
+    <div className="slide-in inline-flex items-center gap-1 font-display font-black rounded-full px-3 py-0.5 text-white max-w-full truncate"
+      role="status" aria-live="polite"
+      style={{ fontSize: '0.85rem', background: ok ? '#22c55e' : '#ff4d6d', boxShadow: `0 3px 0 ${ok ? '#15803d' : '#b3123a'}` }}>
+      {text}
+    </div>
+  );
 }

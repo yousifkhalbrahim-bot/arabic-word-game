@@ -43,14 +43,14 @@ export function WordKeyboard({ onKey, disabled = false }) {
 }
 
 // مكان الإجابة: يعرض الكلمة ومؤشر يومض
-export function WordBox({ value, placeholder, shake = false, tone = 'normal', className = '', style }) {
+export function WordBox({ value, placeholder, shake = false, okKey = 0, tone = 'normal', className = '', style }) {
   const tones = {
     normal: { background: 'var(--card)', border: '3px solid var(--line)', boxShadow: '0 5px 0 var(--edge)', color: 'var(--ink)' },
     active: { background: 'var(--card)', border: '3px solid #22c55e', boxShadow: '0 5px 0 #15803d', color: 'var(--ink)' },
     frozen: { background: '#e0f2fe', border: '3px solid #7dd3fc', boxShadow: '0 5px 0 #38bdf8', color: '#0c4a6e' },
   };
   return (
-    <div className={`flex-1 min-w-0 rounded-2xl px-4 min-h-[56px] flex items-center justify-center font-display font-bold text-xl ${shake ? 'shake' : ''} ${className}`}
+    <div key={okKey || undefined} className={`flex-1 min-w-0 rounded-2xl px-4 min-h-[56px] flex items-center justify-center font-display font-bold text-xl ${shake ? 'shake' : ''} ${okKey ? 'word-ok-flash' : ''} ${className}`}
       style={{ ...tones[tone], ...style }} dir="rtl" aria-live="polite">
       {value
         ? <span className="truncate">{value}<span className="word-caret" aria-hidden="true" /></span>

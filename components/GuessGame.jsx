@@ -119,9 +119,10 @@ export default function GuessGame({ onExit }) {
     return () => window.removeEventListener('wg:bulbs', onB);
   }, [day, phase]);
 
-  const flash = useCallback((text, ms = 1400) => {
+  // tone: 'error' = رسالة رفض حمراء (نفس شكل باقي الألعاب)
+  const flash = useCallback((text, ms = 1400, tone = null) => {
     clearTimeout(toastTimer.current);
-    setToast(text);
+    setToast(tone ? { text, tone } : text);
     toastTimer.current = setTimeout(() => setToast(null), ms);
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
@@ -228,7 +229,7 @@ export default function GuessGame({ onExit }) {
     if ([...word].length !== len) {
       playReject();
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash(`الكلمة لازم تكون ${len} أحرف`);
+      flash(`الكلمة لازم تكون ${len} أحرف`, 1400, 'error');
       return;
     }
     if (!KNOWN[len].has(word) && confirmUnknown !== word) {
@@ -485,7 +486,7 @@ export default function GuessGame({ onExit }) {
               </button>
             )}
             {hints.length > 0 && [...answer].map((ch, i) => (
-              <div key={i} className="w-7 h-7 rounded-lg flex items-center justify-center font-display font-black text-base slide-in"
+              <div key={i} className="w-7 h-7 rounded-xl flex items-center justify-center font-display font-black text-base slide-in"
                 style={hints.includes(i) ? { background: '#22c55e', color: '#fff', boxShadow: '0 2px 0 #15803d' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
                 {hints.includes(i) ? ch : '؟'}
               </div>
@@ -524,9 +525,9 @@ export default function GuessGame({ onExit }) {
         )}
 
         {toast && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[var(--ink)] bg-[var(--card)] max-w-[calc(100%-24px)] text-center z-10"
-            style={{ boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
-            {toast}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 max-w-[calc(100%-24px)] text-center z-10"
+            style={toast.tone === 'error' ? { background: '#ff4d6d', color: '#fff', boxShadow: '0 3px 0 #b3123a', fontSize: '0.9rem' } : { background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
+            {toast.text ?? toast}
           </div>
         )}
 
@@ -630,7 +631,7 @@ function HelpSheet({ onClose }) {
     <div className="mb-3">
       <div className="flex gap-1.5 mb-1" dir="rtl">
         {[...word].map((ch, i) => (
-          <div key={i} className="w-9 h-9 rounded-lg border-2 flex items-center justify-center font-display font-black text-lg"
+          <div key={i} className="w-9 h-9 rounded-xl border-2 flex items-center justify-center font-display font-black text-lg"
             style={i === mark ? TILE[state] : { background: 'var(--soft)', color: 'var(--ink-3)', borderColor: 'var(--line)' }}>
             {ch}
           </div>
@@ -692,7 +693,7 @@ function HintMenu({ bulbs, len, elimLeft, revealLeft, onElim, onReveal, onClose 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-[#1e0b4b]/45 fade-in" onClick={onClose}>
       <div className="w-full max-w-[320px] rounded-3xl p-3 slide-in" onClick={e => e.stopPropagation()}
-        style={{ background: 'var(--soft)', boxShadow: '0 6px 0 var(--edge), 0 20px 40px -10px rgba(20,5,60,0.6)' }}>
+        style={{ background: 'var(--soft)', boxShadow: '0 5px 0 var(--edge), 0 20px 40px -10px rgba(20,5,60,0.6)' }}>
         <div className="flex items-center justify-between px-1 mb-2.5">
           <div className="font-display font-black text-lg text-[var(--ink-2)]">💡 تلميح</div>
           <div className="rounded-full px-2.5 py-0.5 font-display font-black text-sm" style={{ background: '#fde047', color: '#713f12', boxShadow: '0 2px 0 #ca8a04' }}>

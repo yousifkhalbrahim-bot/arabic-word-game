@@ -117,12 +117,12 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-2 pb-6 space-y-5">
 
         {/* ===== البطاقة الرئيسية ===== */}
-        <div className="rounded-[28px] bg-[var(--card)] text-[var(--ink)] overflow-hidden fade-in" style={{ boxShadow: '0 6px 0 var(--edge), 0 18px 30px -16px rgba(20,5,60,0.6)' }}>
+        <div className="rounded-3xl bg-[var(--card)] text-[var(--ink)] overflow-hidden fade-in" style={{ boxShadow: '0 5px 0 var(--edge), 0 18px 30px -16px rgba(20,5,60,0.6)' }}>
           <div className="relative px-4 pt-4 pb-3" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)' }}>
             <span className="absolute -left-10 -top-10 w-36 h-36 rounded-full bg-white/10" />
             <span className="absolute left-16 -bottom-12 w-24 h-24 rounded-full bg-white/[0.07]" />
             <div className="relative flex items-center gap-3.5">
-              <div className="shrink-0 w-[76px] h-[76px] rounded-[24px] flex items-center justify-center font-display font-black text-[2.4rem] text-[#4a2400] word-pop"
+              <div className="shrink-0 w-[76px] h-[76px] rounded-3xl flex items-center justify-center font-display font-black text-[2.4rem] text-[#4a2400] word-pop"
                 style={{ background: 'linear-gradient(160deg, #ffd166, #ffb020)', boxShadow: '0 5px 0 #b86b00', border: '3px solid rgba(255,255,255,0.75)', paddingBottom: 5 }}>
                 {(name.trim() || '؟').slice(0, 1)}
               </div>

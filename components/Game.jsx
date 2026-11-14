@@ -36,6 +36,7 @@ import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/gu
 import {
   ArcadeBg, Screen, BackButton, Card, Title, Label, Btn, GhostBtn, Choice, ErrorNote, inputClass, LetterTiles,
   PLAYER_COLORS, PLAYER_DEEP, PLAYER_INK, PLAYER_ON,
+  FeedbackPill,
 } from '@/components/ui';
 import { ChessTable, MatchSummary, ResultHeader, Confetti, Thinking } from '@/components/GameParts';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playWordAppear, playFreeze, playYourTurn } from '@/lib/sounds';
@@ -608,15 +609,10 @@ export function RaceGame({ roomState, setRoomState, applyServerState, myRole, ro
       {/* ===== الإدخال ===== */}
       <div className="shrink-0 px-3 pb-2 pt-1">
         <div className="h-7 flex items-center justify-center">
-          {localFeedback && (
-            <div className="slide-in font-display font-black rounded-full px-3 py-0.5 text-white"
-              style={{ fontSize: '0.85rem', background: localFeedback.ok ? '#22c55e' : '#ff4d6d', boxShadow: `0 3px 0 ${localFeedback.ok ? '#15803d' : '#b3123a'}` }}>
-              {localFeedback.text}
-            </div>
-          )}
+          {localFeedback && <FeedbackPill ok={localFeedback.ok} text={localFeedback.text} />}
         </div>
         <div className="flex items-stretch gap-2">
-          <WordBox value={input} tone={isFrozen ? 'frozen' : 'normal'}
+          <WordBox value={input} tone={isFrozen ? 'frozen' : 'normal'} okKey={myScore} shake={!!localFeedback && !localFeedback.ok}
             placeholder={isFrozen ? `❄ مجمّد ${freezeSecsLeft}ث` : 'اكتب كلمة...'} />
           <button onClick={submitWord} onPointerDown={e => e.preventDefault()} disabled={!input.trim() || timeLeft <= 0 || isFrozen} aria-label="إرسال"
             className="btn-3d shrink-0 w-14 rounded-2xl flex items-center justify-center"
@@ -1654,7 +1650,7 @@ export default function Game() {
 
     const gameCard = ({ key, title, desc, from, to, sh, art, cta, onClick, badge }) => (
       <button key={key} onClick={onClick}
-        className="btn-3d relative w-full overflow-hidden rounded-[28px] p-4 pl-3 flex items-center gap-3 text-right"
+        className="btn-3d relative w-full overflow-hidden rounded-3xl p-4 pl-3 flex items-center gap-3 text-right"
         style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)`, boxShadow: `0 7px 0 ${sh}`, border: '2px solid rgba(255,255,255,0.4)', minHeight: 148 }}>
         <span className="absolute -left-8 -bottom-10 w-36 h-36 rounded-full" style={{ background: 'rgba(255,255,255,0.12)' }} />
         <span className="absolute left-20 -top-8 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }} />
@@ -1683,7 +1679,7 @@ export default function Game() {
           <div className="flex items-center justify-between gap-2 mb-3">
             <button onClick={() => setScreen('profile')} aria-label="ملفي"
               className="flex items-center gap-2 min-w-0 rounded-full bg-white/15 hover:bg-white/25 pl-3.5 pr-1 py-1 min-h-[42px] transition-all active:scale-95">
-              <span className="w-8 h-8 rounded-[10px] flex flex-col items-center justify-center font-display font-black shrink-0 leading-none"
+              <span className="w-8 h-8 rounded-xl flex flex-col items-center justify-center font-display font-black shrink-0 leading-none"
                 style={{ background: lv.color.bg, color: lv.color.ink, boxShadow: `0 2px 0 ${lv.color.deep}` }}>
                 <bdi className="font-mono-ar text-[1.05rem]">{lv.n}</bdi>
               </span>
@@ -2177,7 +2173,7 @@ export default function Game() {
             ) : (
               <>
                 <div className="flex gap-2">
-                  <WordBox value={currentInput} tone={isMyTurn ? 'active' : 'normal'} shake={feedback?.type === 'error'}
+                  <WordBox value={currentInput} tone={isMyTurn ? 'active' : 'normal'} shake={feedback?.type === 'error'} okKey={feedback?.type === 'success' ? (roomState.usedWords?.length || 0) : 0}
                     placeholder={isMyTurn ? `كلمة تنتهي بـ ${roomState.settings.ending}` : 'جهّز كلمتك هنا…'} />
                   <button
                     onClick={submitWord} onPointerDown={e => e.preventDefault()}
@@ -2188,11 +2184,9 @@ export default function Game() {
                     <Check className="w-7 h-7" strokeWidth={3.2} />
                   </button>
                 </div>
-                <div className="h-5 mt-1.5 text-center text-sm font-display">
+                <div className="min-h-[1.6rem] mt-1.5 text-center text-sm font-display">
                   {feedback ? (
-                    <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
-                      {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
-                    </span>
+                    <FeedbackPill ok={feedback.type === 'success'} text={feedback.type === 'success' ? '✓ ' + feedback.text : feedback.text} />
                   ) : !isMyTurn && currentInput.trim() ? (
                     <span className="text-muted font-bold text-xs">جاهزة ✓ — ترسلها أول ما يجي دورك</span>
                   ) : null}
@@ -2597,12 +2591,8 @@ function LocalGame({ roomState, setRoomState, onGameOver }) {
               </div>
             </div>
           ) : (
-            <div className="h-5 mt-1.5 text-center text-sm font-display">
-              {feedback && (
-                <span className={`slide-in inline-flex items-center gap-1.5 ${feedback.type === 'success' ? 'text-[#16a34a]' : 'text-[#e11d48]'} font-bold`}>
-                  {feedback.type === 'success' && <Sparkles className="w-4 h-4" />}{feedback.text}
-                </span>
-              )}
+            <div className="min-h-[1.6rem] mt-1.5 text-center text-sm font-display">
+              {feedback && <FeedbackPill ok={feedback.type === 'success'} text={feedback.type === 'success' ? '✓ ' + feedback.text : feedback.text} />}
             </div>
           )}
         </Card>

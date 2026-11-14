@@ -89,7 +89,7 @@ export default function Celebrate() {
     <div className="fixed left-0 right-0 z-[60] flex justify-center px-4 pointer-events-none" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 10px)' }}>
       <button key={cur.key} onClick={() => setQueue(q => q.slice(1))}
         className="celebrate-drop pointer-events-auto w-full max-w-sm flex items-center gap-3 rounded-3xl bg-[var(--card)] px-3 py-2.5 text-right"
-        style={{ boxShadow: '0 6px 0 var(--edge), 0 18px 30px -12px rgba(20,5,60,0.7)', border: '2px solid var(--line)' }}>
+        style={{ boxShadow: '0 5px 0 var(--edge), 0 18px 30px -12px rgba(20,5,60,0.7)', border: '2px solid var(--line)' }}>
         {cur.kind === 'badge' ? (
           <BadgeArt {...cur.badge.art} className="w-[54px] h-[60px] shrink-0 word-pop" />
         ) : (

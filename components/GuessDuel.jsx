@@ -152,9 +152,10 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     return k;
   }, [myGuesses]);
 
-  const flash = useCallback((text, ms = 1400) => {
+  // tone: 'error' = رسالة رفض حمراء (نفس شكل باقي الألعاب)
+  const flash = useCallback((text, ms = 1400, tone = null) => {
     clearTimeout(toastTimer.current);
-    setToast(text);
+    setToast(tone ? { text, tone } : text);
     toastTimer.current = setTimeout(() => setToast(null), ms);
   }, []);
   useEffect(() => () => { clearTimeout(toastTimer.current); clearTimeout(resignTimer.current); }, []);
@@ -200,13 +201,13 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
     if ([...word].length !== len) {
       playReject();
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash(`الكلمة لازم تكون ${len} أحرف`);
+      flash(`الكلمة لازم تكون ${len} أحرف`, 1400, 'error');
       return;
     }
     if (!KNOWN[len].has(word) && word !== normalizeGuess(answer) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      flash('مو في قاموسنا 🤔 — اضغط تأكيد مرة ثانية', 2200);
+      flash('مو في قاموسنا 🤔 — اضغط تأكيد مرة ثانية', 2200, 'error');
       return;
     }
     setCurrent('');
@@ -351,9 +352,9 @@ export default function GuessDuel({ roomState, myRole, connected, onSubmitGuess,
         <GuessBoard rows={rows} len={len} revealing={iAmSetter ? -1 : revealing} shakeRow={shakeRow} compact winRow={iAmSetter ? -1 : winRow} />
         {burst && <WinBurst text={burst} />}
         {toast && (
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 text-[var(--ink)] bg-[var(--card)] max-w-[calc(100%-24px)] text-center z-10"
-            style={{ boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
-            {toast}
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 slide-in font-display font-black rounded-full px-4 py-1.5 max-w-[calc(100%-24px)] text-center z-10"
+            style={toast.tone === 'error' ? { background: '#ff4d6d', color: '#fff', boxShadow: '0 3px 0 #b3123a', fontSize: '0.9rem' } : { background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 4px 0 var(--edge)', fontSize: '0.9rem' }}>
+            {toast.text ?? toast}
           </div>
         )}
         {false && (
@@ -399,7 +400,7 @@ function RoundBreak({ roomState, myRole, oppName, onNextRound }) {
   const title = w === 0 ? '🤝 تعادل في هالجولة' : w === myRole ? '🏆 حليتها أول!' : '⚡ ' + oppName + ' حلّها أول';
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#1e0b4b]/60 fade-in">
-      <div className="w-full max-w-sm rounded-3xl p-5 text-center slide-in" style={{ background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 6px 0 var(--edge)' }}>
+      <div className="w-full max-w-sm rounded-3xl p-5 text-center slide-in" style={{ background: 'var(--card)', color: 'var(--ink)', boxShadow: '0 5px 0 var(--edge)' }}>
         <div className="font-display font-black text-2xl" style={{ color: w === myRole ? '#16a34a' : w === 0 ? 'var(--ink-2)' : PLAYER_COLORS[oppRole] }}>{title}</div>
         <div className="text-sm font-display font-bold mt-1" style={{ color: 'var(--muted-c)' }}>الكلمة كانت <b style={{ color: 'var(--ink)' }}>{roomState.answer}</b></div>
         <div className="flex items-center justify-center gap-5 my-4">

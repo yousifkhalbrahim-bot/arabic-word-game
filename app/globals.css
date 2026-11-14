@@ -290,7 +290,7 @@ html { background: #4f46e5; }
   color: rgb(var(--c-text));
   background: var(--card);
   border: 3px solid #f1edff;
-  box-shadow: 0 7px 0 var(--lav), 0 18px 30px -16px rgba(30, 10, 80, 0.55);
+  box-shadow: 0 5px 0 var(--lav), 0 18px 30px -16px rgba(30, 10, 80, 0.55);
 }
 /* لوحة زجاجية فوق التدرج */
 .glass {
@@ -504,7 +504,7 @@ html[data-theme="dark"] .arcade-bg::after { background: radial-gradient(ellipse 
 html[data-theme="dark"] .floaty { color: rgba(255,255,255,0.05); }
 html[data-theme="dark"] .wood-card,
 html[data-theme="dark"] .on-light { --c-text: 243 240 255; --c-muted: 180 168 220; --c-dim: 150 135 210; }
-html[data-theme="dark"] .wood-card { border-color: #2f2760; box-shadow: 0 7px 0 var(--edge), 0 18px 30px -16px rgba(0,0,0,0.7); }
+html[data-theme="dark"] .wood-card { border-color: #2f2760; box-shadow: 0 5px 0 var(--edge), 0 18px 30px -16px rgba(0,0,0,0.7); }
 html[data-theme="dark"] .choice-tile { background: var(--soft); border-color: var(--line); color: var(--ink-2); box-shadow: 0 4px 0 #1a1440; }
 html[data-theme="dark"] .letter-tile,
 html[data-theme="dark"] .ending-badge { background: #2d255c; color: #f3f0ff; border-color: #3d3378; box-shadow: 0 6px 0 var(--edge); }
@@ -616,3 +616,14 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
   0% { transform: scale(1, 1) } 20% { transform: scale(1.18, .78) } 40% { transform: scale(.9, 1.12) rotate(-6deg) }
   60% { transform: scale(1.04, .96) rotate(5deg) } 80% { transform: rotate(-2deg) } 100% { transform: none }
 }
+
+/* الكلمة انقبلت: وميض أخضر سريع على مكان الإجابة */
+@keyframes word-ok-flash {
+  0%   { background: #dcfce7; border-color: #22c55e; box-shadow: 0 5px 0 #15803d; }
+  100% { }
+}
+.word-ok-flash { animation: word-ok-flash .45s ease-out; }
+
+/* انتقال ناعم بين الشاشات: كل شاشة جديدة تدخل بسرعة من تحت شوي */
+@keyframes screen-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.app-fixed, .safe-screen { animation: screen-in .22s cubic-bezier(.2,.8,.3,1) backwards; }

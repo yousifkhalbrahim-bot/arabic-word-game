@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowRight, Target, Trophy, RotateCcw, SkipForward, Flame, Play, Check, HelpCircle, X, Share2 } from 'lucide-react';
-import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles } from '@/components/ui';
+import { ArcadeBg, Card, Choice, Btn, WordChip, Num, LetterTiles, FeedbackPill } from '@/components/ui';
 import { Confetti } from '@/components/GameParts';
 import { awardPoints, racePoints } from '@/lib/points';
 import { haptic, publicUrl, shareContent } from '@/lib/native';
@@ -258,7 +258,7 @@ ${url}`;
             <div className="flex justify-center pt-12 mb-1"><AbuShmagh mood="win" say={result.line} size={110} /></div>
           ) : (
           <div className="mx-auto mb-2 w-16 h-16 rounded-2xl flex items-center justify-center bounce-gentle rotate-[-6deg]"
-            style={{ background: '#ffb020', boxShadow: '0 6px 0 #b86b00', border: '3px solid rgba(255,255,255,0.6)' }}>
+            style={{ background: '#ffb020', boxShadow: '0 5px 0 #b86b00', border: '3px solid rgba(255,255,255,0.6)' }}>
             <Trophy className="w-8 h-8 text-[#4a2400]" strokeWidth={2.6} />
           </div>
           )}
@@ -366,15 +366,10 @@ ${url}`;
       {/* مكان الإجابة: يعرض اللي تكتبه بكيبورد اللعبة */}
       <div className="shrink-0">
         <div className="h-8 flex items-center justify-center">
-          {feedback && (
-            <div className="slide-in font-display font-black rounded-full px-3 py-0.5 text-white"
-              style={{ fontSize: '0.85rem', background: feedback.ok ? '#22c55e' : '#ff4d6d', boxShadow: `0 3px 0 ${feedback.ok ? '#15803d' : '#b3123a'}` }}>
-              {feedback.text}
-            </div>
-          )}
+          {feedback && <FeedbackPill ok={feedback.ok} text={feedback.text} />}
         </div>
         <div className="flex items-stretch gap-2">
-          <WordBox value={input} placeholder={`كلمة تنتهي بـ ${ending}`} shake={!!feedback && !feedback.ok} />
+          <WordBox value={input} placeholder={`كلمة تنتهي بـ ${ending}`} shake={!!feedback && !feedback.ok} okKey={words.length} />
           <button onClick={skip} disabled={timeLeft <= SKIP_COST_SECONDS} aria-label="تجاوز"
             className="btn-3d shrink-0 rounded-2xl px-3 flex flex-col items-center justify-center font-display font-black text-[0.78rem]"
             style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', boxShadow: '0 4px 0 rgba(0,0,0,0.18)', border: '2px solid rgba(255,255,255,0.25)' }}>

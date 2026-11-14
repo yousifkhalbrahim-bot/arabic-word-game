@@ -213,7 +213,7 @@ export function ResultHeader({ isDraw, winnerName, winnerPlayer, subtitle, sides
   return (
     <div className="text-center">
       <div className="mx-auto mb-2 w-16 h-16 rounded-2xl flex items-center justify-center bounce-gentle rotate-[-6deg]"
-        style={{ background: isDraw ? '#fff' : wColor, boxShadow: `0 6px 0 ${isDraw ? '#c4b5fd' : PLAYER_DEEP[winnerPlayer]}`, border: '3px solid rgba(255,255,255,0.6)' }}>
+        style={{ background: isDraw ? '#fff' : wColor, boxShadow: `0 5px 0 ${isDraw ? '#c4b5fd' : PLAYER_DEEP[winnerPlayer]}`, border: '3px solid rgba(255,255,255,0.6)' }}>
         {isDraw
           ? <Sparkles className="w-8 h-8 text-[#7c3aed]" strokeWidth={2.6} />
           : <Trophy className="w-8 h-8" style={{ color: PLAYER_ON[winnerPlayer] }} strokeWidth={2.6} />}

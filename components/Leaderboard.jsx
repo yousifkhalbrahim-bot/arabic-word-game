@@ -48,7 +48,7 @@ export default function Leaderboard({ onExit }) {
             : big && r ? 'linear-gradient(180deg, rgba(255,176,32,0.38), rgba(255,255,255,0.12))'
             : 'rgba(255,255,255,0.14)',
           border: `2px solid ${r ? c.bg : 'rgba(255,255,255,0.15)'}`,
-          boxShadow: r ? `0 6px 0 ${big ? c.sh : 'rgba(30,10,80,0.35)'}` : 'none',
+          boxShadow: r ? `0 5px 0 ${big ? c.sh : 'rgba(30,10,80,0.35)'}` : 'none',
           animationDelay: `${(place === 1 ? 0 : place === 2 ? 120 : 220)}ms`,
         }}>
         <Crown className={big ? 'w-8 h-8' : 'w-6 h-6'} fill={r ? c.crown : 'transparent'} strokeWidth={1.8}
