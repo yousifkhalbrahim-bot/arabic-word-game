@@ -663,7 +663,6 @@ export default function Game() {
   const [selectedMode, setSelectedMode] = useState('chess');
   const [homeTab, setHomeTab] = useState('solo');
   const [myPoints, setMyPoints] = useState(null);
-  const [weekTop, setWeekTop] = useState([]);
   const [pointsGain, setPointsGain] = useState(0);
   const [nameOpen, setNameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -808,7 +807,7 @@ export default function Game() {
   }, []);
   useEffect(() => {
     if (screen === 'menu') {
-      fetchLeaderboard('week').then(r => { if (r?.top) setWeekTop(r.top.slice(0, 3)); });
+      fetchLeaderboard('week');
       fetchLeaderboard('all');
     }
     if (screen !== 'gameover' && screen !== 'local-gameover') setPointsGain(0);
@@ -1752,20 +1751,6 @@ export default function Game() {
               </span>
             </span>
 
-            {/* أول 3 */}
-            {weekTop.length > 0 ? (
-              <span className="shrink-0 flex items-center" dir="ltr">
-                {weekTop.map((r, i) => (
-                  <span key={i} className="relative -ml-2 first:ml-0" style={{ zIndex: 3 - i }}>
-                    <span className="w-9 h-9 rounded-full flex items-center justify-center font-display font-black text-sm border-[3px] border-white"
-                      style={{ background: ['#ffb020', '#a5b4fc', '#fb923c'][i], color: 'var(--ink)' }}>
-                      {(r.name || '؟').slice(0, 1)}
-                    </span>
-                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[0.75rem] leading-none">{['🥇', '🥈', '🥉'][i]}</span>
-                  </span>
-                ))}
-              </span>
-            ) : null}
             <ChevronLeft className="w-5 h-5 text-[#c4b5fd] shrink-0" strokeWidth={3} />
           </button>
 
