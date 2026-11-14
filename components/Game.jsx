@@ -29,7 +29,7 @@ import { AbuShmagh } from '@/components/AbuShmagh';
 import { phraseFor } from '@/lib/abu';
 import { applyTheme, watchSystemTheme } from '@/lib/settings';
 import { awardOnce, cachedPoints, fetchLeaderboard, renamePlayer, POINTS } from '@/lib/points';
-import { isOffensive, OFFENSIVE_MSG } from '@/lib/profanity';
+import { isOffensive, OFFENSIVE_MSG, nameProblem } from '@/lib/profanity';
 import GuessGame, { MiniBoard } from '@/components/GuessGame';
 import GuessDuel, { settleRound, DUEL_SECONDS, ROUND_SECONDS, newMatch, isRoundBreak } from '@/components/GuessDuel';
 import { LENGTHS as GUESS_LENGTHS, randomAnswer, normalizeGuess } from '@/lib/guess';
@@ -841,7 +841,8 @@ export default function Game() {
   const saveMyName = useCallback(() => {
     const n = nameDraft.trim().slice(0, 20);
     if (!n) return;
-    if (isOffensive(n)) { setNameErr(OFFENSIVE_MSG); return; }
+    const bad = nameProblem(n);
+    if (bad) { setNameErr(bad); return; }
     setNameErr('');
     saveName(n);
     setHostName(n);
@@ -854,7 +855,8 @@ export default function Game() {
   const applyName = useCallback((raw) => {
     const n = (raw || '').trim().slice(0, 20);
     if (!n) return 'اكتب اسمك';
-    if (isOffensive(n)) return OFFENSIVE_MSG;
+    const bad = nameProblem(n);
+    if (bad) return bad;
     saveName(n);
     setHostName(n);
     setJoinName(n);
@@ -1063,7 +1065,7 @@ export default function Game() {
   // ============== الإجراءات ==============
   const createRoom = useCallback(async () => {
     if (!hostName.trim()) { setGlobalError('اكتب اسمك أولاً'); return; }
-    if (isOffensive(hostName)) { setGlobalError(OFFENSIVE_MSG); return; }
+    if (nameProblem(hostName)) { setGlobalError(nameProblem(hostName)); return; }
     if (selectedMode === 'guess' && guessCustom && (isOffensive(secretWord) || isOffensive(secretClue))) { setGlobalError(OFFENSIVE_MSG); return; }
     const finalEnding = ENDING_PRESETS[Math.floor(Math.random() * ENDING_PRESETS.length)].value;
     if (selectedMode === 'chess' && !finalEnding) { setGlobalError('اختر نهاية الكلمات'); return; }
@@ -1123,7 +1125,7 @@ export default function Game() {
   const confirmJoin = useCallback(async () => {
     const myName = (hostName || joinName).trim();
     if (!myName) { setGlobalError('اكتب اسمك'); return; }
-    if (isOffensive(myName)) { setGlobalError(OFFENSIVE_MSG); return; }
+    if (nameProblem(myName)) { setGlobalError(nameProblem(myName)); return; }
     setBusy(true);
     setGlobalError(null);
     try {
