@@ -1,14 +1,21 @@
 words-ar.txt — Arabic word list for لعبة الكلمات
 
-Derived from FrequencyWords by Hermit Dave (ar_50k.txt, OpenSubtitles 2018):
-https://github.com/hermitdave/FrequencyWords
+Built from two open word-frequency lists:
 
-The word-frequency content is licensed under Creative Commons
-Attribution-ShareAlike 4.0 (CC BY-SA 4.0):
-https://creativecommons.org/licenses/by-sa/4.0/
+1) FrequencyWords by Hermit Dave (ar_full.txt, OpenSubtitles 2018)
+   https://github.com/hermitdave/FrequencyWords
+   Licensed under Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0):
+   https://creativecommons.org/licenses/by-sa/4.0/
 
-Changes: filtered to the 40,000 most frequent entries, Arabic letters only,
-3–10 letters, removed words with attached prefixes (ال، و، ف، ب، ل، ك، س),
-removed inappropriate words and words already in the game's core dictionary.
-This derived list is shared under the same CC BY-SA 4.0 license.
-Build script: scripts/build-wordlist.mjs
+2) wikipedia-word-frequency by Ilya Semenov (arwiki-2022-08-29.txt)
+   https://github.com/IlyaSemenov/wikipedia-word-frequency
+   MIT License, Copyright (c) 2015 Ilya Semenov
+
+Changes: Arabic letters only, 2–10 letters (2-letter words only when very
+common in both lists), a word must appear in the subtitles list (40+ times,
+or 4+ times and 12+ times in Wikipedia), removed words with attached prefixes
+(ال، و، ف، ب، ل، ك، س) when the bare word is more common, removed
+inappropriate words, foreign names (scripts/wordlist-exclude.txt) and words
+already in the game's core dictionary; added scripts/wordlist-include.txt.
+This derived list is shared under CC BY-SA 4.0.
+Build script: scripts/build-wordlist.mjs, then scripts/clean-wordlist.mjs
