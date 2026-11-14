@@ -539,15 +539,19 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
 @keyframes abu-jump { 0% { transform: translateY(0) scale(1.08,.9) } 40% { transform: translateY(-34px) scale(.95,1.06) } 100% { transform: translateY(0) scale(1,1) } }
 .abu.st-win .abu-armR { animation: abu-throw-arm 1.6s ease-in-out 1 both; }
 @keyframes abu-throw-arm { 0% { transform: rotate(0) } 35% { transform: rotate(-160deg) } 55% { transform: rotate(-40deg) } 100% { transform: rotate(0) } }
-.abu.st-win .abu-agal { animation: abu-throw-agal 2.2s cubic-bezier(.45,0,.4,1) 1 both; }
+/* وقت الرمية: العقال اللي على راسه (نص دائرة) يختفي، ويطير بداله عقال دائري كامل، وبعدين يرجع على راسه */
+.abu .abu-agal-ring { opacity: 0; transform-origin: center; }
+.abu.st-win .abu-agal, .abu.st-win .abu-agal-back { animation: abu-agal-off 2.2s linear 1 both; }
+@keyframes abu-agal-off { 0%, 4% { opacity: 1 } 7%, 88% { opacity: 0 } 100% { opacity: 1 } }
+.abu.st-win .abu-agal-ring { animation: abu-throw-agal 2.2s cubic-bezier(.45,0,.4,1) 1 both; }
 @keyframes abu-throw-agal {
-  0%   { transform: translate(0,0) rotate(0) scale(1); opacity: 1 }
+  0%   { transform: translate(0,0) rotate(0) scale(1); opacity: 0 }
+  5%   { opacity: 1 }
   30%  { transform: translate(40px,-40px) rotate(-30deg) scale(1.1) }
   62%  { transform: translate(-10px,70px) rotate(380deg) scale(5.2); opacity: 1 }
   70%  { transform: translate(-10px,74px) rotate(388deg) scale(5.6); opacity: 1 }
   86%  { transform: translate(-10px,120px) rotate(400deg) scale(5.6); opacity: 0 }
-  87%  { transform: translate(0,0) scale(.2); opacity: 0 }
-  100% { transform: translate(0,0) scale(1); opacity: 1 }
+  100% { transform: translate(0,0) scale(1); opacity: 0 }
 }
 .abu.st-win .abu-spark { animation: abu-spark 1.2s ease-out .2s 2; }
 @keyframes abu-spark { 0% { opacity: 0; transform: scale(.3) } 30% { opacity: 1; transform: scale(1.15) } 100% { opacity: 0; transform: scale(.8) rotate(40deg) } }
@@ -595,8 +599,6 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
   font-size: .95rem; border-radius: 16px 16px 16px 4px; animation-name: abu-pop-up; }
 .abu-bubble.abu-bubble-upleft::after { left: 20px; margin-left: 0; }
 @keyframes abu-pop-up { from { transform: scale(0) } to { transform: scale(1) } }
-/* وقت رمية العقال نخفي الجهة الورا */
-.abu.st-win .abu-agal-back { opacity: 0; }
 .abu.st-sad .abu-agal-back { animation: abu-droop .8s ease-out 1 both; }
 .abu-say-sub { font-size: .72rem; font-weight: 700; color: #6d5b95; margin-top: 2px; }
 /* فقاعة جنب أبو شماغ (في الرئيسية) */
