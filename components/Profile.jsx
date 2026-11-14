@@ -30,6 +30,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
   const [cache, setCache] = useState(null);
   const [guessStats, setGuessStats] = useState({});
   const [endBest, setEndBest] = useState({});
+  const [endStats, setEndStats] = useState(null);
   const [len, setLen] = useState(3);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
@@ -54,6 +55,7 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
     setGuessStats(gs);
     const eb = {};
     for (const { s } of ENDING_TIMES) eb[s] = readInt(`wg:solo-best:${s}`);
+    setEndStats(readJSON('wg:solo-stats', null));
     setEndBest(eb);
     if ((gs[5]?.played || 0) > (gs[3]?.played || 0)) setLen(5);
 
@@ -270,17 +272,43 @@ export default function Profile({ name, onSaveName, onExit, onLeaderboard }) {
         </Section>
 
         {/* ===== تحدي النهايات ===== */}
-        <Section title="⏱ تحدي النهايات" aside={<span className="text-[0.75rem] font-display font-bold text-white/75">أفضل نتيجة</span>}>
-          <div className="grid grid-cols-1 gap-2 text-center">
-            {ENDING_TIMES.map(({ s, label }) => (
-              <div key={s} className="rounded-2xl py-2.5" style={endBest[s] ? { background: 'var(--gold-soft)', border: '2px solid var(--gold-line)' } : { background: 'var(--soft)', border: '2px solid transparent' }}>
-                <div className="font-display font-black text-2xl leading-tight" style={{ color: endBest[s] ? 'var(--gold-ink)' : 'var(--edge)' }}>
-                  {endBest[s] ? <Num>{endBest[s]}</Num> : '—'}
+        <Section title="⏱ تحدي النهايات" aside={<span className="text-[0.75rem] font-display font-bold text-white/75">دقيقتين</span>}>
+          {(() => {
+            const best = Math.max(0, ...Object.values(endBest));
+            const st = endStats;
+            if (!best && !st?.played) return <div className="text-center text-sm font-display font-bold text-[var(--muted-c)] py-4">ما لعبت تحدي النهايات للحين 🙂</div>;
+            const avg = st?.played ? Math.round(st.words / st.played) : 0;
+            const last = st?.last || [];
+            const top = Math.max(1, best, ...last);
+            return (
+              <>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {[['🏆 أفضل', best], ['لعبت', st?.played || 0], ['المعدل', avg], ['🔥 أطول ستريك', st?.bestStreak || 0]].map(([l, v]) => (
+                    <div key={l}>
+                      <div className="font-display font-black text-[1.35rem] leading-tight"><Num>{v}</Num></div>
+                      <div className="text-[0.72rem] font-display font-bold text-[var(--muted-c)]">{l}</div>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-[0.78rem] font-display font-bold text-[var(--muted-c)]">{label}</div>
-              </div>
-            ))}
-          </div>
+                {last.length > 0 && (
+                  <>
+                    <div className="h-px bg-[var(--line)] my-3" />
+                    <div className="flex justify-between text-[0.75rem] font-display font-bold text-[var(--muted-c)] mb-2">
+                      <span>آخر جولاتك</span><span>كل كلماتك: <Num>{st.words}</Num></span>
+                    </div>
+                    <div className="flex items-end gap-1.5 h-[84px]" dir="ltr">
+                      {last.map((n, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
+                          <span className="font-display font-black text-[0.72rem] text-[var(--ink)]"><Num>{n}</Num></span>
+                          <div className="w-full rounded-md" style={{ height: Math.max(6, (n / top) * 58), background: n === best && n > 0 ? '#ffb020' : '#a78bfa' }} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </Section>
 
         {/* ===== الإعدادات ===== */}

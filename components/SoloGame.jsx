@@ -130,11 +130,19 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       try { window.dispatchEvent(new Event('wg:stats')); } catch {}
       setBests(b => ({ ...b, [duration]: score }));
     }
+    // إحصائيات تحدي النهايات (تطلع في ملفي)
+    try {
+      const st = JSON.parse(localStorage.getItem('wg:solo-stats') || 'null') || { played: 0, words: 0, bestStreak: 0, skips: 0, last: [] };
+      st.played += 1; st.words += score; st.skips += skips;
+      st.bestStreak = Math.max(st.bestStreak, bestStreak);
+      st.last = [...st.last, score].slice(-10);
+      localStorage.setItem('wg:solo-stats', JSON.stringify(st));
+    } catch {}
     const recBulbs = isRecord && prevBest > 0 ? queueBulbs(EARN.record) : 0;   // رقم قياسي (مو أول جولة)
     setResult({ score, prevBest, isRecord, recBulbs, pts: racePoints(score), line: isRecord ? phraseFor('record') : '' });
     if (score > 0) awardPoints(racePoints(score), false);
     setPhase('done');
-  }, [phase, timeLeft, words.length, duration]);
+  }, [phase, timeLeft, words.length, duration, bestStreak, skips]);
 
   // نقرات آخر ٥ ثوانٍ
   useEffect(() => {
