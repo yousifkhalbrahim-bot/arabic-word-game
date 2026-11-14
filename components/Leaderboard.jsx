@@ -5,6 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, Loader2, Star, Users, Clock, Crown, Trophy } from 'lucide-react';
 import { ArcadeBg, Num } from '@/components/ui';
 import { fetchLeaderboard, POINTS } from '@/lib/points';
+import { AbuShmagh } from '@/components/AbuShmagh';
+import { useOutfit } from '@/lib/wardrobe';
 
 // ألوان المراكز: ذهبي، فضي، برونزي
 const PLACE = {
@@ -18,6 +20,9 @@ export default function Leaderboard({ onExit }) {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [showHow, setShowHow] = useState(false);
+  const myOutfit = useOutfit();
+  // لبس أبو شماغ حق كل لاعب (حقي من الجهاز عشان يتحدث على طول)
+  const wearOf = (r) => (r?.me ? myOutfit : Array.isArray(r?.outfit) ? r.outfit : []);
 
   useEffect(() => {
     let alive = true;
@@ -53,9 +58,13 @@ export default function Leaderboard({ onExit }) {
         }}>
         <Crown className={big ? 'w-8 h-8' : 'w-6 h-6'} fill={r ? c.crown : 'transparent'} strokeWidth={1.8}
           style={{ color: r ? c.sh : 'rgba(255,255,255,0.35)' }} />
-        <div className={`${big ? 'w-16 h-16 text-[2.2rem]' : 'w-12 h-12 text-[1.6rem]'} -mt-0.5 rounded-2xl flex items-center justify-center font-display font-black`}
-          style={r ? { background: c.bg, color: c.ink, boxShadow: `0 4px 0 ${c.sh}`, border: '2px solid rgba(255,255,255,0.6)' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
-          <Num>{place}</Num>
+        {/* أبو شماغ حق اللاعب بلبسه + رقم المركز */}
+        <div className="relative -mt-0.5">
+          <div className={r ? '' : 'opacity-30 grayscale'}><AbuShmagh mood="still" outfit={wearOf(r)} size={big ? 64 : 50} /></div>
+          <div className={`absolute -bottom-1 -left-1 ${big ? 'w-8 h-8 text-[1.1rem]' : 'w-7 h-7 text-[0.95rem]'} rounded-xl flex items-center justify-center font-display font-black`}
+            style={r ? { background: c.bg, color: c.ink, boxShadow: `0 3px 0 ${c.sh}`, border: '2px solid rgba(255,255,255,0.7)' } : { background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.5)' }}>
+            <Num>{place}</Num>
+          </div>
         </div>
         <div className={`mt-2 w-full text-center font-display font-black truncate ${big ? 'text-[1.05rem]' : 'text-[0.9rem]'}`}
           style={{ color: r?.me ? '#2e1065' : '#fff' }}>
@@ -87,6 +96,7 @@ export default function Leaderboard({ onExit }) {
           style={highlight ? { background: 'rgba(255,255,255,0.45)' } : { background: 'var(--soft)', color: 'var(--ink-2)', boxShadow: '0 2px 0 var(--edge)' }}>
           <Num>{rank}</Num>
         </div>
+        <div className="shrink-0 -my-1"><AbuShmagh mood="still" outfit={wearOf(r)} size={36} /></div>
         <div className="flex-1 min-w-0">
           <div className="font-display font-black truncate">
             {r.name || 'أنت'}{highlight && r.name && <span className="text-xs opacity-75 mr-1">(أنت)</span>}
@@ -179,7 +189,7 @@ export default function Leaderboard({ onExit }) {
       {/* ترتيبك (لو مو ظاهر فوق) */}
       {me && !meInTop && cur && !cur.error && (
         <div className="shrink-0 px-4 pb-3 pt-1">
-          {me.score > 0 ? row({ name: me.name || '', score: me.score, streak: me.streak }, me.rank, true) : (
+          {me.score > 0 ? row({ name: me.name || '', score: me.score, streak: me.streak, me: true }, me.rank, true) : (
             // ما عنده نقاط: لا نطلّع له مركز
             <button onClick={onExit}
               className="w-full flex items-center justify-between gap-3 rounded-2xl px-4 min-h-[58px] bg-[var(--card)] text-[var(--ink)] font-display font-black active:scale-[0.98] transition-all"

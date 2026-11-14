@@ -15,7 +15,7 @@ import { playAccept, playReject, playGameOver, playStreak, playKey, playReveal, 
 import { publicUrl, shareContent, haptic } from '@/lib/native';
 import { awardPoints, guessPoints, reportStreak } from '@/lib/points';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
-import { phraseFor, abuSay } from '@/lib/abu';
+import { phraseFor, abuMiss, abuHit } from '@/lib/abu';
 import { getBulbs, syncBulbs, spendBulbs, queueBulbs, claimDailyWin, HINT_TYPES, revealLimit, elimCount, bulbsEarned, BULB_MAX } from '@/lib/bulbs';
 
 // نسخة طبق الأصل من كيبورد الآيفون العربي (من اليسار لليمين كما يظهر على الشاشة)
@@ -230,14 +230,17 @@ export default function GuessGame({ onExit }) {
       playReject();
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
       flash(`الكلمة لازم تكون ${len} أحرف`, 1400, 'error');
+      abuMiss();
       return;
     }
     if (!KNOWN[len].has(word) && confirmUnknown !== word) {
       setConfirmUnknown(word);
       setShakeRow(true); setTimeout(() => setShakeRow(false), 450);
-      abuSay('unknown', undefined, 'لو متأكد منها اضغط تأكيد مرة ثانية');
+      flash('مو في القاموس — لو متأكد منها اضغط تأكيد مرة ثانية', 2400, 'error');
+      abuMiss();
       return;
     }
+    abuHit();
 
     const result = evaluateGuess(word, answer);
     const next = [...guesses, { word, result }];
@@ -321,7 +324,7 @@ export default function GuessGame({ onExit }) {
     setElims(e => [...e, ...picked]);
     setElimUses(u => u + 1);
     setShowHints(false);
-    playAccept(); haptic('light'); abuSay('think');
+    playAccept(); haptic('light');
     flash(`🧹 طفّينا ${picked.length} حروف مو في الكلمة`);
   }, [busy, status, hintsLocked, elimUses, elimCandidates, spend, len, flash]);
 
@@ -338,7 +341,6 @@ export default function GuessGame({ onExit }) {
     const nh = [...hints, i];
     setHints(nh);
     playAccept();
-    if (mode !== 'rush') abuSay('think');
     if (mode === 'daily') save(dailyKey(len, day), { guesses, status, hints: nh });
     if (mode === 'rush') { setRushEndsAt(t => t - RUSH_HINT_COST * 1000); flash(`💡 −${RUSH_HINT_COST} ثواني`); }
   }, [busy, status, hints, maxHints, hintsLocked, answer, guesses, mode, len, day, flash, spend]);

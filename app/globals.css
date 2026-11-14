@@ -525,7 +525,7 @@ html[data-theme="dark"] .info-list { --c-text: 243 240 255; --c-muted: 180 168 2
 .abu .abu-armL { transform-origin: 100% 0%; }
 .abu .abu-whole { transform-origin: 50% 100%; }
 .abu .abu-face, .abu .abu-tear, .abu .abu-dots, .abu .abu-spark { opacity: 0; }
-.abu.st-idle .f-hi, .abu.st-hi .f-hi, .abu.st-win .f-win, .abu.st-streak .f-win, .abu.st-sad .f-sad, .abu.st-think .f-think { opacity: 1; }
+.abu.st-still .f-hi, .abu.st-idle .f-hi, .abu.st-hi .f-hi, .abu.st-win .f-win, .abu.st-streak .f-win, .abu.st-sad .f-sad, .abu.st-think .f-think { opacity: 1; }
 
 .abu.st-idle .abu-whole { animation: abu-breathe 2.4s ease-in-out infinite; }
 @keyframes abu-breathe { 0%,100% { transform: scale(1,1) } 50% { transform: scale(1.025,.975) } }

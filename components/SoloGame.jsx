@@ -9,7 +9,7 @@ import { haptic, publicUrl, shareContent } from '@/lib/native';
 import { AbuShmagh, AbuCorner } from '@/components/AbuShmagh';
 import { WordKeyboard, WordBox, useWordTyping } from '@/components/WordKeys';
 import { queueBulbs, EARN } from '@/lib/bulbs';
-import { abuSay, phraseFor } from '@/lib/abu';
+import { phraseFor, abuMiss, abuHit } from '@/lib/abu';
 import { checkRaceWord, shuffledEndingQueue, endingAt } from '@/lib/rules';
 import { playAccept, playReject, playSkip, playTick, playGameOver, playStreak } from '@/lib/sounds';
 
@@ -153,17 +153,17 @@ export default function SoloGame({ endings, onExit, startDuration }) {
       playTick();
     }
     if (secs > 5) lastTickRef.current = null;
-    if (secs === 10 && !hurriedRef.current && duration > 10) { hurriedRef.current = true; abuSay('hurry'); }
   }, [timeLeft, phase, duration]);
 
   const submit = useCallback(() => {
     if (phase !== 'playing' || timeLeft <= 0 || !input.trim()) return;
     const check = checkRaceWord(input, ending, words.map(w => w.w));
     if (!check.ok) {
-      if (check.error) { playReject(); flash(false, check.error); if (check.error === 'كلمة غير معروفة') abuSay('unknown'); }
+      if (check.error) { playReject(); flash(false, check.error); abuMiss(); }
       setStreak(0);
       return;
     }
+    abuHit();
     const nextStreak = streak + 1;
     setStreak(nextStreak);
     setBestStreak(b => Math.max(b, nextStreak));
@@ -172,7 +172,6 @@ export default function SoloGame({ endings, onExit, startDuration }) {
     setIndex(i => i + 1);
     setInput('');
     const best = bests[duration] || 0;
-    if (best > 0 && words.length + 1 === best + 1) abuSay('record');
     flash(true, best > 0 && words.length + 1 === best + 1 ? '🏆 كسرت رقمك القياسي!'
       : nextStreak % STREAK_EVERY === 0 ? `🔥 ${nextStreak} متتالية!` : '✓ ' + check.word);
   }, [phase, timeLeft, input, ending, words, streak, flash, bests, duration]);
