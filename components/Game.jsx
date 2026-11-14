@@ -1723,34 +1723,25 @@ export default function Game() {
             </h1>
           </div>
 
-          {/* بطاقة الترتيب */}
+          {/* بطاقة الترتيب: سطر واحد مرتب */}
           <button onClick={() => setScreen('leaderboard')}
-            className="btn-3d relative w-full overflow-hidden rounded-3xl p-3 mb-4 flex items-center gap-3 text-right bg-[var(--card)]"
-            style={{ boxShadow: '0 6px 0 var(--edge)', border: '2px solid var(--line)' }}>
-            {/* ترتيبك */}
-            <span className="relative shrink-0 w-[60px] h-[60px] rounded-2xl flex flex-col items-center justify-center"
-              style={{ background: 'linear-gradient(160deg, #ffe066 0%, #ffb020 100%)', boxShadow: '0 4px 0 #b86b00' }}>
-              {pts.week > 0 && pts.weekRank && <Trophy className="absolute -top-2 -left-2 w-6 h-6 text-[#ca8a04] rotate-[-14deg]" fill="#fde047" strokeWidth={2} />}
-              {pts.week > 0 && pts.weekRank ? (
-                <>
-                  <span className="text-[0.7rem] font-display font-black text-[#713f12] leading-none">ترتيبك</span>
-                  <span className="font-display font-black text-[1.7rem] text-[#4a2400] leading-none mt-0.5">#<bdi className="font-mono-ar">{pts.weekRank}</bdi></span>
-                </>
-              ) : (
-                <span className="text-2xl">🏆</span>
-              )}
+            className="btn-3d w-full rounded-2xl px-3 py-2 mb-4 flex items-center gap-2.5 text-right bg-[var(--card)]"
+            style={{ boxShadow: '0 4px 0 var(--edge)', border: '2px solid var(--line)' }}>
+            <span className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(160deg, #ffe066 0%, #ffb020 100%)', boxShadow: '0 3px 0 #b86b00' }}>
+              <Trophy className="w-5 h-5 text-[#4a2400]" strokeWidth={2.4} />
             </span>
-
-            {/* النص */}
             <span className="flex-1 min-w-0">
-              <span className="block font-display font-black text-[var(--ink)] text-[1.05rem] leading-tight">ترتيب الأسبوع</span>
-              <span className="block font-display font-bold text-[var(--muted-c)] text-[0.8rem] mt-0.5">
-                {pts.week > 0
-                  ? <>⭐ <bdi className="font-mono-ar">{pts.week}</bdi> نقطة هالأسبوع</>
-                  : 'العب وادخل المنافسة 🔥'}
+              <span className="block font-display font-black text-[var(--ink)] text-[0.98rem] leading-tight">ترتيب الأسبوع</span>
+              <span className="block font-display font-bold text-[var(--muted-c)] text-[0.76rem]">
+                {pts.week > 0 ? <>⭐ <bdi className="font-mono-ar">{pts.week}</bdi> نقطة هالأسبوع</> : 'العب وادخل المنافسة 🔥'}
               </span>
             </span>
-
+            {pts.week > 0 && pts.weekRank && (
+              <span className="shrink-0 rounded-full px-2.5 py-0.5 font-display font-black text-[0.9rem] text-[#4a2400]" style={{ background: '#fde047' }}>
+                المركز <bdi className="font-mono-ar">{pts.weekRank}</bdi>
+              </span>
+            )}
             <ChevronLeft className="w-5 h-5 text-[#c4b5fd] shrink-0" strokeWidth={3} />
           </button>
 
